@@ -6,6 +6,8 @@
 
 dom(1..5).
 #show a/1.
-#show 1.
-#show "b".
+#show b/1.
+
+{ b(1) }.
+
 #optimize(a).
