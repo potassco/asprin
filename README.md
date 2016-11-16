@@ -14,21 +14,21 @@ asprin version 3.0.0
 Reading from examples/example1.lp ...
 Solving...
 Answer: 
-a(3) 1 "b"
+a(3)
 OPTIMUM FOUND
 Answer: 
-a(5) 1 "b"
+a(4)
 OPTIMUM FOUND
 Answer: 
-a(1) a(2) 1 "b"
+a(1) a(2)
 Answer: 
-a(1) 1 "b"
+a(1)
 OPTIMUM FOUND
 Answer: 
-a(2) 1 "b"
+a(2)
 OPTIMUM FOUND
 Answer: 
-a(4) 1 "b"
+a(5)
 OPTIMUM FOUND
 
 Models          : 6
