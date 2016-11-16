@@ -5,7 +5,7 @@ A general framework for qualitative and quantitative optimization in answer set 
 ```bash
 $ asprin.py [files] [number_of_models] 
 ```
-Currently asprin projects on the atoms of the preference specification for computing many optimal models. 
+Currently, for computing many optimal models, asprin does projection on the atoms of the preference specification. 
 
 ## Example
 ```
