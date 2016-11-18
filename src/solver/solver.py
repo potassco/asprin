@@ -7,7 +7,7 @@
 import clingo
 import pdb
 import controller
-
+import os
 
 
 #
@@ -39,7 +39,7 @@ UNSATISFIABLE = "UNSATISFIABLE"
 OPTIMUM_FOUND = "OPTIMUM FOUND"
 
 # program names
-ENCODINGS     = "src/solver/encodings.lp"
+ENCODINGS     = os.path.dirname(os.path.realpath(__file__)) + "/encodings.lp"
 DO_HOLDS      = "_do_holds"
 PREFERENCE    = "_preference"
 NOT_UNSAT_PRG = "_not_unsat"

@@ -3,7 +3,7 @@
 import sys
 import yacc
 from spec_lexer import Lexer
-from ast import *
+import ast
 
 # logging
 import logging
@@ -34,17 +34,19 @@ class Parser(object):
         self.list = []
 
     def __parse_str(self, pref):
-        self.element = Element()
+        self.element = ast.Element()
         self.parser.parse(pref, self.lexer.lexer, debug=self.log) # parses into self.list
         self.lexer.reset()
 
     def __print_list(self):
-        Statement.underscores = self.get_underscores()
+        ast.Statement.underscores = self.get_underscores()
         out = ""
         for i in self.list:
             if i[0] == "CODE":       out += i[1]
             if i[0] == "PREFERENCE": out += i[1].str()
             if i[0] == "OPTIMIZE":   out += i[1].str()
+        if ast.PStatement.bfs:
+            out += ast.bf_encoding.replace("_",ast.Statement.underscores)
         return out
 
     #
@@ -157,7 +159,7 @@ class Parser(object):
                              | PREFERENCE LPAREN term COMMA term RPAREN LBRACE           RBRACE body
         """
         # create preference statement
-        s = PStatement()
+        s = ast.PStatement()
         self.p_statements += 1
         s.number = self.p_statements
         s.name     = p[3]
@@ -166,7 +168,7 @@ class Parser(object):
         s.body     = p[len(p)-1]
         self.list.append(("PREFERENCE",s))
         # restart element
-        self.element = Element()
+        self.element = ast.Element()
 
     def p_end_preference(self,p):
         """ end_preference : DOT change_state CODE
@@ -220,7 +222,7 @@ class Parser(object):
             self.element.body = p[2]
             p[0] = [self.element]
         # restart element
-        self.element = Element()
+        self.element = ast.Element()
 
     def p_elem(self,p):
         """ elem : elem_head
@@ -230,6 +232,8 @@ class Parser(object):
             p[0] = (p[1],[])
         else:
             p[0] = (p[1],p[3])
+        self.element.vars     = self.element.all_vars
+        self.element.all_vars = set()
 
     def p_elem_head(self,p):
         """ elem_head : elem_head GTGT weighted_body_set
@@ -266,42 +270,42 @@ class Parser(object):
     def p_weighted_body_1(self,p):
         """ weighted_body :                      bfvec_x
         """
-        p[0] = WBody(None,p[1])
+        p[0] = ast.WBody(None,p[1])
 
     def p_weighted_body_2(self,p):
         """ weighted_body :            TWO_COLON
         """
-        p[0] = WBody(None,[("atom",["#true"])])
+        p[0] = ast.WBody(None,[("ext_atom",["true",["#true"]])])
 
     def p_weighted_body_3(self,p):
         """ weighted_body : ntermvec_x TWO_COLON bfvec_x
         """
-        p[0] = WBody(p[1],p[3])
+        p[0] = ast.WBody(p[1],p[3])
 
     def p_weighted_body_4(self,p):
         """ weighted_body :            TWO_COLON bfvec_x
         """
-        p[0] = WBody(None,p[2])
+        p[0] = ast.WBody(None,p[2])
 
     def p_weighted_body_5(self,p):
         """ weighted_body : ntermvec_x TWO_COLON
         """
-        p[0] = WBody(p[1],[("atom",["#true"])])
+        p[0] = ast.WBody(p[1],[("ext_atom",["true",["#true"]])])
 
     def p_weighted_body_6(self,p):
         """ weighted_body :                      POW_NO_WS naming_atom
         """
-        p[0] = WBody(None,p[2],True)
+        p[0] = ast.WBody(None,p[2],True)
 
     def p_weighted_body_7(self,p):
         """ weighted_body : ntermvec_x TWO_COLON POW_NO_WS naming_atom
         """
-        p[0] = WBody(p[1],p[4],True)
+        p[0] = ast.WBody(p[1],p[4],True)
 
     def p_weighted_body_8(self,p):
         """ weighted_body :            TWO_COLON POW_NO_WS naming_atom
         """
-        p[0] = WBody(None,p[3],True)
+        p[0] = ast.WBody(None,p[3],True)
 
     def p_naming_atom(self,p):
         """ naming_atom : identifier
@@ -327,9 +331,9 @@ class Parser(object):
         """
         p[0] = p[1:]
         if len(p)==4:
-            self.atomvec.append(("atom",[p[3]]))
+            self.atomvec.append(("ext_atom",["atom",p[3]]))
         else:
-            self.atomvec = [("atom",[p[1]])]
+            self.atomvec = [("ext_atom",["atom",p[1]])]
 
     def p_na_ntermvec(self,p):
         """ na_ntermvec : na_term
@@ -337,19 +341,24 @@ class Parser(object):
         """
         p[0] = p[1:]
 
-    # returns a list in p[0]
+    #
+    #   """ bfvec_x : atomvec
+    #               | na_bfvec
+    #               | atomvec COMMA na_bfvec
+    #   """
+    #
+    #   p[0] becomes a list
+    #
     def p_bfvec_x_1(self,p):
         """ bfvec_x  : atomvec
         """
         p[0] = self.atomvec
 
-    # returns a list in p[0]
     def p_bfvec_x_2(self,p):
         """ bfvec_x  : na_bfvec
         """
         p[0] = p[1]
 
-    # returns a list in p[0]
     def p_bfvec_x_3(self,p):
         """ bfvec_x :  atomvec COMMA na_bfvec
         """
@@ -382,7 +391,6 @@ class Parser(object):
     # using non reachable token NOREACH for making the grammar LALR(1)
     # (atom) is not allowed
     #
-    #def p_bformula(self,p):
     #    """ bformula :               ext_atom
     #                 |            csp_literal
     #                 |         paren_bformula
@@ -394,13 +402,21 @@ class Parser(object):
     #                 | LPAREN     identifier LPAREN argvec RPAREN NOREACH
     #                 | LPAREN SUB identifier                      NOREACH
     #                 | LPAREN SUB identifier LPAREN argvec RPAREN NOREACH
+    #
+    #        paren_bformula : LPAREN na_bformula RPAREN
+    #
+    #        na_bformula :            na_ext_atom
+    #                    |            csp_literal
+    #                    |         paren_bformula
+    #                    | bformula VBAR bformula %prec BFVBAR
+    #                    | bformula AND  bformula %prec BFAND
+    #                    |          NOT  bformula %prec BFNOT
     #    """
-    #    p[0] = p[1:]
 
     def p_bformula_1(self,p):
         """ bformula :               ext_atom
         """
-        p[0] = ("atom",[p[1]])
+        p[0] = p[1]
 
     def p_bformula_2(self,p):
         """ bformula :            csp_literal
@@ -444,7 +460,7 @@ class Parser(object):
     def p_na_bformula_1(self,p):
         """ na_bformula :            na_ext_atom
         """
-        p[0] = ("atom",[p[1]])
+        p[0] = p[1]
 
     def p_na_bformula_2(self,p):
         """ na_bformula :            csp_literal
@@ -517,22 +533,52 @@ class Parser(object):
     #
     # (NOT ATOM) EXTENDED ATOMS
     #
-
-    def p_ext_atom(self,p):
+    #   """ ext_atom : TRUE
+    #                | FALSE
+    #                | atom
+    #                | term cmp term
+    #   """
+    #
+    def p_ext_atom_1(self,p):
         """ ext_atom : TRUE
-                     | FALSE
-                     | atom
-                     | term cmp term
         """
-        p[0] = p[1:]
+        p[0] = ["ext_atom",["true",["#true"]]]
+
+    def p_ext_atom_2(self,p):
+        """ ext_atom : FALSE
+        """
+        p[0] = ["ext_atom",["false",["#false"]]]
+
+    def p_ext_atom_3(self,p):
+        """ ext_atom : atom
+        """
+        p[0] = ["ext_atom",["atom",p[1]]]
+
+    def p_ext_atom_4(self,p):
+        """ ext_atom : term cmp term
+        """
+        p[0] = ["ext_atom",["cmp",p[1:]]]
 
 
-    def p_na_ext_atom(self,p):
+    #   """ na_ext_atom : TRUE
+    #                   | FALSE
+    #                   | term cmp term
+    #   """
+    def p_na_ext_atom_1(self,p):
         """ na_ext_atom : TRUE
-                        | FALSE
-                        | term cmp term
         """
-        p[0] = p[1:]
+        p[0] = ["ext_atom",["true",["#true"]]]
+
+    def p_na_ext_atom_2(self,p):
+        """ na_ext_atom : FALSE
+        """
+        p[0] = ["ext_atom",["false",["#false"]]]
+
+    def p_na_ext_atom_3(self,p):
+        """ na_ext_atom : term cmp term
+        """
+        p[0] = ["ext_atom",["cmp",p[1:]]]
+
 
     #
     # VARIABLES
@@ -541,7 +587,7 @@ class Parser(object):
         """ variable : VARIABLE
         """
         p[0] = p[1]
-        self.element.vars.add(p[1])
+        self.element.all_vars.add(p[1])
 
     #
     # GRINGO expressions
@@ -686,7 +732,7 @@ class Parser(object):
     def p_start_optimize(self,p):
         """ start_optimize : OPTIMIZE LPAREN term RPAREN body
         """
-        s = OStatement()
+        s = ast.OStatement()
         s.name     = p[3]
         s.body     = p[5]
         self.list.append(("OPTIMIZE",s))
