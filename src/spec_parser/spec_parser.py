@@ -21,6 +21,11 @@ class ParseError(Exception):
 #
 #
 
+DOM_ZERO = """
+#pref_dom(X) :- #gen_pref_dom(X,0).
+#dom(X)      :- #pref_dom(X,0).
+"""
+
 class Parser(object):
 
     def __init__(self):
@@ -49,6 +54,7 @@ class Parser(object):
             out += ast.bf_encoding.replace("_",ast.Statement.underscores)
         out += "\n" + ast.true.replace("_",ast.Statement.underscores)
         out += "\n" + "\n".join(ast.Statement.domains)
+        out += "\n" + DOM_ZERO.replace("#",ast.Statement.underscores)
         return out
 
     #
