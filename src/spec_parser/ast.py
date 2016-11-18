@@ -5,13 +5,15 @@
 # DEFINE Predicates
 #
 
-PREFERENCE     = "preference" # arity 2 and 5
-OPTIMIZE       = "optimize"   # arity 1
-HOLDS          = "holds"      # arity 2
-SAT            = "sat"        # arity 1
-BF             = "bf"         # arity 1
-DOM            = "dom"        # arity 1
-PREFERENCE_DOM = "pref_dom"   # arity 1
+PREFERENCE         = "preference"   # arity 2 and 5
+OPTIMIZE           = "optimize"     # arity 1
+HOLDS              = "holds"        # arity 2
+SAT                = "sat"          # arity 1
+BF                 = "bf"           # arity 1
+DOM                = "dom"          # arity 1
+PREFERENCE_DOM     = "pref_dom"     # arity 1
+GEN_DOM            = "gen_dom"      # arity 2
+GEN_PREFERENCE_DOM = "gen_pref_dom" # arity 2
 
 
 
@@ -46,9 +48,11 @@ _bf(Y) :- _bf(and(X,Y)).
 _bf(X) :- _bf(or (X,Y)).
 _bf(Y) :- _bf(or (X,Y)).
 _bf(X) :- _bf(neg(X  )).
-_true.
 """
 
+true = """
+_true.
+"""
 
 
 #
@@ -83,6 +87,8 @@ class Statement:
 
     underscores = ""
 
+    domains  = set()
+
     def __init__(self):
         self.number   = None
         self.name     = None
@@ -99,32 +105,15 @@ class PStatement(Statement):
     bfs = False # True if there are boolean formulas which are not literals
 
 
-    def __has_var(self,ast):
-        if ast == None:         return False
-        if isinstance(ast,str): return (ast[0]>="A" and ast[0]<="Z")
-        for e in ast:
-            if self.__has_var(e): return True
-        return False
-
-
-    def __create_body(self,preds,names):
-        u = Statement.underscores
-        preds = set([ ast2str(x) for x in preds if self.__has_var(x) ])
-        bodyp = ", ".join([u+DOM+"("+pred+")" for pred in preds])
-        names = set([ ast2str(x) for x in names if self.__has_var(x) ])
-        bodyn = ", ".join([u+PREFERENCE_DOM+"("+name+")" for name in names])
-        if bodyp!="" and bodyn!="": return bodyp + ", " + bodyn
-        return bodyp + bodyn
-
     def __create_body(self,element):
-        u = Statement.underscores
         out = []
         for j in element.sets:
             for k in j:
-                out += k.get_atoms()
+                out += k.get_dom_atoms()
         for k in element.cond:
-            out += k.get_atoms()
-        return ", ".join(u+DOM+"("+i+")" for i in out)
+            out += k.get_dom_atoms()
+        Statement.domains.update([item for sublist in [x[1] for x in out] for item in sublist]) # update domains
+        return ", ".join(x[0] for x in out)
 
 
     def str(self):
@@ -150,7 +139,6 @@ class PStatement(Statement):
             # body
             if i.body is not None:    body = body2str(i.body)
             else:                     body = self.__create_body(i)
-            #else:                     body = self.__create_body(i.preds,i.names)
             if statement_body != "":
                 if body != "": body += ", "
                 body += statement_body
@@ -164,14 +152,14 @@ class PStatement(Statement):
                     out += k.str_holds(body)
                     out += k.str_bf   (body)
                     out += k.str_sat  (body)
-                    out += "\n"
+                    #out += "\n"
                 set += 1
 
             # condition set
             for k in i.cond:
                 out +=     u + PREFERENCE + "({},(({},{}),({})),{},{},{}){}{}.\n".format(
                                 name,self.number,elem,",".join(i.vars),  0,k.str_body(),k.str_weight(),arrow,body)
-                out += "\n"
+                #out += "\n"
 
             elem += 1
         #end for
@@ -334,24 +322,56 @@ class WBody:
 
 
     #
-    # OTHERS
+    # FUNCTIONS FOR GENERATING dom() AND preference_dom() ATOMS
     #
 
 
-    def __get_atoms_from_bf(self,bf):
+    def __get_arity_termvec(self,termvec):
+        if termvec == None: return [0]
+        termvec, arity = termvec[0], 1
+        while len(termvec)==3:
+            arity += 1
+            termvec = termvec[0]
+        return arity
+
+
+    def __get_arity_argvec(self,argvec):
+        if   len(argvec) == 1: return [ self.__get_arity_termvec(argvec[0]) ]
+        elif len(argvec) == 3: return self.__get_arity_argvec(argvec[0]) + [ self.__get_arity_termvec(argvec[2]) ]
+
+
+    def __get_signature(self,atom):
+        name, arity, i = "", [], 0
+        if atom[i] == "-":
+            name = "-"
+            atom = atom[1:]
+        name += atom[0]
+        if len(atom)==1: return name, [0] # no parenthesis
+        argvec = atom[2]
+        arity = self.__get_arity_argvec(argvec)
+        return name, arity
+
+
+    def __get_dom_atoms_from_bf(self,bf):
         if bf[0] == "ext_atom":
-            return [ast2str(bf[1][1])] if bf[1][0] == "atom" else []
+            if bf[1][0] == "atom":
+                name, arity = self.__get_signature(bf[1][1])
+                return [ (Statement.underscores + DOM + "(" + ast2str(bf[1][1]) + ")",[ Statement.underscores + GEN_DOM+"("+name+","+str(i)+")." for i in arity ] ) ]
+            else: return []
         elif bf[0] == "and" or bf[0] == "or":
-            return self.__get_atoms_from_bf(bf[1][0]) + self.__get_atoms_from_bf(bf[1][1])
+            return self.__get_dom_atoms_from_bf(bf[1][0]) + self.__get_dom_atoms_from_bf(bf[1][1])
         elif bf[0] == "neg":
-            return self.__get_atoms_from_bf(bf[1][0])
+            return self.__get_dom_atoms_from_bf(bf[1][0])
 
 
     # return the atoms in the body as a list of strings (called before str_ functions)
-    def get_atoms(self):
+    def get_dom_atoms(self):
         out = []
+        if self.naming:
+            name, arity = self.__get_signature(self.body)
+            return [ (Statement.underscores + PREFERENCE_DOM + "(" + ast2str(self.body) + ")", [ Statement.underscores + GEN_PREFERENCE_DOM+"("+name+","+str(i)+")." for i in arity ] ) ]
         for i in self.body:
-            out += self.__get_atoms_from_bf(i)
+            out += self.__get_dom_atoms_from_bf(i)
         return out
 
 

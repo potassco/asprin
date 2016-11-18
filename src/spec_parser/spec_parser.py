@@ -47,6 +47,8 @@ class Parser(object):
             if i[0] == "OPTIMIZE":   out += i[1].str()
         if ast.PStatement.bfs:
             out += ast.bf_encoding.replace("_",ast.Statement.underscores)
+        out += "\n" + ast.true.replace("_",ast.Statement.underscores)
+        out += "\n" + "\n".join(ast.Statement.domains)
         return out
 
     #
@@ -312,7 +314,6 @@ class Parser(object):
                         | identifier LPAREN argvec RPAREN
         """
         p[0] = p[1:]
-        self.element.names.append(p[0])
 
     #
     # VECTORS
@@ -681,7 +682,6 @@ class Parser(object):
                  | SUB identifier LPAREN argvec RPAREN
         """
         p[0] = p[1:]
-        self.element.preds.append(p[0])
 
     def p_csp_mul_term(self,p):
         """ csp_mul_term : CSP term CSP_MUL term
