@@ -304,7 +304,7 @@ class Lexer:
     # ------------------------------------------------------------
     def token(self):
         t = self.mytoken()
-        print "+++" + str(t)
+        #print "+++" + str(t)
         return t
 
     def mytoken(self):
