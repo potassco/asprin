@@ -109,7 +109,7 @@ class Solver:
         print OPTIMUM_FOUND
 
     def print_shown(self):
-        print "Answer: "
+        print "Answer: " + str(self.state.models)
         print '%s' % ' '.join(map(str,self.shown))
 
     def on_model(self,model):

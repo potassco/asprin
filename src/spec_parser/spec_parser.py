@@ -21,11 +21,6 @@ class ParseError(Exception):
 #
 #
 
-DOM_ZERO = """
-#pref_dom(X) :- #gen_pref_dom(X,0).
-#dom(X)      :- #pref_dom(X,0).
-"""
-
 class Parser(object):
 
     def __init__(self):
@@ -51,10 +46,10 @@ class Parser(object):
             if i[0] == "PREFERENCE": out += i[1].str()
             if i[0] == "OPTIMIZE":   out += i[1].str()
         if ast.PStatement.bfs:
-            out += ast.bf_encoding.replace("_",ast.Statement.underscores)
-        out += "\n" + ast.true.replace("_",ast.Statement.underscores)
+            out += ast.BF_ENCODING.replace("_",ast.Statement.underscores)
+        out += "\n" + ast.TRUE_ATOM.replace("_",ast.Statement.underscores)
         out += "\n" + "\n".join(ast.Statement.domains)
-        out += "\n" + DOM_ZERO.replace("#",ast.Statement.underscores)
+        out += "\n" + ast.DOM_ZERO.replace("#",ast.Statement.underscores)
         return out
 
     #

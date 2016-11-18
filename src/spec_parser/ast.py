@@ -38,7 +38,7 @@ FOR   = "for"
 # Boolean Formula Definition
 #
 
-bf_encoding = """
+BF_ENCODING = """
 _sat(and(X,Y)) :- _sat(X), _sat(Y), _bf(and(X,Y)).
 _sat(or (X,Y)) :- _sat(X),          _bf(or (X,Y)).
 _sat(or (X,Y)) :- _sat(Y),          _bf(or (X,Y)).
@@ -50,8 +50,13 @@ _bf(Y) :- _bf(or (X,Y)).
 _bf(X) :- _bf(neg(X  )).
 """
 
-true = """
+TRUE_ATOM = """
 _true.
+"""
+
+DOM_ZERO = """
+#pref_dom(X) :- #gen_pref_dom(X,0).
+#dom(X)      :- #pref_dom(X,0).
 """
 
 
