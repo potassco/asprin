@@ -7,7 +7,7 @@ import ast
 
 # logging
 import logging
-#logging.basicConfig(filename="q.log", level=logging.DEBUG)
+logging.basicConfig(filename="q.log", level=logging.DEBUG)
 
 #
 # Exception Handling

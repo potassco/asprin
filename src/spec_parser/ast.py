@@ -214,6 +214,9 @@ class WBody:
         self.analyzed           = False
 
 
+    #
+    # BOOLEAN FORMULAS TRANSLATION
+    #
 
 
     def __translate_ext_atom(self,atom):
