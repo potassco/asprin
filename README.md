@@ -17,7 +17,7 @@ Answer:
 a(3)
 OPTIMUM FOUND
 Answer: 
-a(4)
+a(5)
 OPTIMUM FOUND
 Answer: 
 a(1) a(2)
@@ -28,7 +28,7 @@ Answer:
 a(2)
 OPTIMUM FOUND
 Answer: 
-a(5)
+a(4)
 OPTIMUM FOUND
 
 Models          : 6
