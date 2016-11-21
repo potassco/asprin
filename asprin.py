@@ -2,7 +2,7 @@
 import sys
 import os
 import re
-import logging
+#import logging
 #logging.basicConfig(level=logging.DEBUG)
 
 from src.spec_parser import spec_parser

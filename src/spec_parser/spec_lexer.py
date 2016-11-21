@@ -1,10 +1,11 @@
 #!/usr/bin/python
 
 import lex
-
 # logging
 import logging
 #logging.basicConfig(filename="q.log", level=logging.DEBUG)
+
+
 
 #
 # Exception Handling
@@ -18,10 +19,13 @@ class LexIlegalCharacterException(LexError):
     def __str__(self):
         return "Lexer: Illegal character " + repr(self.value)
 
+
+
 #
 # Lexer
 #
 class Lexer(object):
+
 
     def __init__(self):
         self.lexer = lex.lex(module=self)
@@ -29,10 +33,23 @@ class Lexer(object):
         self.code_start = 0
         self.underscores = 0
 
+
     def reset(self):
         while self.lexer.lexstate != 'normal':
             self.lexer.pop_state()
         self.code_start = 0
+
+
+    def __update_underscores(self,t):
+        if t.value[0] == "_":
+            i = 0
+            while t.value[i] == "_": i += 1
+            if i>self.underscores: self.underscores = i
+
+    def __eof_error(self,t):
+        print("\nlexer error, unexpected <EOF>")
+        t.lexer.skip(1)
+
 
     #
     # Lexes input:
@@ -73,6 +90,7 @@ class Lexer(object):
         'COND',
         'GTGT',
         'GT',
+        'IF',
 
         'NOT',
         'INFIMUM',
@@ -129,10 +147,10 @@ class Lexer(object):
     t_LBRACE     = r'\{'
     t_RBRACE     = r'\}'
     t_SEM        = r';'
-    t_TWO_COLON      = r'::'
+    t_TWO_COLON  = r'::'
+    t_IF         = r':-'
     t_COLON      = r':'
     t_COMMA      = r','
-    t_IDENTIFIER = r'_*[a-z][\'A-Za-z0-9_]*'
     t_COND       = r'\|\|'
     t_GT         = r'>'
 
@@ -175,9 +193,11 @@ class Lexer(object):
     t_CSP_EQ	= r'(\$==)|(\$=)'
     t_CSP_NEQ	= r'(\$!=)|(\$<>)'
 
+
     #
     # INITIAL
     #
+
     def t_NOT(self,t):
         r'not'
         return t
@@ -197,6 +217,21 @@ class Lexer(object):
                 t.type = "POW_NO_WS"
         return t
 
+    def t_BLOCKCOMMENT(self,t):
+        r'%\*'
+        self.bc = 1
+        t.lexer.push_state('blockcomment')
+
+    def t_COMMENT(self,t):
+        r'%|(\#!)'
+        t.lexer.push_state('comment')
+
+    def t_IDENTIFIER(self,t):
+        r'_*[a-z][\'A-Za-z0-9_]*'
+        self.__update_underscores(t)
+        return t
+
+
     #
     # Rules for newly defined (not INITIAL) states
     #
@@ -205,7 +240,7 @@ class Lexer(object):
     # eof:
     #   return code
     #
-    def t_blockcomment_comment_script_normal_CODE(self,t):
+    def t_normal_CODE(self,t):
         r'[\000-\377]\Z'
         t.value = t.lexer.lexdata[self.code_start:t.lexer.lexpos]
         return t
@@ -219,17 +254,12 @@ class Lexer(object):
         pass
 
     #
-    # TODO: Consider _error predicates in preference programs
-    #
     # identifier:
     #   update underscores' counter
     #
     def t_normal_IDENTIFIER(self,t):
         r'_*[a-z][\'A-Za-z0-9_]*'
-        if t.value[0] == "_":
-            i = 0
-            while t.value[i] == "_": i += 1
-            if i>self.underscores: self.underscores = i
+        self.__update_underscores(t)
 
     #
     # normal: changing state
@@ -272,6 +302,7 @@ class Lexer(object):
         r'a'
         pass
 
+
     #
     # blockcomment state
     #
@@ -288,9 +319,14 @@ class Lexer(object):
         r'%'
         t.lexer.push_state('comment')
 
+    def t_blockcomment_CODE(self,t):
+        r'[\000-\377]\Z'
+        self.__eof_error(t)
+
     def t_blockcomment_ANY(self,t):
         r'[\000-\377]'
         pass
+
 
     #
     # comment state
@@ -299,9 +335,18 @@ class Lexer(object):
         r'\n'
         t.lexer.pop_state()
 
+    def t_comment_CODE(self,t):
+        r'[\000-\377]\Z'
+        if self.bc > 0:
+            self.__eof_error(t)
+            return
+        t.value = t.lexer.lexdata[self.code_start:t.lexer.lexpos]
+        return t
+
     def t_comment_ANY(self,t):
         r'[\000-\377]'
         pass
+
 
     #
     # script state
@@ -310,9 +355,14 @@ class Lexer(object):
         r'\#end'
         t.lexer.pop_state()
 
+    def t_script_CODE(self,t):
+        r'[\000-\377]\Z'
+        self.__eof_error(t)
+
     def t_script_ANY(self,t):
         r'[\000-\377]'
         pass
+
 
     #
     # Error handling

@@ -81,6 +81,8 @@ def body2str(i):
     if isinstance(i,list) and len(i) > 0:
         if isinstance(i[0],str) and i[0] in { "atom", "true", "false", "cmp" }:
             return ast2str(i[1])
+        if isinstance(i[0],str) and i[0] in { "csp" }:
+            return ast2str(i[2])
         for j in i:
             out += body2str(j)
     return out
@@ -177,7 +179,9 @@ class OStatement(Statement):
 
 
     def str(self):
-        return Statement.underscores + OPTIMIZE + "({}) :- {}.\n".format(ast2str(self.name),body2str(self.body))
+        statement_body = body2str(self.body) if self.body is not None else ""
+        arrow = " :- " if statement_body != "" else ""
+        return Statement.underscores + OPTIMIZE + "({}){}{}.\n".format(ast2str(self.name),arrow,statement_body)
 
 
 # preference element
@@ -237,16 +241,21 @@ class WBody:
             atom_reified, atom = self.__translate_ext_atom(bf[1])
             self.ext_atoms_in_bf.add((atom_reified,atom))  # fills self.ext_atoms_in_bf
             return atom_reified
-        if bf[0]=="neg":
+        elif bf[0] == "csp":
+            self.ext_atoms_in_bf.add((bf[1],ast2str(bf[2])))
+            return bf[1]
+        elif bf[0]=="neg":
             return NEG+"("  + self.__bf2str(bf[1][0]) + ")"
-        if bf[0]=="and":
+        elif bf[0]=="and":
             return AND+"("  + self.__bf2str(bf[1][0]) + "," + self.__bf2str(bf[1][1]) + ")"
-        if bf[0]=="or":
+        elif bf[0]=="or":
             return OR+"("   + self.__bf2str(bf[1][0]) + "," + self.__bf2str(bf[1][1]) + ")"
 
 
     def __translate_lit(self,lit):
         neg  = 0
+        if lit[0] == "csp":
+            return ("lit",lit[1],ast2str(lit[2]))
         while lit[0]=="neg" and neg<=1:
             neg += 1
             lit  = lit[1][0]
@@ -370,6 +379,7 @@ class WBody:
             return self.__get_dom_atoms_from_bf(bf[1][0]) + self.__get_dom_atoms_from_bf(bf[1][1])
         elif bf[0] == "neg":
             return self.__get_dom_atoms_from_bf(bf[1][0])
+        return [] # csp
 
 
     # return the atoms in the body as a list of strings (called before str_ functions)

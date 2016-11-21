@@ -423,7 +423,7 @@ class Parser(object):
     def p_bformula_2(self,p):
         """ bformula :            csp_literal
         """
-        p[0] = ("csp",[p[1]])
+        p[0] = p[1]
 
     def p_bformula_3(self,p):
         """ bformula :         paren_bformula
@@ -467,7 +467,7 @@ class Parser(object):
     def p_na_bformula_2(self,p):
         """ na_bformula :            csp_literal
         """
-        p[0] = ("csp",[p[1]])
+        p[0] = p[1]
 
     def p_na_bformula_3(self,p):
         """ na_bformula :         paren_bformula
@@ -684,20 +684,56 @@ class Parser(object):
         """
         p[0] = p[1:]
 
-    def p_csp_mul_term(self,p):
+    #
+    # CSP
+    #
+
+    #
+    # csp_mul_term : CSP term CSP_MUL term
+    #              | term CSP_MUL CSP term
+    #              |              CSP term
+    #              |                  term
+    #
+
+    def p_csp_mul_term_1(self,p):
         """ csp_mul_term : CSP term CSP_MUL term
-                         | term CSP_MUL CSP term
-                         |              CSP term
-                         |                  term
         """
-        p[0] = p[1:]
+        p[0] = ["csp_mul",
+                "(\""+p[1]+"\","+ast.ast2str(p[2])+",\""+p[3]+"\","+ast.ast2str(p[4])+")",
+                p[1:]]
+
+    def p_csp_mul_term_2(self,p):
+        """ csp_mul_term : term CSP_MUL CSP term
+        """
+        p[0] = ["csp_mul",
+                "("+ast.ast2str(p[1])+",\""+p[2]+"\",\""+p[3]+"\","+ast.ast2str(p[4])+")",
+                p[1:]]
+
+    def p_csp_mul_term_3(self,p):
+        """ csp_mul_term : CSP term
+        """
+        p[0] = ["csp_mul",
+                "(\""+p[1]+"\","+ast.ast2str(p[2])+")",
+                p[1:]]
+
+    def p_csp_mul_term_4(self,p):
+        """ csp_mul_term : term
+        """
+        p[0] = ["csp_mul",
+                ast.ast2str(p[1]),
+                p[1:]]
 
     def p_csp_add_term(self,p):
         """ csp_add_term : csp_add_term CSP_ADD csp_mul_term
                          | csp_add_term CSP_SUB csp_mul_term
                          |                      csp_mul_term
         """
-        p[0] = p[1:]
+        if len(p) == 2:
+            p[0] = ["csp_add_term",p[1][1],p[1][2]]
+        else:
+            p[0] = ["csp_add_term",
+                    "(" + p[1][1]+",\""+p[2]+"\","+p[3][1]+")",
+                    [p[1][2],p[2],p[3][2]]]
 
     def p_csp_rel(self,p):
         """ csp_rel : CSP_GT
@@ -707,13 +743,15 @@ class Parser(object):
                     | CSP_EQ
                     | CSP_NEQ
         """
-        p[0] = p[1]
+        p[0] = ["csp_rel",p[1],p[1]]
 
     def p_csp_literal(self,p):
         """ csp_literal : csp_literal   csp_rel csp_add_term
                         | csp_add_term  csp_rel csp_add_term
         """
-        p[0] = p[1:]
+        p[0] = ["csp",
+                "csp(" + p[1][1] + ",\"" + p[2][1] + "\"," + p[3][1] + ")", # reified representation as string
+                [x[2] for x in p[1:]]]                                      # normal  tree
 
     def p_identifier(self,p):
         """ identifier : IDENTIFIER
@@ -761,6 +799,7 @@ class Parser(object):
     #
 
     def p_error(self,p):
+        print p
         print("Syntax error!")
         sys.exit()
 
