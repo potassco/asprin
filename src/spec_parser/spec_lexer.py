@@ -10,6 +10,7 @@ import logging
 #
 # Exception Handling
 #
+
 class LexError(Exception):
     pass
 
@@ -46,6 +47,7 @@ class Lexer(object):
             while t.value[i] == "_": i += 1
             if i>self.underscores: self.underscores = i
 
+
     def __eof_error(self,t):
         print("\nlexer error, unexpected <EOF>")
         t.lexer.skip(1)
@@ -80,8 +82,6 @@ class Lexer(object):
         'RPAREN',
         'LBRACE',
         'RBRACE',
-        #'WS',
-        #'NL',
         'SEM',
         'TWO_COLON',
         'COLON',
@@ -90,7 +90,6 @@ class Lexer(object):
         'COND',
         'GTGT',
         'GT',
-        'IF',
 
         'NOT',
         'INFIMUM',
@@ -104,8 +103,6 @@ class Lexer(object):
         'FALSE',
         'DOTS',
         'VBAR',
-        #'LBRACK',
-        #'RBRACK',
         'ADD',
         'SUB',
         'POW',
@@ -135,6 +132,7 @@ class Lexer(object):
         'CSP_NEQ',
 
         'NOREACH', # never reachable token
+        'IF',      # added to expressions with NOREACH to avoid warning
     )
 
     # Regular expression rules for simple tokens
@@ -233,36 +231,27 @@ class Lexer(object):
 
 
     #
-    # Rules for newly defined (not INITIAL) states
+    # Rules for normal state
     #
 
-    #
-    # eof:
-    #   return code
-    #
+    # eof: return code
     def t_normal_CODE(self,t):
         r'[\000-\377]\Z'
         t.value = t.lexer.lexdata[self.code_start:t.lexer.lexpos]
         return t
 
-    #
-    # strings:
-    #   pass through them
-    #
+    # strings: pass
     def t_normal_STRING(self,t):
         r'\" ( [^\\"\n] | (\\\") | (\\\\) | (\\n) )* \" '
         pass
 
-    #
-    # identifier:
-    #   update underscores' counter
-    #
+    # identifier: update underscores'
     def t_normal_IDENTIFIER(self,t):
         r'_*[a-z][\'A-Za-z0-9_]*'
         self.__update_underscores(t)
 
     #
-    # normal: changing state
+    # changing state:
     #  %*                        -> blockcomment
     #  % or \#!                  ->      comment
     #  #script (python|lua)      ->       script
@@ -289,17 +278,9 @@ class Lexer(object):
         t.lexer.lexpos = t.lexpos
         return t
 
-    #
-    # normal state: pass through characters
-    #               until string or change of state (above)
-    #
+    # rest: pass
     def t_normal_ANY(self,t):
         r'[\000-\377]'
-        pass
-
-    # never reachable token (to avoid warning)
-    def t_normal_NOREACH(self,t):
-        r'a'
         pass
 
 
@@ -319,7 +300,7 @@ class Lexer(object):
         r'%'
         t.lexer.push_state('comment')
 
-    def t_blockcomment_CODE(self,t):
+    def t_blockcomment_EOF(self,t):
         r'[\000-\377]\Z'
         self.__eof_error(t)
 
@@ -335,11 +316,12 @@ class Lexer(object):
         r'\n'
         t.lexer.pop_state()
 
-    def t_comment_CODE(self,t):
+    def t_comment_EOF(self,t):
         r'[\000-\377]\Z'
         if self.bc > 0:
             self.__eof_error(t)
             return
+        t.type = 'CODE'
         t.value = t.lexer.lexdata[self.code_start:t.lexer.lexpos]
         return t
 
@@ -355,7 +337,7 @@ class Lexer(object):
         r'\#end'
         t.lexer.pop_state()
 
-    def t_script_CODE(self,t):
+    def t_script_EOF(self,t):
         r'[\000-\377]\Z'
         self.__eof_error(t)
 

@@ -112,7 +112,7 @@ class PStatement(Statement):
     bfs = False # True if there are boolean formulas which are not literals
 
 
-    def __create_body(self,element):
+    def __create_dom_body(self,element):
         out = []
         for j in element.sets:
             for k in j:
@@ -145,7 +145,7 @@ class PStatement(Statement):
 
             # body
             if i.body is not None:    body = body2str(i.body)
-            else:                     body = self.__create_body(i)
+            else:                     body = self.__create_dom_body(i)
             if statement_body != "":
                 if body != "": body += ", "
                 body += statement_body
@@ -159,14 +159,12 @@ class PStatement(Statement):
                     out += k.str_holds(body)
                     out += k.str_bf   (body)
                     out += k.str_sat  (body)
-                    #out += "\n"
                 set += 1
 
             # condition set
             for k in i.cond:
                 out +=     u + PREFERENCE + "({},(({},{}),({})),{},{},{}){}{}.\n".format(
                                 name,self.number,elem,",".join(i.vars),  0,k.str_body(),k.str_weight(),arrow,body)
-                #out += "\n"
 
             elem += 1
         #end for
@@ -210,12 +208,12 @@ class WBody:
 
 
     def __init__(self,weight,body,naming=False):
-        self.weight             = weight
-        self.body               = body  # list
-        self.naming             = naming
-        self.bf                 = None  # reified boolean formula representing the body
-        self.ext_atoms_in_bf    = set() # extended atoms appearing in (boolean formulas which are not literals)
-        self.analyzed           = False
+        self.weight      = weight
+        self.body        = body  # list
+        self.naming      = naming
+        self.bf          = None  # reified boolean formula representing the body
+        self.atoms_in_bf = set() # extended and csp atoms appearing in (boolean formulas which are not literals)
+        self.analyzed    = False
 
 
     #
@@ -239,10 +237,10 @@ class WBody:
     def __bf2str(self,bf):
         if bf[0] == "ext_atom":
             atom_reified, atom = self.__translate_ext_atom(bf[1])
-            self.ext_atoms_in_bf.add((atom_reified,atom))  # fills self.ext_atoms_in_bf
+            self.atoms_in_bf.add((atom_reified,atom))  # fills self.atoms_in_bf
             return atom_reified
         elif bf[0] == "csp":
-            self.ext_atoms_in_bf.add((bf[1],ast2str(bf[2])))
+            self.atoms_in_bf.add((bf[1],ast2str(bf[2])))
             return bf[1]
         elif bf[0]=="neg":
             return NEG+"("  + self.__bf2str(bf[1][0]) + ")"
@@ -268,7 +266,7 @@ class WBody:
     def __translate_bf(self,bf):
         out = self.__translate_lit(bf)
         if out is not None: return out
-        string = self.__bf2str(bf)              # fills self.ext_atoms_in_bf
+        string = self.__bf2str(bf)              # fills self.atoms_in_bf
         return ("bf",string,Statement.underscores+SAT+"("+string+")")
 
 
@@ -279,13 +277,13 @@ class WBody:
     #   - type may be bf or lit
     #   - reified is what will be used to write for()
     #   - string  is what will be used to generate holds/2
-    # it also fills self.ext_atoms_in_bf with the atoms appearing in the body
+    # it also fills self.atoms_in_bf with the atoms appearing in the body
     # and     fills self.bf     with the reified version of the body
     #
     def __analyze_body(self):
         # translate body
         for i in range(len(self.body)):
-            self.body[i] = self.__translate_bf(self.body[i]) # fills self.ext_atoms_in_bf
+            self.body[i] = self.__translate_bf(self.body[i]) # fills self.atoms_in_bf
         # fill self.bf the
         self.bf  = "".join([AND+"("+x[1]+"," for x in self.body[:-1]])
         self.bf += self.body[-1][1]
@@ -333,9 +331,9 @@ class WBody:
     # return rules for sat/1 with extended atoms appearing in (boolean formulas which are not literals)
     def str_sat(self,body):
         if self.naming:       return ""
-        if len(self.ext_atoms_in_bf) == 0: return ""
+        if len(self.atoms_in_bf) == 0: return ""
         if body != "": body = ", " + body
-        return "\n".join([Statement.underscores + SAT + "(" + x[0] + ") :- " + x[1] + body + "." for x in self.ext_atoms_in_bf]) + "\n"
+        return "\n".join([Statement.underscores + SAT + "(" + x[0] + ") :- " + x[1] + body + "." for x in self.atoms_in_bf]) + "\n"
 
 
     #

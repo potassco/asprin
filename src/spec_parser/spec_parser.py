@@ -4,16 +4,19 @@ import sys
 import yacc
 from spec_lexer import Lexer
 import ast
-
 # logging
 import logging
 logging.basicConfig(filename="q.log", level=logging.DEBUG)
+
+
 
 #
 # Exception Handling
 #
 class ParseError(Exception):
     pass
+
+
 
 #
 #
@@ -22,6 +25,7 @@ class ParseError(Exception):
 #
 
 class Parser(object):
+
 
     def __init__(self):
         # start famework
@@ -33,10 +37,12 @@ class Parser(object):
         self.p_statements = 0
         self.list = []
 
+
     def __parse_str(self, pref):
         self.element = ast.Element()
         self.parser.parse(pref, self.lexer.lexer, debug=self.log) # parses into self.list
         self.lexer.reset()
+
 
     def __print_list(self):
         ast.Statement.underscores = self.get_underscores()
@@ -52,6 +58,7 @@ class Parser(object):
         out += "\n" + ast.DOM_ZERO.replace("#",ast.Statement.underscores)
         return out
 
+
     #
     # Input:  string
     # Output: string with the translation
@@ -59,6 +66,7 @@ class Parser(object):
     def parse_str(self,str):
         self.__parse_str(str)
         return self.__print_list()
+
 
     #
     # Input:  list of files
@@ -69,6 +77,7 @@ class Parser(object):
             if self.list != []: self.list.append(("CODE","\n#program base.\n"))
             self.__parse_str(open(i).read())
         return self.__print_list()
+
 
     # return the underscores needed
     def get_underscores(self):
@@ -146,7 +155,7 @@ class Parser(object):
     def p_statement_1(self,p):
         """ statement : CODE
         """
-        self.list.append(("CODE",p[1]))
+        self.list.append(("CODE",p[1])) # appends to self.list
 
 
     #
@@ -169,7 +178,7 @@ class Parser(object):
         s.type     = p[5]
         s.elements = p[8] if len(p) == 11 else []
         s.body     = p[len(p)-1]
-        self.list.append(("PREFERENCE",s))
+        self.list.append(("PREFERENCE",s)) # appends to self.list
         # restart element
         self.element = ast.Element()
 
@@ -178,7 +187,9 @@ class Parser(object):
                            | DOT_EOF
         """
         if len(p) == 4:
-            self.list.append(("CODE",p[3]))
+            self.list.append(("CODE",p[3])) # appends to self.list
+
+
 
 
     #
@@ -447,10 +458,10 @@ class Parser(object):
 
     # unreachable
     def p_formula_7(self,p):
-        """ bformula : LPAREN     identifier                      NOREACH
-                     | LPAREN     identifier LPAREN argvec RPAREN NOREACH
-                     | LPAREN SUB identifier                      NOREACH
-                     | LPAREN SUB identifier LPAREN argvec RPAREN NOREACH
+        """ bformula : LPAREN     identifier                      NOREACH IF
+                     | LPAREN     identifier LPAREN argvec RPAREN NOREACH IF
+                     | LPAREN SUB identifier                      NOREACH IF
+                     | LPAREN SUB identifier LPAREN argvec RPAREN NOREACH IF
         """
         pass
 
@@ -686,6 +697,7 @@ class Parser(object):
 
     #
     # CSP
+    #   * represented as a triple (type,reified,ast)
     #
 
     #
@@ -750,8 +762,8 @@ class Parser(object):
                         | csp_add_term  csp_rel csp_add_term
         """
         p[0] = ["csp",
-                "csp(" + p[1][1] + ",\"" + p[2][1] + "\"," + p[3][1] + ")", # reified representation as string
-                [x[2] for x in p[1:]]]                                      # normal  tree
+                "csp(" + p[1][1] + ",\"" + p[2][1] + "\"," + p[3][1] + ")",
+                [x[2] for x in p[1:]]]
 
     def p_identifier(self,p):
         """ identifier : IDENTIFIER
@@ -774,14 +786,15 @@ class Parser(object):
         s = ast.OStatement()
         s.name     = p[3]
         s.body     = p[5]
-        self.list.append(("OPTIMIZE",s))
+        self.list.append(("OPTIMIZE",s)) # appends to self.list
 
     def p_end_optimize(self,p):
         """ end_optimize : DOT change_state CODE
                          | DOT_EOF
         """
         if len(p) == 4:
-            self.list.append(("CODE",p[3]))
+            self.list.append(("CODE",p[3])) # appends to self.list
+
 
     #
     # CHANGE STATE
