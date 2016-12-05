@@ -38,9 +38,9 @@ class Parser(object):
         self.list = []
 
 
-    def __parse_str(self, pref):
+    def __parse_str(self,string):
         self.element = ast.Element()
-        self.parser.parse(pref, self.lexer.lexer, debug=self.log) # parses into self.list
+        self.parser.parse(string, self.lexer.lexer, debug=self.log) # parses into self.list
         self.lexer.reset()
 
 

@@ -16,9 +16,6 @@ class Asprin:
     def __init__(self):
         pass
 
-    def on_model(self,model):
-        print model
-
     def run(self,files,options):
         # specification parsing
         self.spec_parser = spec_parser.Parser()

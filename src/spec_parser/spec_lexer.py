@@ -33,12 +33,14 @@ class Lexer(object):
         self.lexer.push_state('normal')
         self.code_start = 0
         self.underscores = 0
+        self.bc = 0
 
 
     def reset(self):
         while self.lexer.lexstate != 'normal':
             self.lexer.pop_state()
         self.code_start = 0
+        self.bc = 0
 
 
     def __update_underscores(self,t):
@@ -296,13 +298,13 @@ class Lexer(object):
         r'%\*'
         self.bc += 1
 
-    def t_blockcomment_COMMENT(self,t):
-        r'%'
-        t.lexer.push_state('comment')
-
     def t_blockcomment_EOF(self,t):
         r'[\000-\377]\Z'
         self.__eof_error(t)
+
+    def t_blockcomment_COMMENT(self,t):
+        r'%'
+        t.lexer.push_state('comment')
 
     def t_blockcomment_ANY(self,t):
         r'[\000-\377]'
@@ -312,10 +314,6 @@ class Lexer(object):
     #
     # comment state
     #
-    def t_comment_NL(self,t):
-        r'\n'
-        t.lexer.pop_state()
-
     def t_comment_EOF(self,t):
         r'[\000-\377]\Z'
         if self.bc > 0:
@@ -324,6 +322,10 @@ class Lexer(object):
         t.type = 'CODE'
         t.value = t.lexer.lexdata[self.code_start:t.lexer.lexpos]
         return t
+
+    def t_comment_NL(self,t):
+        r'\n'
+        t.lexer.pop_state()
 
     def t_comment_ANY(self,t):
         r'[\000-\377]'
