@@ -7,6 +7,11 @@ $ asprin [number_of_models] [options] [files]
 ```
 Currently, for computing many optimal models, asprin does projection on the atoms of the preference specification. 
 
+
+## Building
+`asprin` requires Python (version 2.7 is tested), and the [python module of clingo](https://github.com/potassco/clingo). For installation instructions, please read [here](https://github.com/potassco/clingo/blob/master/INSTALL) the section on Building the Python Module.
+
+
 ## Example
 ```
 $ cat examples/example1.lp 
