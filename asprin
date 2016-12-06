@@ -23,9 +23,9 @@ version = "3.0.0"
 
 
 #
-# class ArgumentParser
+# class AsprinArgumentParser
 #
-class ArgumentParser:
+class AsprinArgumentParser:
 
     clingo_help = """
 Clingo Options:
@@ -54,27 +54,25 @@ Get help/report bugs via : https://potassco.org/support
         basic = cmd_parser.add_argument_group('Basic Options')
         basic.add_argument('-h','--help',action='help',help=': Print help and exit')
         basic.add_argument('-',dest='read_stdin',action='store_true',help=argparse.SUPPRESS)   
-        basic.add_argument('files_and_models', nargs='*',help=argparse.SUPPRESS)
         basic.add_argument(
             '--models','-n',help=": Compute at most <n> models (0 for all)",
-            type=int,dest='max_models',metavar='<n>',default=None)
-        basic.add_argument('-c','--const',dest='constants',action="append",help=argparse.SUPPRESS)   
-        options, clingo_options = cmd_parser.parse_known_args()
+            type=int,dest='max_models',metavar='<n>',default=1)
+        basic.add_argument('-c','--const',dest='constants',action="append",help=argparse.SUPPRESS,default=[])   
+        options, unknown = cmd_parser.parse_known_args()
         options = vars(options)
 
-        # separate files and number of models
-        files = []
-        for i in options['files_and_models']:
-            if (re.match(r'^([0-9]|[1-9][0-9]+)$',i)): options['max_models'] = int(i)
-            else: files.append(i)
-        if files == []: options['read_stdin'] = True
-        options['files'] = files
-        print "Reading from " + ("-" if options['read_stdin'] else files[0]) + " ..."
+        # separate files, number of models and clingo options
+        options['files'], clingo_options = [], []
+        for i in unknown:
+            if   (re.match(r'^([0-9]|[1-9][0-9]+)$',i)): options['max_models'] = int(i)
+            elif (re.match(r'^-',i)):                    clingo_options.append(i)
+            else:                                        options['files'].append(i)
+        if options['files'] == []: options['read_stdin'] = True
+        print "Reading from " + ("-" if options['read_stdin'] else options['files'][0]) + " ..."
        
         # copy constants to clingo_options
-        for i in options['constants']:
-            clingo_options.append("-c " + i)
- 
+        map(lambda i: clingo_options.append("-c "+i),options['constants'])
+
         # return
         return options, clingo_options
 
@@ -86,7 +84,7 @@ class Asprin:
 
     def run(self):
         # arguments parsing
-        options, clingo_options = ArgumentParser().run()
+        options, clingo_options = AsprinArgumentParser().run()
         # specification parsing
         self.spec_parser = spec_parser.Parser()
         program          = self.spec_parser.parse_files(options['files'],options['read_stdin'])
