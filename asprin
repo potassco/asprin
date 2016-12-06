@@ -73,6 +73,9 @@ Get help/report bugs via : https://potassco.org/support
         # copy constants to clingo_options
         map(lambda i: clingo_options.append("-c "+i),options['constants'])
 
+        # provisional (avoid warnings)
+        clingo_options.append("-Wnone")
+
         # return
         return options, clingo_options
 
