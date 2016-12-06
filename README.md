@@ -9,7 +9,7 @@ Currently, for computing many optimal models, asprin does projection on the atom
 
 
 ## Building
-`asprin` requires Python (version 2.7 is tested), and the [python module of clingo](https://github.com/potassco/clingo). For installation instructions, please read [here](https://github.com/potassco/clingo/blob/master/INSTALL) the section on Building the Python Module.
+`asprin` requires Python (version 2.7 is tested), and the [python module of clingo](https://github.com/potassco/clingo). For installation instructions of the latter, please read [here](https://github.com/potassco/clingo/blob/master/INSTALL) the section on Building the Python Module.
 
 
 ## Example
