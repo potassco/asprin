@@ -69,13 +69,16 @@ class Parser(object):
 
 
     #
-    # Input:  list of files
+    # Input:  list of files, and bool for reading stdin
     # Output: string with the translation
     #
-    def parse_files(self,files):
+    def parse_files(self,files,read_stdin=False):
         for i in files:
             if self.list != []: self.list.append(("CODE","\n#program base.\n"))
             self.__parse_str(open(i).read())
+        if read_stdin:
+            if self.list != []: self.list.append(("CODE","\n#program base.\n"))
+            self.__parse_str(sys.stdin.read())
         return self.__print_list()
 
 

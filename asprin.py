@@ -4,6 +4,7 @@ import os
 import re
 #import logging
 #logging.basicConfig(level=logging.DEBUG)
+import argparse
 
 from src.spec_parser import spec_parser
 from src.pp_parser   import   pp_parser
@@ -29,7 +30,22 @@ class Asprin:
         _solver.set_options(options)
         _solver.run()
 
+
 def run():
+
+    # command parseri
+    cmd_parser = argparse.ArgumentParser(description='the asprin', usage='asprin [number] [options] [files]') cmd_parser.add_argument('files', nargs='+')
+    cmd_parser.parse_args()
+    return
+
+    max_models = 1
+    MAX_MODELS = "max_models"
+    options = dict([(MAX_MODELS,max_models)])
+    options = dict([(MAX_MODELS,max_models)])
+
+    asprin.run(files,options)
+
+def run2():
     print _version
     asprin = Asprin()
     # parse input

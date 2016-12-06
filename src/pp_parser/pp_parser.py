@@ -211,10 +211,8 @@ class Parser:
     def __init__(self,underscores):
         self.underscores = underscores
 
-    def get_control(self):
-        options = ["-Wnone"]
-        #options.append("--output-debug=text")
-        return clingo.Control(options)
+    def get_control(self,clingo_options=[]):
+        return clingo.Control(clingo_options)
 
     def parse_test(self,program):
         control = self.get_control()
@@ -228,9 +226,8 @@ class Parser:
                 print x
         return control
 
-    def parse(self,program):
-        #return self.parse_test(program)
-        control = self.get_control()
+    def parse(self,program,clingo_options=[]):
+        control = clingo.Control(clingo_options)
         with control.builder() as b:
             t = ProgramTransformer(self.underscores)
             clingo.parse_program(program,lambda stm: b.add(t.visit(stm)))

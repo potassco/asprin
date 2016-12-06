@@ -21,6 +21,7 @@ class GeneralController:
         self.state.last_unsat = True
         self.state.opt_models = 0
         self.state.models     = 0
+        self.state.more_models = True
 
     def start(self):
         return [self.solver.ground_base]
@@ -34,7 +35,9 @@ class GeneralController:
         return [self.solver.print_shown]
 
     def unsat_pre(self):
-        if self.state.last_unsat: return [self.solver.end]
+        if self.state.last_unsat:
+            self.state.more_models = False
+            return [self.solver.end]
         self.state.last_unsat = True
         self.state.opt_models  += 1
         out = [self.solver.print_optimum_string]

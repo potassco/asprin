@@ -117,7 +117,7 @@ class Solver:
         holds, nholds, self.shown = [], [], []
         for a in model.symbols(shown=True):
             if (a.name == HOLDS_AT_ZERO): holds.append(a.arguments[0])
-            else:                            self.shown.append(a)
+            else:                         self.shown.append(a)
         for a in model.symbols(terms=True,complement=True):
             if (a.name == HOLDS_AT_ZERO): nholds.append(a.arguments[0])
 
@@ -146,10 +146,11 @@ class Solver:
         control.ground(preference + unsat + delete_model + volatile)
 
     def end(self):
+        state = self.state
         print
-        print "Models\t\t: "  + str(self.state.models)
-        print "  Optimum\t: " + ("yes" if self.state.opt_models>0 else "no")
-        print "  Optimal\t: " + str(self.state.opt_models)
+        print "Models\t\t: "  + str(state.models) + ("+" if state.more_models else "")
+        print "  Optimum\t: " + ("yes" if state.opt_models>0 else "no")
+        print "  Optimal\t: " + str(state.opt_models)
         raise EndException
 
     #
