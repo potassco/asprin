@@ -3,7 +3,7 @@ A general framework for qualitative and quantitative optimization in answer set 
 
 ## Usage
 ```bash
-$ asprin.py [files] [number_of_models] 
+$ asprin.py [number_of_models] [options] [files]
 ```
 Currently, for computing many optimal models, asprin does projection on the atoms of the preference specification. 
 
@@ -20,7 +20,7 @@ dom(1..5).
 }.
 #optimize(p1).
 
-$ ./asprin.py asprin.lib examples/example1.lp 0
+$ ./asprin.py 0 asprin.lib examples/example1.lp
 asprin version 3.0.0
 Reading from asprin.lib ...
 Solving...
