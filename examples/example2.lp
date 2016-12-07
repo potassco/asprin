@@ -4,7 +4,7 @@
 #preference(a,subset) { a(X) : dom(X) }. 
 #preference(b,subset) { b(X) : dom(X) }.
 
-dom(1..n).
+dom(1..2).
 #show a/1.
 #show b/1.
 
