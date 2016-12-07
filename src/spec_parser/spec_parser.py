@@ -19,7 +19,7 @@ SPEC      = "specification"
 PPROGRAM  = "preference"
 HEURISTIC = "heuristic"
 APPROX    = "approximation"
-
+EMPTY     = ""
 
 
 #
@@ -41,18 +41,17 @@ class Parser(object):
 
     def __init__(self):
         # start famework
-        self.lexer = Lexer()
+        self.lexer  = Lexer()
         self.tokens = self.lexer.tokens
         self.parser = yacc.yacc(module=self)
-        self.log = logging.getLogger()
+        self.log    = logging.getLogger()
         # semantics
-        self.p_statements = 0
-        self.list = []
-        self.programs = dict([(BASE,dict([("","")])),(SPEC,dict([("","")])),(PPROGRAM,dict()),(HEURISTIC,dict()),(APPROX,dict())])
+        self.p_statements, self.list = 0, []
+        self.programs = dict([(BASE,dict([(EMPTY,"")])),(SPEC,dict([(EMPTY,"")])),(PPROGRAM,dict()),(HEURISTIC,dict()),(APPROX,dict())])
         # base program statement
         self.base      = ast.ProgramStatement()
         self.base.name = BASE
-        self.base.type = ""
+        self.base.type = EMPTY
 
 
     def __parse_str(self,string):
@@ -73,25 +72,31 @@ class Parser(object):
 
 
     def __print_list(self):
+
         ast.Statement.underscores = self.get_underscores()
-        program, type = BASE, ""
+        program, type = BASE, EMPTY
+
+        # add elements of the list
         for i in self.list:
             if i[0] == "CODE":
                 self.__update_program(program,type,i[1])
             if i[0] == "PREFERENCE" or i[0] == "OPTIMIZE":
                 if program != "base": self.__error("preference specification in non base program")
-                self.__update_program(SPEC,"",i[1].str())
+                self.__update_program(SPEC,EMPTY,i[1].str())
             if i[0] == "PROGRAM":
                 program, type = i[1].name, i[1].type
-        # TODO: test whether this makes sense, or should go somewhere else
+
+        # adding to base for generating domains
+        self.__update_program(BASE,EMPTY,"\n".join(ast.Statement.domains))
+
+        # adding to specification
         out = ""
         if ast.PStatement.bfs:
             out += ast.BF_ENCODING.replace("#",ast.Statement.underscores)
         out += "\n" + ast.TRUE_ATOM.replace("#",ast.Statement.underscores)
-        #out += "\n" + "\n".join(ast.Statement.domains)
-        out += "\n" + ast.DOM_ZERO.replace("#",ast.Statement.underscores)
-        self.__update_program(SPEC,"",out)
-        self.__update_program(BASE,"","\n".join(ast.Statement.domains))
+        out += "\n" + ast.DOM_RULES.replace("#",ast.Statement.underscores)
+        self.__update_program(SPEC,EMPTY,out)
+
         return self.programs
 
 
@@ -852,7 +857,7 @@ class Parser(object):
         pass
         s      = ast.ProgramStatement()
         s.name = ast.ast2str(p[2])
-        s.type = ast.ast2str(p[4]) if len(p)==6 else ""
+        s.type = ast.ast2str(p[4]) if len(p)==6 else EMPTY
         self.list.append(("PROGRAM",s)) # appends to self.list
 
     def p_end_program(self,p):

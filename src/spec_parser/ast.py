@@ -54,7 +54,7 @@ TRUE_ATOM = """
 #true.
 """
 
-DOM_ZERO = """
+DOM_RULES = """
 #pref_dom(X) :- #preference(X,_).
 #dom(X)      :- #gen_dom(X,0).
 """
@@ -397,8 +397,8 @@ class WBody:
         out = []
         if self.naming:
             name, arity = self.__get_signature(self.body)
-            return [ (Statement.underscores + PREFERENCE_DOM + "(" + ast2str(self.body) + ")",
-                    [ Statement.underscores + GEN_PREFERENCE_DOM+"("+name+","+str(i)+")." for i in arity ] ) ]
+            return [ (Statement.underscores + PREFERENCE_DOM + "(" + ast2str(self.body) + ")",[])]
+                    #[ Statement.underscores + GEN_PREFERENCE_DOM+"("+name+","+str(i)+")." for i in arity ] ) ] # DOM_RULES
         for i in self.body:
             out += self.__get_dom_atoms_from_bf(i)
         return out

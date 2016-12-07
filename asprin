@@ -16,6 +16,13 @@ from src.solver      import      solver
 
 
 #
+# asprin error
+#
+
+ERROR = "error: asprin: "
+
+
+#
 # global variables
 #
 
@@ -102,8 +109,10 @@ class Asprin:
 
 
 if __name__ == "__main__":
-    asprin = Asprin().run()
-
+    try:
+        asprin = Asprin().run()
+    except Exception as e: 
+        print ERROR + str(e)
 
 # TODO: underscores
 # TODO: preference type names underscored
