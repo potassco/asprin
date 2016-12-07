@@ -90,11 +90,11 @@ class Asprin:
         options, clingo_options = AsprinArgumentParser().run()
         # specification parsing
         self.spec_parser = spec_parser.Parser()
-        program          = self.spec_parser.parse_files(options['files'],options['read_stdin'])
+        programs         = self.spec_parser.parse_files(options['files'],options['read_stdin'])
         underscores      = self.spec_parser.get_underscores()
         # preference programs parsing
         self.pp_parser   = pp_parser.Parser(underscores)
-        control          = self.pp_parser.parse(program,clingo_options)
+        control          = self.pp_parser.parse(programs,clingo_options)
         # solving
         _solver          = solver.Solver(control)
         _solver.set_options(options)

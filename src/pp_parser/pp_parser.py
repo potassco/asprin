@@ -4,29 +4,55 @@ import clingo
 import clingo.ast
 import pdb
 
+
+
+#
+# DEFINES
+#
+
+BASE       = "base"
+SPEC       = "specification"
+DOM        = "dom"          # arity 1
+GEN_DOM    = "gen_dom"      # arity 2
+PREFERENCE = "preference"   # arity 2
+PPROGRAM   = "preference"
+M1         = "m1"
+M2         = "m2"
+
+
+
+#
+# GLOBAL VARIABLES
+#
+
 modify_conditional_literal    = True
 modify_conditional_literal    = False
 modify_body_aggregate_element = True
 #modify_body_aggregate_element = False
 
 
+
 class Transformer:
+
 
     def underscore(self,x):
         return self.__underscore + x
 
+
     def __init__(self,underscore=""):
         self.__underscore = underscore
-        self.m1 = clingo.Function(self.underscore("m1"),[])
-        self.m2 = clingo.Function(self.underscore("m2"),[])
+        self.m1 = clingo.Function(self.underscore(M1),[])
+        self.m2 = clingo.Function(self.underscore(M2),[])
         self.det = set([]) # set([self.underscore("volatile")])
         self.keywords_det   = set(["preference","optimize"])
         self.keywords_undet = set(["unsat"])
+
 
     def visit_children(self, x, *args, **kwargs):
         for key in x.child_keys:
             setattr(x, key, self.visit(getattr(x, key), *args, **kwargs))
         return x
+
 
     def visit(self, x, *args, **kwargs):
         if isinstance(x, clingo.ast.AST):
@@ -43,10 +69,13 @@ class Transformer:
             raise TypeError("unexpected type")
 
 
+
 class TermTransformer(Transformer):
+
 
     def __init__(self,underscore=""):
         Transformer.__init__(self,underscore)
+
 
     def visit_Function(self, term):
         if term.name == "holds":
@@ -67,6 +96,7 @@ class TermTransformer(Transformer):
             term.arguments.append(clingo.ast.Symbol(term.location,self.m2))
         return term
 
+
     def visit_Symbol(self, term):
         # this function is not necessary if gringo's parser is used
         # but this case could occur in a valid AST
@@ -76,13 +106,17 @@ class TermTransformer(Transformer):
         return term
 
 
+
 class ProgramTransformer(Transformer):
 
+
     base, preference, other = "base", "preference", "other"
+
 
     def __volatile(self,loc):
         return clingo.ast.Literal(loc,clingo.ast.Sign.None,clingo.ast.SymbolicAtom(
                clingo.ast.Function(loc,self.underscore("volatile"),[clingo.ast.Symbol(loc,self.m1),clingo.ast.Symbol(loc,self.m2)],False)))
+
 
     #
     # init and a bit more
@@ -154,7 +188,7 @@ class ProgramTransformer(Transformer):
             self.program = ProgramTransformer.base
         elif prg.name == "preference":
             self.program = ProgramTransformer.preference
-            prg.name = self.underscore("preference")
+            #prg.name = self.underscore("preference")
             prg.parameters = [clingo.ast.Id(prg.location,str(self.m1)),clingo.ast.Id(prg.location,str(self.m2))]
         else:
             self.program = ProgramTransformer.other
@@ -206,42 +240,83 @@ class ProgramTransformer(Transformer):
         return b
 
 
+
+class Solver:
+
+
+    def do_base(self,control,programs,underscores):
+        control.add(BASE,[],programs[BASE][""])
+        control.ground([(BASE,[])])
+
+
+    def get_domains(self,control,programs,underscores):
+        out = ""
+        for atom in control.symbolic_atoms.by_signature(underscores+GEN_DOM,2):
+            if int(str(atom.symbol.arguments[1])) != 0: # if 0, this is handled in spec_parser
+                for atom2 in control.symbolic_atoms.by_signature(
+                    str(atom.symbol.arguments[0]),int(str(atom.symbol.arguments[1]))):
+                    out += underscores + DOM + "(" + str(atom2.symbol) + ").\n"
+        return out
+
+
+    def do_spec(self,control,programs,underscores):
+        control.add(SPEC,[],programs[SPEC][""])
+        control.ground([(SPEC,[])])
+        out = set()
+        for atom in control.symbolic_atoms.by_signature(underscores+PREFERENCE,2):
+            out.add(str(atom.symbol.arguments[1]))
+        return out
+
+
+
 class Parser:
+
 
     def __init__(self,underscores):
         self.underscores = underscores
+        self.solver      = Solver()
 
-    def get_control(self,clingo_options=[]):
-        return clingo.Control(clingo_options)
 
-    def parse_test(self,program):
-        control = self.get_control()
+    def __add_program(self,control,name,programs,types):
         l = []
-        t = ProgramTransformer(self.underscores)
-        clingo.parse_program(program,lambda stm: l.append(stm))
-        with control.builder() as b:
-            for i in l:
-                x = t.visit(i)
-                b.add(x)
-                print x
-        return control
+        if name == PPROGRAM:
+            with control.builder() as b:
+                t = ProgramTransformer(self.underscores)
+                for type, program in programs.items():
+                    if type in types:
+                        clingo.parse_program("#program "+name+".\n"+program,lambda stm: b.add(t.visit(stm)))
 
-    def parse(self,program,clingo_options=[]):
+
+    def __debug_add_program(self,control,name,programs,types):
+        l = []
+        if name == PPROGRAM:
+            with control.builder() as b:
+                t = ProgramTransformer(self.underscores)
+                for type, program in programs.items():
+                    if type in types:
+                        clingo.parse_program("#program "+name+".\n"+program,lambda stm: l.append(t.visit(stm)))
+        for i in l:
+            print i
+
+
+    def parse(self,programs,clingo_options):
+        # create control object
         control = clingo.Control(clingo_options)
-        with control.builder() as b:
-            t = ProgramTransformer(self.underscores)
-            clingo.parse_program(program,lambda stm: b.add(t.visit(stm)))
+        # ground base program
+        self.solver.do_base(control,programs,self.underscores)
+        # get domains for the specification
+        programs[SPEC][""] += self.solver.get_domains(control,programs,self.underscores)
+        # ground specification and get preference types
+        types = self.solver.do_spec(control,programs,self.underscores)
+        types.add("") # add basic case
+        # translate and add the rest of the programs
+        debug = True
+        debug = False
+        for name, programs in programs.items():
+            if name != BASE and name != SPEC:
+                if not debug: self.__add_program(control,name,programs,types)
+                if     debug: self.__debug_add_program(control,name,programs,types)
+        if debug: raise Exception("STOPPED")
+        # return
         return control
 
-
-def main(prg):
-    with prg.builder() as b:
-        t = ProgramTransformer()
-        l = []
-        clingo.parse_program(
-            open("example.lp").read(),
-            #lambda stm: b.add(t.visit(stm)))
-            lambda stm: l.append(stm))
-    for i in l:
-        print t.visit(i)
-#end.

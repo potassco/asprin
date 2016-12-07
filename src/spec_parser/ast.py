@@ -39,24 +39,24 @@ FOR   = "for"
 #
 
 BF_ENCODING = """
-_sat(and(X,Y)) :- _sat(X), _sat(Y), _bf(and(X,Y)).
-_sat(or (X,Y)) :- _sat(X),          _bf(or (X,Y)).
-_sat(or (X,Y)) :- _sat(Y),          _bf(or (X,Y)).
-_sat(neg(X  )) :- not _sat(X),      _bf(neg(X  )).
-_bf(X) :- _bf(and(X,Y)).
-_bf(Y) :- _bf(and(X,Y)).
-_bf(X) :- _bf(or (X,Y)).
-_bf(Y) :- _bf(or (X,Y)).
-_bf(X) :- _bf(neg(X  )).
+#sat(and(X,Y)) :- #sat(X), #sat(Y), #bf(and(X,Y)).
+#sat(or (X,Y)) :- #sat(X),          #bf(or (X,Y)).
+#sat(or (X,Y)) :- #sat(Y),          #bf(or (X,Y)).
+#sat(neg(X  )) :- not #sat(X),      #bf(neg(X  )).
+#bf(X) :- #bf(and(X,Y)).
+#bf(Y) :- #bf(and(X,Y)).
+#bf(X) :- #bf(or (X,Y)).
+#bf(Y) :- #bf(or (X,Y)).
+#bf(X) :- #bf(neg(X  )).
 """
 
 TRUE_ATOM = """
-_true.
+#true.
 """
 
 DOM_ZERO = """
-#pref_dom(X) :- #gen_pref_dom(X,0).
-#dom(X)      :- #pref_dom(X,0).
+#pref_dom(X) :- #preference(X,_).
+#dom(X)      :- #gen_dom(X,0).
 """
 
 
@@ -172,6 +172,7 @@ class PStatement(Statement):
         return out
 
 
+
 # optimize statement
 class OStatement(Statement):
 
@@ -180,6 +181,16 @@ class OStatement(Statement):
         statement_body = body2str(self.body) if self.body is not None else ""
         arrow = " :- " if statement_body != "" else ""
         return Statement.underscores + OPTIMIZE + "({}){}{}.\n".format(ast2str(self.name),arrow,statement_body)
+
+
+
+# program statement
+class ProgramStatement(Statement):
+
+
+    def str(self):
+        return ast2str(self.name)
+
 
 
 # preference element
@@ -371,7 +382,8 @@ class WBody:
         if bf[0] == "ext_atom":
             if bf[1][0] == "atom":
                 name, arity = self.__get_signature(bf[1][1])
-                return [ (Statement.underscores + DOM + "(" + ast2str(bf[1][1]) + ")",[ Statement.underscores + GEN_DOM+"("+name+","+str(i)+")." for i in arity ] ) ]
+                return [ (Statement.underscores + DOM + "(" + ast2str(bf[1][1]) + ")",
+                        [ Statement.underscores + GEN_DOM+"("+name+","+str(i)+")." for i in arity ] ) ]
             else: return []
         elif bf[0] == "and" or bf[0] == "or":
             return self.__get_dom_atoms_from_bf(bf[1][0]) + self.__get_dom_atoms_from_bf(bf[1][1])
@@ -385,7 +397,8 @@ class WBody:
         out = []
         if self.naming:
             name, arity = self.__get_signature(self.body)
-            return [ (Statement.underscores + PREFERENCE_DOM + "(" + ast2str(self.body) + ")", [ Statement.underscores + GEN_PREFERENCE_DOM+"("+name+","+str(i)+")." for i in arity ] ) ]
+            return [ (Statement.underscores + PREFERENCE_DOM + "(" + ast2str(self.body) + ")",
+                    [ Statement.underscores + GEN_PREFERENCE_DOM+"("+name+","+str(i)+")." for i in arity ] ) ]
         for i in self.body:
             out += self.__get_dom_atoms_from_bf(i)
         return out

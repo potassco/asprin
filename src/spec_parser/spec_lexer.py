@@ -80,6 +80,7 @@ class Lexer(object):
         'DOT_EOF',
         'PREFERENCE',
         'OPTIMIZE',
+        'PROGRAM',
         'LPAREN',
         'RPAREN',
         'LBRACE',
@@ -140,6 +141,7 @@ class Lexer(object):
     # Regular expression rules for simple tokens
     t_PREFERENCE = r'\#preference'
     t_OPTIMIZE   = r'\#optimize'
+    t_PROGRAM    = r'\#program'
     t_DOT_EOF    = r'\.\Z'
     t_DOT        = r'\.'
     t_LPAREN     = r'\('
@@ -272,8 +274,8 @@ class Lexer(object):
         r'\#script[\t\r ]*\([\t\r ]*(python|lua)[\t\r ]*\)'
         t.lexer.push_state('script')
 
-    def t_normal_PREFERENCE(self,t):
-        r'(\#preference)|(\#optimize)'
+    def t_normal_DIRECTIVE(self,t):
+        r'(\#preference)|(\#optimize)|(\#program)'
         t.lexer.push_state('INITIAL')
         t.value = t.lexer.lexdata[self.code_start:t.lexpos]
         t.type = 'CODE'

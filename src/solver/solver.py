@@ -39,14 +39,15 @@ UNSATISFIABLE = "UNSATISFIABLE"
 OPTIMUM_FOUND = "OPTIMUM FOUND"
 
 # program names
-ENCODINGS     = os.path.dirname(os.path.realpath(__file__)) + "/encodings.lp"
-DO_HOLDS      = "_do_holds"
-PREFERENCE    = "_preference"
-NOT_UNSAT_PRG = "_not_unsat"
-UNSAT_PRG     =     "_unsat"
-VOLATILE_EXT  = "_volatile_external"
-VOLATILE_FACT = "_volatile_fact"
-DELETE_MODEL  = "_delete_model"
+ENCODINGS        = os.path.dirname(os.path.realpath(__file__)) + "/encodings.lp"
+DO_HOLDS         = "_do_holds"
+DO_HOLDS_AT_ZERO = "_do_holds_at_zero"
+PREFERENCE       = "preference"
+NOT_UNSAT_PRG    = "_not_unsat"
+UNSAT_PRG        =     "_unsat"
+VOLATILE_EXT     = "_volatile_external"
+VOLATILE_FACT    = "_volatile_fact"
+DELETE_MODEL     = "_delete_model"
 
 # predicate and term names
 VOLATILE      = "_volatile"
@@ -83,8 +84,8 @@ class Solver:
         self.state = State()
         self.solving_result = None
         self.control = control
-        self.pre  = dict(START=[],START_LOOP=[],SOLVE=[],SAT=[],UNSAT=[],UNKNOWN=[],END_LOOP=[],END=[])
-        self.post = dict(START=[],START_LOOP=[],SOLVE=[],SAT=[],UNSAT=[],UNKNOWN=[],END_LOOP=[],END=[])
+        self.pre  = dict([(START,[]),(START_LOOP,[]),(SOLVE,[]),(SAT,[]),(UNSAT,[]),(UNKNOWN,[]),(END_LOOP,[]),(END,[])])
+        self.post = dict([(START,[]),(START_LOOP,[]),(SOLVE,[]),(SAT,[]),(UNSAT,[]),(UNKNOWN,[]),(END_LOOP,[]),(END,[])])
         self.shown = []
         self.state.max_models = 1
 
@@ -93,11 +94,9 @@ class Solver:
     # CLINGO PROXY
     #
 
-    def ground_base(self):
-        control = self.control
-        control.load(ENCODINGS)
-        base = [("base",[])]
-        control.ground(base)
+    def load_encodings(self):
+        self.control.load(ENCODINGS)
+        self.control.ground([(DO_HOLDS_AT_ZERO,[])])
 
     def ground_preference_program(self):
         state, control, prev_step = self.state, self.control, self.state.step-1

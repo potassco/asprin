@@ -11,6 +11,18 @@ logging.basicConfig(filename="q.log", level=logging.DEBUG)
 
 
 #
+# defines
+#
+
+BASE      = "base"
+SPEC      = "specification"
+PPROGRAM  = "preference"
+HEURISTIC = "heuristic"
+APPROX    = "approximation"
+
+
+
+#
 # Exception Handling
 #
 class ParseError(Exception):
@@ -36,6 +48,11 @@ class Parser(object):
         # semantics
         self.p_statements = 0
         self.list = []
+        self.programs = dict([(BASE,dict([("","")])),(SPEC,dict([("","")])),(PPROGRAM,dict()),(HEURISTIC,dict()),(APPROX,dict())])
+        # base program statement
+        self.base      = ast.ProgramStatement()
+        self.base.name = BASE
+        self.base.type = ""
 
 
     def __parse_str(self,string):
@@ -44,19 +61,38 @@ class Parser(object):
         self.lexer.reset()
 
 
+    def __error(self,string):
+        raise ParseError(string)
+
+
+    def __update_program(self,program,type,string):
+        _dict = self.programs.get(program)
+        if _dict is None: return
+        e = _dict.get(type)
+        _dict[type] = e + string if e is not None else string
+
+
     def __print_list(self):
         ast.Statement.underscores = self.get_underscores()
-        out = ""
+        program, type = BASE, ""
         for i in self.list:
-            if i[0] == "CODE":       out += i[1]
-            if i[0] == "PREFERENCE": out += i[1].str()
-            if i[0] == "OPTIMIZE":   out += i[1].str()
+            if i[0] == "CODE":
+                self.__update_program(program,type,i[1])
+            if i[0] == "PREFERENCE" or i[0] == "OPTIMIZE":
+                if program != "base": self.__error("preference specification in non base program")
+                self.__update_program(SPEC,"",i[1].str())
+            if i[0] == "PROGRAM":
+                program, type = i[1].name, i[1].type
+        # TODO: test whether this makes sense, or should go somewhere else
+        out = ""
         if ast.PStatement.bfs:
-            out += ast.BF_ENCODING.replace("_",ast.Statement.underscores)
-        out += "\n" + ast.TRUE_ATOM.replace("_",ast.Statement.underscores)
-        out += "\n" + "\n".join(ast.Statement.domains)
+            out += ast.BF_ENCODING.replace("#",ast.Statement.underscores)
+        out += "\n" + ast.TRUE_ATOM.replace("#",ast.Statement.underscores)
+        #out += "\n" + "\n".join(ast.Statement.domains)
         out += "\n" + ast.DOM_ZERO.replace("#",ast.Statement.underscores)
-        return out
+        self.__update_program(SPEC,"",out)
+        self.__update_program(BASE,"","\n".join(ast.Statement.domains))
+        return self.programs
 
 
     #
@@ -74,10 +110,10 @@ class Parser(object):
     #
     def parse_files(self,files,read_stdin=False):
         for i in files:
-            if self.list != []: self.list.append(("CODE","\n#program base.\n"))
+            if self.list != []: self.list.append(("PROGRAM",self.base))
             self.__parse_str(open(i).read())
         if read_stdin:
-            if self.list != []: self.list.append(("CODE","\n#program base.\n"))
+            if self.list != []: self.list.append(("PROGRAM",self.base))
             self.__parse_str(sys.stdin.read())
         return self.__print_list()
 
@@ -794,6 +830,34 @@ class Parser(object):
     def p_end_optimize(self,p):
         """ end_optimize : DOT change_state CODE
                          | DOT_EOF
+        """
+        if len(p) == 4:
+            self.list.append(("CODE",p[3])) # appends to self.list
+
+
+    #
+    # PROGRAM
+    #
+
+    def p_statement_4(self,p):
+        """ statement : start_program end_program
+        """
+        pass
+
+    # TODO: check arity of program if identifier...
+    def p_start_program(self,p):
+        """ start_program : PROGRAM identifier LPAREN argvec RPAREN
+                          | PROGRAM identifier
+        """
+        pass
+        s      = ast.ProgramStatement()
+        s.name = ast.ast2str(p[2])
+        s.type = ast.ast2str(p[4]) if len(p)==6 else ""
+        self.list.append(("PROGRAM",s)) # appends to self.list
+
+    def p_end_program(self,p):
+        """ end_program : DOT change_state CODE
+                        | DOT_EOF
         """
         if len(p) == 4:
             self.list.append(("CODE",p[3])) # appends to self.list

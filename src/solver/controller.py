@@ -24,7 +24,7 @@ class GeneralController:
         self.state.more_models = True
 
     def start(self):
-        return [self.solver.ground_base]
+        return [self.solver.load_encodings]
 
     def solve(self):
         return [self.solver.solve]

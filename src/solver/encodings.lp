@@ -11,7 +11,7 @@ def getNHolds():
 
 #end.
 
-#program base.
+#program _do_holds_at_zero.
 #show _holds_at_zero(X) : _holds(X,0).
 
 #program _do_holds(_m).
