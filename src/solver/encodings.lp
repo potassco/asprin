@@ -11,29 +11,29 @@ def getNHolds():
 
 #end.
 
-#program _do_holds_at_zero.
-#show _holds_at_zero(X) : _holds(X,0).
+#program do_holds_at_zero.
+#show ##holds_at_zero(X) : ##holds(X,0).
 
-#program _do_holds(_m).
-_holds(X,_m) :- X = @getHolds().
+#program do_holds(m).
+##holds(X,m) :- X = @getHolds().
 
-#program _openholds(_m).
-{ _holds(X,_m) } :- X = @getHolds().
-{ _holds(X,_m) } :- X = @getNHolds().
+#program openholds(m).
+{ ##holds(X,m) } :- X = @getHolds().
+{ ##holds(X,m) } :- X = @getNHolds().
 
-#program _volatile_fact(_m1,_m2).
-_volatile(_m1,_m2).
+#program volatile_fact(m1,m2).
+##volatile(##m(m1),##m(m2)).
 
-#program _volatile_external(_m1,_m2).
-#external _volatile(_m1,_m2).
+#program volatile_external(m1,m2).
+#external ##volatile(##m(m1),##m(m2)).
 
-#program _delete_model.
-:- _holds(X,0) : X = @getHolds(); not _holds(X,0) : X = @getNHolds().
+#program delete_model.
+:- ##holds(X,0) : X = @getHolds(); not ##holds(X,0) : X = @getNHolds().
 
-#program _unsat(_m1,_m2).
-:- not _unsat(_m1,_m2), _volatile(_m1,_m2).
+#program unsat(m1,m2).
+:- not ##unsat(##m(m1),##m(m2)), ##volatile(##m(m1),##m(m2)).
 
-#program _not_unsat(_m1,_m2).
-:-     _unsat(_m1,_m2), _volatile(_m1,_m2).
+#program not_unsat(m1,m2).
+:-     ##unsat(##m(m1),##m(m2)), ##volatile(##m(m1),##m(m2)).
 
 

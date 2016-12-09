@@ -1,7 +1,7 @@
 #script (python)
 
 import clingo
-import pdb
+#import pdb
 import transformer
 
 
@@ -94,11 +94,22 @@ class Parser:
         # translate and add the rest of the programs
         debug = True
         debug = False
-        for name, programs in programs.items():
+        if debug:
+            print "###programs"
+            for name, program in programs.items():
+                print "#name = " + str(name)
+                for name2, program2 in program.items():
+                    print "#type = " + str(name2)
+                    print program2
+                    print "#end"
+            print "###translations"
+        for name, program in programs.items():
             if name != BASE and name != SPEC:
-                if not debug: self.__add_program(control,name,programs,types)
-                if     debug: self.__debug_add_program(control,name,programs,types)
-        if debug: raise Exception("STOPPED")
+                if not debug: self.__add_program(control,name,program,types)
+                if     debug: self.__debug_add_program(control,name,program,types)
+        if debug:
+            print "###" + str(types)
+            raise Exception("STOPPED")
 
         # return
         return control

@@ -10,37 +10,53 @@ import pdb
 # DEFINES
 #
 
+BASE       = "base"
 PPROGRAM   = "preference"
 M1         = "m1"
+MODEL      = "m"
 M2         = "m2"
 VOLATILE   = "volatile"
-
+UNSAT      = "unsat"
+NODE       = "node"
 
 #
 # GLOBAL VARIABLES
 #
 
 modify_conditional_literal    = True
-modify_conditional_literal    = False
-modify_body_aggregate_element = True
-#modify_body_aggregate_element = False
+modify_body_aggregate         = True
+modify_disjoint               = True
+
+
+
+# used by class Predicate
+def get_empty(location):
+    return []
+
+
+class Predicate:
+
+
+    def __init__(self,deterministic=False,underscores="",
+                 arguments=get_empty,arity=0):
+        self.deterministic = deterministic
+        self.underscores   = underscores
+        self.arguments     = arguments # function with parameter location
+        self.arity         = arity
 
 
 
 class Transformer:
 
 
-    def underscore(self,x):
-        return self.__underscore + x
-
-
     def __init__(self,underscore=""):
         self.__underscore = underscore
-        self.m1 = clingo.Function(self.underscore(M1),[])
-        self.m2 = clingo.Function(self.underscore(M2),[])
-        self.det = set([]) # set([self.underscore("volatile")])
-        self.keywords_det   = set(["preference","optimize"])
-        self.keywords_undet = set(["unsat"])
+        self.m1 = clingo.Function(self.underscore(MODEL),[clingo.Function(self.underscore(M1),[])])
+        self.m2 = clingo.Function(self.underscore(MODEL),[clingo.Function(self.underscore(M2),[])])
+
+
+    def underscore(self,x):
+        return self.__underscore + x
 
 
     def visit_children(self, x, *args, **kwargs):
@@ -64,41 +80,65 @@ class Transformer:
             raise TypeError("unexpected type")
 
 
+    def get_m1_m2(self,loc):
+        return [clingo.ast.Symbol(loc,self.m1),clingo.ast.Symbol(loc,self.m2)]
+
+
+    def get_m1(self,loc):
+        return [clingo.ast.Symbol(loc,clingo.Function(self.underscore(M1),[]))]
+
+
+    def get_m2(self,loc):
+        return [clingo.ast.Symbol(loc,clingo.Function(self.underscore(M2),[]))]
+
+
+    def get_volatile(self,loc):
+        return clingo.ast.Literal(loc,clingo.ast.Sign.None,clingo.ast.SymbolicAtom(
+               clingo.ast.Function(loc,self.underscore(VOLATILE),self.get_m1_m2(loc),False)))
+
+
 
 class TermTransformer(Transformer):
 
 
     def __init__(self,underscore=""):
         Transformer.__init__(self,underscore)
+        self.predicates = dict([(("holds",1),Predicate(arguments=self.get_m1,arity=1)),
+                                (("holds'",1),Predicate(arguments=self.get_m2,arity=1)),
+                                (("optimize",1),Predicate(deterministic=True)),
+                                (("preference",2),Predicate(deterministic=True)),
+                                (("preference",5),Predicate(deterministic=True)),
+                               ])
+        self.default = Predicate(underscores="_",arguments=self.get_m1_m2,arity=2)
 
 
     def visit_Function(self, term):
-        if term.name == "holds":
-            term.name = self.underscore("holds")
-            term.arguments.append(clingo.ast.Symbol(term.location,self.m1))
-        elif term.name == "holds'":
-            term.name = self.underscore("holds")
-            term.arguments.append(clingo.ast.Symbol(term.location,self.m2))
-        elif term.name in self.keywords_det:
-            term.name = self.underscore(term.name)
-        elif term.name in self.keywords_undet:
-            term.name = self.underscore(term.name)
-            term.arguments.append(clingo.ast.Symbol(term.location,self.m1))
-            term.arguments.append(clingo.ast.Symbol(term.location,self.m2))
-        elif term.name not in self.det:
-            term.name = "_" + self.underscore(term.name)
-            term.arguments.append(clingo.ast.Symbol(term.location,self.m1))
-            term.arguments.append(clingo.ast.Symbol(term.location,self.m2))
+        # select Predicate
+        predicate = self.predicates.get((term.name,len(term.arguments)))
+        if predicate is None: predicate = self.default
+        # modify term
+        if term.name == "holds'" and len(term.arguments)==1: term.name = "holds"
+        term.name = predicate.underscores + self.underscore(term.name)
+        term.arguments += predicate.arguments(term.location)
+        #return
         return term
 
 
     def visit_Symbol(self, term):
-        # this function is not necessary if gringo's parser is used
-        # but this case could occur in a valid AST
         fun = term.symbol
         assert(fun.type == clingo.SymbolType.Function)
-        term.symbol = clingo.Function(fun.name, fun.arguments + [self.m1,self.m2], fun.positive)
+        predicate = self.predicates.get((fun.name,len(fun.arguments)))
+        if predicate is None: predicate = self.default
+        if fun.name == "holds'" and len(fun.arguments)==1: term.name = "holds"
+        term.symbol = clingo.Function(predicate.underscores + self.underscore(fun.name),
+                                      fun.arguments + [ x.symbol for x in predicate.arguments(term.location)],
+                                      fun.positive)
         return term
+
+    def update_arity(self,name,arity):
+        predicate = self.predicates.get((name,arity))
+        if predicate is None: predicate = self.default
+        return predicate.arity
 
 
 
@@ -106,7 +146,7 @@ class ProgramTransformer(Transformer):
 
 
     #
-    # init and a bit more
+    # init and auxiliary functions
     #
 
     def __init__(self,underscore=""):
@@ -114,18 +154,11 @@ class ProgramTransformer(Transformer):
         self.term_transformer = TermTransformer(underscore)
         self.type = PPROGRAM
 
-
-    def __volatile(self,loc):
-        return clingo.ast.Literal(loc,clingo.ast.Sign.None,clingo.ast.SymbolicAtom(
-               clingo.ast.Function(loc,self.underscore(VOLATILE),
-              [clingo.ast.Symbol(loc,self.m1),clingo.ast.Symbol(loc,self.m2)],False)))
-
-
     #
     # Statements
     #
 
-    # TODO: implement
+    # TODO(EFF): implement
     def __head_is_det(self,rule):
         return False
 
@@ -134,25 +167,27 @@ class ProgramTransformer(Transformer):
         if (str(rule.head.type) == "Literal"
             and str(rule.head.atom.type) == "BooleanConstant"
             and str(rule.head.atom.value == False)):
+                # add unsat head
                 rule.head = clingo.ast.Literal(rule.location,clingo.ast.Sign.None,clingo.ast.SymbolicAtom(
-                            clingo.ast.Function(rule.location,"unsat",[],False)))
-        self.visit_children(rule)
-        rule.body.append(self.__volatile(rule.location))
+                            clingo.ast.Function(rule.location,self.underscore(UNSAT),self.get_m1_m2(rule.location),False)))
+                self.visit(rule.body)
+        else: self.visit_children(rule)
+        rule.body.append(self.get_volatile(rule.location))
         return rule
 
     def visit_Definition(self,d):
         return d
 
-    # TODO: implement
+    # TODO(EFF): implement
     def __sig_is_det(self,sig):
         return False
 
     def visit_ShowSignature(self, sig):
-        if self.__sig_is_det: return sig
-        sig.arity += 1
+        if self.__sig_is_det(sig): return sig
+        sig.arity += self.term_transformer.update_arity(sig.name,sig.arity)
         return sig
 
-    # TODO: implement
+    # TODO(EFF): implement
     def __body_is_det(self,body):
         return False
 
@@ -160,7 +195,7 @@ class ProgramTransformer(Transformer):
         if self.__body_is_det(show.body): return show
         show.term = self.term_transformer.visit(show.term)
         self.visit(show.body)
-        show.body.append(self.__volatile(show.location))
+        show.body.append(self.get_volatile(show.location))
         return show
 
     def visit_Minimize(self,min):
@@ -170,18 +205,30 @@ class ProgramTransformer(Transformer):
         return script
 
     def visit_Program(self, prg):
-        prg.parameters = [clingo.ast.Id(prg.location,str(self.m1)),clingo.ast.Id(prg.location,str(self.m2))]
+        if prg.name == BASE: return prg
+        prg.parameters = [clingo.ast.Id(prg.location,self.underscore(M1)),clingo.ast.Id(prg.location,self.underscore(M2))]
         return prg
 
     def visit_External(self,ext):
         raise Exception("clingo optimization externals not allowed in " + self.type + "programs: " + str(ext))
 
-    # TODO: handle
+    def __extend_edge(self,term):
+        return clingo.ast.Function(term.location,self.underscore(NODE),
+                                  [term]+self.get_m1_m2(term.location),False)
+
+    # TODO(EFF):do not translate if *all* edge statements are deterministic
     def visit_Edge(self,edge):
+        edge.u = self.__extend_edge(edge.u)
+        edge.v = self.__extend_edge(edge.v)
+        self.visit(edge.body)
+        edge.body.append(self.get_volatile(edge.location))
         return edge
 
-    # TODO: handle
+    # TODO(EFF): do not add if head is deterministic
     def visit_Heuristic(self,heur):
+        heur.atom = self.term_transformer.visit(heur.atom)
+        self.visit(heur.body)
+        heur.body.append(self.get_volatile(heur.location))
         return heur
 
     def visit_ProjectAtom(self,atom):
@@ -201,7 +248,7 @@ class ProgramTransformer(Transformer):
     def visit_ConditionalLiteral(self,c):
         self.visit_children(c)
         if modify_conditional_literal:
-            c.condition.append(self.__volatile(c.location))
+            c.condition.append(self.get_volatile(c.location))
         return c
 
     def visit_BodyAggregate(self,b):
@@ -211,8 +258,19 @@ class ProgramTransformer(Transformer):
 
     def visit_BodyAggregateElement(self,b):
         self.visit_children(b)
-        if modify_body_aggregate_element:
-            b.condition.append(self.__volatile(self.location))
+        if modify_body_aggregate:
+            b.condition.append(self.get_volatile(self.location))
         return b
+
+    def visit_Disjoint(self,d):
+        self.location = d.location
+        self.visit_children(d)
+        return d
+
+    def visit_DisjointElement(self,d):
+        self.visit_children(d)
+        if modify_disjoint:
+            d.condition.append(self.get_volatile(self.location))
+        return d
 
 

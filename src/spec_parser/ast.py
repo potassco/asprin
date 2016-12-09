@@ -54,6 +54,7 @@ TRUE_ATOM = """
 #true.
 """
 
+# TODO: CHECK PREFERENCE ATOMS
 DOM_RULES = """
 #pref_dom(X) :- #preference(X,_).
 #dom(X)      :- #gen_dom(X,0).

@@ -64,6 +64,9 @@ Get help/report bugs via : https://potassco.org/support
         basic.add_argument(
             '--models','-n',help=": Compute at most <n> models (0 for all)",
             type=int,dest='max_models',metavar='<n>',default=1)
+        basic.add_argument(
+            '--steps','-s',help=": Execute at most <s> steps",
+            type=int,dest='steps',metavar='<s>',default=0)
         basic.add_argument('-c','--const',dest='constants',action="append",help=argparse.SUPPRESS,default=[])   
         options, unknown = cmd_parser.parse_known_args()
         options = vars(options)
@@ -103,7 +106,7 @@ class Asprin:
         self.pp_parser   = pp_parser.Parser(underscores)
         control          = self.pp_parser.parse(programs,clingo_options)
         # solving
-        _solver          = solver.Solver(control)
+        _solver          = solver.Solver(control,underscores)
         _solver.set_options(options)
         _solver.run()
 

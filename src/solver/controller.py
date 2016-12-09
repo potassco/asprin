@@ -17,7 +17,6 @@ class GeneralController:
         self.solver.register_pre(solver.END_LOOP,self.end_loop)
         self.state.step       = 1
         self.state.start_step = 1
-        self.state.steps      = 0
         self.state.last_unsat = True
         self.state.opt_models = 0
         self.state.models     = 0
@@ -67,5 +66,4 @@ class BasicMethodController:
         if self.state.step > self.state.start_step: return [self.solver.ground_preference_program]
 
     def unsat_pre(self):
-        logging.info("BasicMethodController unsat_pre")
         return [self.solver.relax_previous_models]
