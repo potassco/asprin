@@ -1,5 +1,5 @@
 # asprin
-A general framework for qualitative and quantitative optimization in answer set programming.
+> A general framework for qualitative and quantitative optimization in answer set programming.
 
 ## Usage
 ```bash
