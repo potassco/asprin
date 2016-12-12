@@ -76,9 +76,11 @@ def getNHolds():
     return solver.nholds
 #end.
 """
+
 token    = "##"
+
 programs = \
-  [(SCRIPT,[],script),
+  [(SCRIPT,                 [],script),
    (DO_HOLDS_AT_ZERO,       [],"#show ##holds_at_zero(X) : ##holds(X,0)."),
    (DO_HOLDS,            ["m"],"##holds(X,m) :- X = @getHolds()."),
    (OPEN_HOLDS,          ["m"],"{ ##holds(X,m) } :- X = @getHolds().  { ##holds(X,m) } :- X = @getNHolds()."),
@@ -144,7 +146,7 @@ class Solver:
         self.control.ground([(DO_HOLDS_AT_ZERO,[])])
 
     def ground_preference_program(self):
-        state, control, prev_step = self.state, self.control, self.state.step-1
+        tate, control, prev_step = self.state, self.control, self.state.step-1
         control.ground([(DO_HOLDS,       [prev_step]),(PREFERENCE,    [0,prev_step]),
                         (NOT_UNSAT_PRG,[0,prev_step]),(VOLATILE_EXT,[0,prev_step])])
         control.assign_external(self.get_volatile(0,prev_step),True)

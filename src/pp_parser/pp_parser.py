@@ -1,7 +1,6 @@
 #script (python)
 
 import clingo
-#import pdb
 import transformer
 
 
@@ -9,21 +8,28 @@ import transformer
 # DEFINES
 #
 
-BASE       = "base"
-SPEC       = "specification"
-DOM        = "dom"          # arity 1
-GEN_DOM    = "gen_dom"      # arity 2
-PREFERENCE = "preference"   # arity 2
-PPROGRAM   = "preference"
+BASE       = "base"          #from spec_parser
+SPEC       = "specification" #from spec_parser
+DOM        = "dom"           #from spec_parser
+GEN_DOM    = "gen_dom"       #from spec_parser
+PREFERENCE = "preference"    #from spec_parser
+PPROGRAM   = "preference"    #from spec_parser
 
 
 
 class Solver:
 
 
-    def do_base(self,control,programs,underscores):
-        control.add(BASE,[],programs[BASE][""])
-        control.ground([(BASE,[])])
+    def do_base(self,control,programs,options):
+        old, new = [], []
+        for i in options['constants']:
+            old_str, sep, new_str = i.partition("=")
+            old.append(old_str)
+            new.append(clingo.Function(new_str,[]))
+        print old
+        print new
+        control.add(BASE,old,programs[BASE][""])
+        control.ground([(BASE,new)])
 
 
     def get_domains(self,control,programs,underscores):
@@ -36,9 +42,16 @@ class Solver:
         return out
 
 
-    def do_spec(self,control,programs,underscores):
-        control.add(SPEC,[],programs[SPEC][""])
-        control.ground([(SPEC,[])])
+    def do_spec(self,control,programs,underscores,options):
+        # TODO: Do once nicely
+        # TODO: control in spec_parser that no solapmaient
+        old, new = [], []
+        for i in options['constants']:
+            old_str, sep, new_str = i.partition("=")
+            old.append(old_str)
+            new.append(clingo.Function(new_str,[]))
+        control.add(SPEC,old,programs[SPEC][""])
+        control.ground([(SPEC,new)])
         out = set()
         for atom in control.symbolic_atoms.by_signature(underscores+PREFERENCE,2):
             out.add(str(atom.symbol.arguments[1]))
@@ -75,41 +88,43 @@ class Parser:
         for i in l:
             print i
 
+    def debug(self,control,programs,types):
+        print "\n###programs"
+        for name, program in programs.items():
+            print "##name = " + str(name)
+            for name2, program2 in program.items():
+                print "#type = " + str(name2)
+                print program2
+                print "#end"
+        print "\n###translations"
+        for name, program in programs.items():
+            if name != BASE and name != SPEC:
+                self.__debug_add_program(control,name,program,types)
+        print "\n###types\n\n" + str(types)
+        raise Exception("DEBUGGING: STOPPED")
 
-    def parse(self,programs,clingo_options):
+    def parse(self,programs,options,clingo_options):
 
         # create control object
         control = clingo.Control(clingo_options)
 
         # ground base program
-        self.solver.do_base(control,programs,self.underscores)
+        self.solver.do_base(control,programs,options)
 
         # get domains for the specification
         programs[SPEC][""] += self.solver.get_domains(control,programs,self.underscores)
 
         # ground specification and get preference types
-        types = self.solver.do_spec(control,programs,self.underscores)
+        types = self.solver.do_spec(control,programs,self.underscores,options)
         types.add("") # add basic case
 
         # translate and add the rest of the programs
         debug = True
         debug = False
-        if debug:
-            print "###programs"
-            for name, program in programs.items():
-                print "#name = " + str(name)
-                for name2, program2 in program.items():
-                    print "#type = " + str(name2)
-                    print program2
-                    print "#end"
-            print "###translations"
+        if debug: self.debug(control,programs,types)
         for name, program in programs.items():
             if name != BASE and name != SPEC:
-                if not debug: self.__add_program(control,name,program,types)
-                if     debug: self.__debug_add_program(control,name,program,types)
-        if debug:
-            print "###" + str(types)
-            raise Exception("STOPPED")
+                self.__add_program(control,name,program,types)
 
         # return
         return control

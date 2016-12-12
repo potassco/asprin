@@ -18,6 +18,7 @@ M2         = "m2"
 VOLATILE   = "volatile"
 UNSAT      = "unsat"
 NODE       = "node"
+SHOW       = "show"
 
 #
 # GLOBAL VARIABLES
@@ -34,7 +35,7 @@ def get_empty(location):
     return []
 
 
-class Predicate:
+class PredicateTuple:
 
 
     def __init__(self,deterministic=False,underscores="",
@@ -103,42 +104,58 @@ class TermTransformer(Transformer):
 
     def __init__(self,underscore=""):
         Transformer.__init__(self,underscore)
-        self.predicates = dict([(("holds",1),Predicate(arguments=self.get_m1,arity=1)),
-                                (("holds'",1),Predicate(arguments=self.get_m2,arity=1)),
-                                (("optimize",1),Predicate(deterministic=True)),
-                                (("preference",2),Predicate(deterministic=True)),
-                                (("preference",5),Predicate(deterministic=True)),
+        self.predicates = dict([(("holds",1),     PredicateTuple(arguments=self.get_m1,arity=1)),
+                                (("holds'",1),    PredicateTuple(arguments=self.get_m2,arity=1)),
+                                (("optimize",1),  PredicateTuple(deterministic=True)),
+                                (("preference",2),PredicateTuple(deterministic=True)),
+                                (("preference",5),PredicateTuple(deterministic=True)),
                                ])
-        self.default = Predicate(underscores="_",arguments=self.get_m1_m2,arity=2)
+        self.default = PredicateTuple(underscores="_",arguments=self.get_m1_m2,arity=2)
+
+
+    def __get_predicate(self,name,arity):
+        predicate = self.predicates.get((name,arity))
+        return predicate if predicate is not None else self.default
+
+
+    def __handle_holdsp(self,term):
+        if term.name == "holds'" and len(term.arguments)==1: return "holds"
+        return term.name
 
 
     def visit_Function(self, term):
-        # select Predicate
-        predicate = self.predicates.get((term.name,len(term.arguments)))
-        if predicate is None: predicate = self.default
+        # get predicate tuple
+        predicate = self.__get_predicate(term.name,len(term.arguments))
+        # handle holds'
+        term.name = self.__handle_holdsp(term)
         # modify term
-        if term.name == "holds'" and len(term.arguments)==1: term.name = "holds"
-        term.name = predicate.underscores + self.underscore(term.name)
+        term.name       = predicate.underscores + self.underscore(term.name)
         term.arguments += predicate.arguments(term.location)
         #return
         return term
 
 
     def visit_Symbol(self, term):
+        # get symbol
         fun = term.symbol
         assert(fun.type == clingo.SymbolType.Function)
-        predicate = self.predicates.get((fun.name,len(fun.arguments)))
-        if predicate is None: predicate = self.default
-        if fun.name == "holds'" and len(fun.arguments)==1: term.name = "holds"
+        # get predicate
+        predicate = self.__get_predicate(fun.name,len(fun.arguments))
+        # handle holds'
+        term.name = self.__handle_holdsp(term)
+        # modify term
         term.symbol = clingo.Function(predicate.underscores + self.underscore(fun.name),
                                       fun.arguments + [ x.symbol for x in predicate.arguments(term.location)],
                                       fun.positive)
+        #return
         return term
 
-    def update_arity(self,name,arity):
-        predicate = self.predicates.get((name,arity))
-        if predicate is None: predicate = self.default
-        return predicate.arity
+
+    def update_signature(self,sig):
+        predicate  = self.__get_predicate(sig.name,sig.arity)
+        sig.name   = predicate.underscores + self.underscore(sig.name)
+        sig.arity += predicate.arity
+        return sig
 
 
 
@@ -146,13 +163,17 @@ class ProgramTransformer(Transformer):
 
 
     #
-    # init and auxiliary functions
+    # init
     #
 
     def __init__(self,underscore=""):
         Transformer.__init__(self,underscore)
         self.term_transformer = TermTransformer(underscore)
         self.type = PPROGRAM
+
+    def __extend_term(self,term):
+        return clingo.ast.Function(term.location,"",
+                                  [term]+self.get_m1_m2(term.location),False)
 
     #
     # Statements
@@ -184,8 +205,7 @@ class ProgramTransformer(Transformer):
 
     def visit_ShowSignature(self, sig):
         if self.__sig_is_det(sig): return sig
-        sig.arity += self.term_transformer.update_arity(sig.name,sig.arity)
-        return sig
+        return self.term_transformer.update_signature(sig)
 
     # TODO(EFF): implement
     def __body_is_det(self,body):
@@ -193,7 +213,7 @@ class ProgramTransformer(Transformer):
 
     def visit_ShowTerm(self,show):
         if self.__body_is_det(show.body): return show
-        show.term = self.term_transformer.visit(show.term)
+        show.term = self.__extend_term(show.term)
         self.visit(show.body)
         show.body.append(self.get_volatile(show.location))
         return show
@@ -212,14 +232,10 @@ class ProgramTransformer(Transformer):
     def visit_External(self,ext):
         raise Exception("clingo optimization externals not allowed in " + self.type + "programs: " + str(ext))
 
-    def __extend_edge(self,term):
-        return clingo.ast.Function(term.location,self.underscore(NODE),
-                                  [term]+self.get_m1_m2(term.location),False)
-
     # TODO(EFF):do not translate if *all* edge statements are deterministic
     def visit_Edge(self,edge):
-        edge.u = self.__extend_edge(edge.u)
-        edge.v = self.__extend_edge(edge.v)
+        edge.u = self.__extend_term(edge.u)
+        edge.v = self.__extend_term(edge.v)
         self.visit(edge.body)
         edge.body.append(self.get_volatile(edge.location))
         return edge

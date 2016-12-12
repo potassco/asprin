@@ -39,10 +39,11 @@ class ParseError(Exception):
 class Parser(object):
 
 
-    def __init__(self):
+    def __init__(self,underscores):
         # start famework
         self.lexer  = Lexer()
         self.tokens = self.lexer.tokens
+        self.lexer.underscores = underscores
         self.parser = yacc.yacc(module=self)
         self.log    = logging.getLogger()
         # semantics
@@ -53,6 +54,14 @@ class Parser(object):
         self.base.name = BASE
         self.base.type = EMPTY
 
+
+    #
+    # AUXILIARY FUNCTIONS
+    #
+
+    # return the underscores needed
+    def __get_underscores(self):
+        return "_" + ("_" * self.lexer.underscores)
 
     def __parse_str(self,string):
         self.element = ast.Element()
@@ -73,7 +82,7 @@ class Parser(object):
 
     def __print_list(self):
 
-        ast.Statement.underscores = self.get_underscores()
+        ast.Statement.underscores = self.__get_underscores()
         program, type = BASE, EMPTY
 
         # add elements of the list
@@ -120,12 +129,8 @@ class Parser(object):
         if read_stdin:
             if self.list != []: self.list.append(("PROGRAM",self.base))
             self.__parse_str(sys.stdin.read())
-        return self.__print_list()
+        return self.__print_list(), self.__get_underscores()
 
-
-    # return the underscores needed
-    def get_underscores(self):
-        return "_" + ("_" * self.lexer.underscores)
 
 
     #
@@ -190,29 +195,38 @@ class Parser(object):
 
     start = 'program'    # the start symbol in our grammar
 
-    def p_program_1(self,p):
-        """ program : program statement
+    #
+    # PROGRAM
+    #
+
+    def p_program(self,p):
+        """ program : program CODE
+                    | program statement end_statement
                     |
         """
-        pass
+        if len(p) == 3: self.list.append(("CODE",p[2])) # appends to self.list
 
-    def p_statement_1(self,p):
-        """ statement : CODE
+    def p_end_statement(self,p):
+        """ end_statement : DOT change_state CODE
+                          | DOT_EOF
         """
-        self.list.append(("CODE",p[1])) # appends to self.list
+        if len(p) == 4:
+            self.list.append(("CODE",p[3])) # appends to self.list
+
+    def p_change_state(self,p):
+        """ change_state :
+        """
+        p.lexer.pop_state()
+        self.lexer.code_start = self.lexer.lexer.lexpos
 
 
     #
     # PREFERENCE STATEMENT
     #
 
-    def p_statement_2(self,p):
-        'statement : start_preference end_preference'
-        pass
-
-    def p_start_preference_1(self,p):
-        """ start_preference : PREFERENCE LPAREN term COMMA term RPAREN LBRACE elem_list RBRACE body
-                             | PREFERENCE LPAREN term COMMA term RPAREN LBRACE           RBRACE body
+    def p_statement_1(self,p):
+        """ statement : PREFERENCE LPAREN term COMMA term RPAREN LBRACE elem_list RBRACE body
+                      | PREFERENCE LPAREN term COMMA term RPAREN LBRACE           RBRACE body
         """
         # create preference statement
         s = ast.PStatement()
@@ -225,14 +239,6 @@ class Parser(object):
         self.list.append(("PREFERENCE",s)) # appends to self.list
         # restart element
         self.element = ast.Element()
-
-    def p_end_preference(self,p):
-        """ end_preference : DOT change_state CODE
-                           | DOT_EOF
-        """
-        if len(p) == 4:
-            self.list.append(("CODE",p[3])) # appends to self.list
-
 
 
 
@@ -819,64 +825,29 @@ class Parser(object):
     # OPTIMIZE
     #
 
-    def p_statement_3(self,p):
-        """ statement : start_optimize end_optimize
-        """
-        pass
-
-    def p_start_optimize(self,p):
-        """ start_optimize : OPTIMIZE LPAREN term RPAREN body
+    def p_statement_2(self,p):
+        """ statement : OPTIMIZE LPAREN term RPAREN body
         """
         s = ast.OStatement()
         s.name     = p[3]
         s.body     = p[5]
         self.list.append(("OPTIMIZE",s)) # appends to self.list
 
-    def p_end_optimize(self,p):
-        """ end_optimize : DOT change_state CODE
-                         | DOT_EOF
-        """
-        if len(p) == 4:
-            self.list.append(("CODE",p[3])) # appends to self.list
-
 
     #
     # PROGRAM
     #
 
-    def p_statement_4(self,p):
-        """ statement : start_program end_program
-        """
-        pass
-
     # TODO: check arity of program if identifier...
-    def p_start_program(self,p):
-        """ start_program : PROGRAM identifier LPAREN argvec RPAREN
-                          | PROGRAM identifier
+    def p_statement_3(self,p):
+        """ statement : PROGRAM identifier LPAREN argvec RPAREN
+                      | PROGRAM identifier
         """
         pass
         s      = ast.ProgramStatement()
         s.name = ast.ast2str(p[2])
         s.type = ast.ast2str(p[4]) if len(p)==6 else EMPTY
         self.list.append(("PROGRAM",s)) # appends to self.list
-
-    def p_end_program(self,p):
-        """ end_program : DOT change_state CODE
-                        | DOT_EOF
-        """
-        if len(p) == 4:
-            self.list.append(("CODE",p[3])) # appends to self.list
-
-
-    #
-    # CHANGE STATE
-    #
-
-    def p_change_state(self,p):
-        """ change_state :
-        """
-        p.lexer.pop_state()
-        self.lexer.code_start = self.lexer.lexer.lexpos
 
 
     #
@@ -887,35 +858,4 @@ class Parser(object):
         print p
         print("Syntax error!")
         sys.exit()
-
-#
-#
-# __main__
-#
-#
-
-if __name__ == "__main__":
-
-    test = """
-
-% empty
-#preference(p,subset) {
-    1 :: a(X), -b(X) >> { p ; **rrrr ; 34 :: a(X,Y) & -b(X), d(X,Z) } || 44 :: **q(X) : a;
-    2 :: c(X), d(X);
-    a(X) & not b(X) | (c(X) & not q(X,Y));
-    a , b, c & not d, q | x
-} : mya(X), myb(X).
-
-#preference(p,p) { b }.
-
-#preference(a,b) { a(X) >> b(X) : x(X); a(X) >> c(X), #true, X>Y, a&b: x(X) }.
-
-"""
-    string = False
-    #string = True  # uncomment to test string
-    parser = Parser()
-    if string:
-        print parser.parse_str(test)
-        sys.exit()
-    print parser.parse_files(sys.argv[1:])
 
