@@ -81,6 +81,7 @@ class Lexer(object):
         'PREFERENCE',
         'OPTIMIZE',
         'PROGRAM',
+        'CONST',
         'LPAREN',
         'RPAREN',
         'LBRACE',
@@ -142,6 +143,7 @@ class Lexer(object):
     t_PREFERENCE = r'\#preference'
     t_OPTIMIZE   = r'\#optimize'
     t_PROGRAM    = r'\#program'
+    t_CONST      = r'\#const'
     t_DOT_EOF    = r'\.\Z'
     t_DOT        = r'\.'
     t_LPAREN     = r'\('
@@ -275,7 +277,7 @@ class Lexer(object):
         t.lexer.push_state('script')
 
     def t_normal_DIRECTIVE(self,t):
-        r'(\#preference)|(\#optimize)|(\#program)'
+        r'(\#preference)|(\#optimize)|(\#program)|(\#const)'
         t.lexer.push_state('INITIAL')
         t.value = t.lexer.lexdata[self.code_start:t.lexpos]
         t.type = 'CODE'

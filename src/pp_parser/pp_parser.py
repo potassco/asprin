@@ -14,6 +14,7 @@ DOM        = "dom"           #from spec_parser
 GEN_DOM    = "gen_dom"       #from spec_parser
 PREFERENCE = "preference"    #from spec_parser
 PPROGRAM   = "preference"    #from spec_parser
+GENERATE   = "generate"      #from spec_parser
 
 
 
@@ -21,15 +22,11 @@ class Solver:
 
 
     def do_base(self,control,programs,options):
-        old, new = [], []
-        for i in options['constants']:
-            old_str, sep, new_str = i.partition("=")
-            old.append(old_str)
-            new.append(clingo.Function(new_str,[]))
-        print old
-        print new
+        old = [ key                      for key, value in options['constants'].items() ]
+        new = [ clingo.parse_term(value) for key, value in options['constants'].items() ]
         control.add(BASE,old,programs[BASE][""])
-        control.ground([(BASE,new)])
+        control.add(GENERATE,[],programs[GENERATE][""])
+        control.ground([(BASE,new),(GENERATE,[])])
 
 
     def get_domains(self,control,programs,underscores):
@@ -43,13 +40,8 @@ class Solver:
 
 
     def do_spec(self,control,programs,underscores,options):
-        # TODO: Do once nicely
-        # TODO: control in spec_parser that no solapmaient
-        old, new = [], []
-        for i in options['constants']:
-            old_str, sep, new_str = i.partition("=")
-            old.append(old_str)
-            new.append(clingo.Function(new_str,[]))
+        old = [ key                      for key, value in options['constants'].items() ]
+        new = [ clingo.parse_term(value) for key, value in options['constants'].items() ]
         control.add(SPEC,old,programs[SPEC][""])
         control.ground([(SPEC,new)])
         out = set()
@@ -88,20 +80,25 @@ class Parser:
         for i in l:
             print i
 
-    def debug(self,control,programs,types):
+    def __print_programs(self,programs,types):
         print "\n###programs"
         for name, program in programs.items():
             print "##name = " + str(name)
             for name2, program2 in program.items():
-                print "#type = " + str(name2)
-                print program2
-                print "#end"
+                if str(name2) in types:
+                    print "#type = " + str(name2)
+                    print program2
+                    print "#end"
+
+    def __debug(self,control,programs,types):
+        self.__print_programs(programs,types)
         print "\n###translations"
         for name, program in programs.items():
             if name != BASE and name != SPEC:
                 self.__debug_add_program(control,name,program,types)
-        print "\n###types\n\n" + str(types)
+        print "\n###types\n" + str(types) + "\n"
         raise Exception("DEBUGGING: STOPPED")
+
 
     def parse(self,programs,options,clingo_options):
 
@@ -112,6 +109,7 @@ class Parser:
         self.solver.do_base(control,programs,options)
 
         # get domains for the specification
+        if options['debug']: self.__print_programs(programs,set([""]))
         programs[SPEC][""] += self.solver.get_domains(control,programs,self.underscores)
 
         # ground specification and get preference types
@@ -119,9 +117,7 @@ class Parser:
         types.add("") # add basic case
 
         # translate and add the rest of the programs
-        debug = True
-        debug = False
-        if debug: self.debug(control,programs,types)
+        if options['debug']: self.__debug(control,programs,types)
         for name, program in programs.items():
             if name != BASE and name != SPEC:
                 self.__add_program(control,name,program,types)

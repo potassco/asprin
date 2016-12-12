@@ -5,8 +5,8 @@
 ```bash
 $ asprin [number_of_models] [options] [files]
 ```
-Currently, for computing many optimal models, asprin does projection on the atoms of the preference specification. 
-
+Currently, for computing many optimal models, asprin does projection on the formulas of the preference specification. 
+By default, asprin loads its library `asprin.lib`. This may be disabled with option `--no-asprin-lib`.
 
 ## Building
 `asprin` requires Python (version 2.7 is tested), and the [python module of clingo](https://github.com/potassco/clingo). For installation instructions of the latter, please read [here](https://github.com/potassco/clingo/blob/master/INSTALL) the section on Building the Python Module.
@@ -25,7 +25,7 @@ dom(1..5).
 }.
 #optimize(p1).
 
-$ ./asprin 0 asprin.lib examples/example1.lp
+$ ./asprin 0 examples/example1.lp
 asprin version 3.0.0
 Reading from asprin.lib ...
 Solving...

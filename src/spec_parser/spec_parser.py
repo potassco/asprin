@@ -16,6 +16,7 @@ logging.basicConfig(filename="q.log", level=logging.DEBUG)
 
 BASE      = "base"
 SPEC      = "specification"
+GENERATE  = "generate"
 PPROGRAM  = "preference"
 HEURISTIC = "heuristic"
 APPROX    = "approximation"
@@ -48,11 +49,14 @@ class Parser(object):
         self.log    = logging.getLogger()
         # semantics
         self.p_statements, self.list = 0, []
-        self.programs = dict([(BASE,dict([(EMPTY,"")])),(SPEC,dict([(EMPTY,"")])),(PPROGRAM,dict()),(HEURISTIC,dict()),(APPROX,dict())])
+        self.programs = dict([(BASE,dict([(EMPTY,"")])),(GENERATE,dict([(EMPTY,"")])),(SPEC,dict([(EMPTY,"")])),(PPROGRAM,dict()),(HEURISTIC,dict()),(APPROX,dict())])
         # base program statement
         self.base      = ast.ProgramStatement()
         self.base.name = BASE
         self.base.type = EMPTY
+        self.program   = BASE
+        # constants
+        self.constants = []
 
 
     #
@@ -95,15 +99,15 @@ class Parser(object):
             if i[0] == "PROGRAM":
                 program, type = i[1].name, i[1].type
 
-        # adding to base for generating domains
-        self.__update_program(BASE,EMPTY,"\n".join(ast.Statement.domains))
+        # adding generation of domains
+        self.__update_program(GENERATE,EMPTY,"\n".join(ast.Statement.domains))
 
         # adding to specification
         out = ""
         if ast.PStatement.bfs:
-            out += ast.BF_ENCODING.replace("#",ast.Statement.underscores)
-        out += "\n" + ast.TRUE_ATOM.replace("#",ast.Statement.underscores)
-        out += "\n" + ast.DOM_RULES.replace("#",ast.Statement.underscores)
+            out +=  ast.BF_ENCODING.replace("##",ast.Statement.underscores)
+        out += "\n" + ast.TRUE_ATOM.replace("##",ast.Statement.underscores)
+        out += "\n" + ast.PREF_DOM_RULE.replace("##",ast.Statement.underscores)
         self.__update_program(SPEC,EMPTY,out)
 
         return self.programs
@@ -124,21 +128,25 @@ class Parser(object):
     #
     def parse_files(self,files,read_stdin=False):
         for i in files:
-            if self.list != []: self.list.append(("PROGRAM",self.base))
+            if self.list != []:
+                self.program = BASE
+                self.list.append(("PROGRAM",self.base))
             self.__parse_str(open(i).read())
         if read_stdin:
-            if self.list != []: self.list.append(("PROGRAM",self.base))
+            if self.list != []:
+                self.program = BASE
+                self.list.append(("PROGRAM",self.base))
             self.__parse_str(sys.stdin.read())
-        return self.__print_list(), self.__get_underscores()
+        return self.__print_list(), self.__get_underscores(), self.constants
 
 
 
     #
     # Syntax:
     #   A preference statement has form:
-    #     #preference(t1,t2) { E1; ...; En } [ : B ].
+    #     #preference(name,type) { E1; ...; En } [ : B ].
     #   where
-    #     ti are clingo terms,
+    #     name and type are clingo atoms,
     #     Ei are preference elements, and
     #     B is a body of clingo literals.
     #   A preference element has form:
@@ -153,7 +161,7 @@ class Parser(object):
     #   where A is a clingo atom.
     #   Weighted elements may not be empty.
     #   An optimize statement has form:
-    #     #optimize(t) [ : B ].
+    #     #optimize(name) [ : B ].
     #
     # Minor notes:
     #   (atom)             is not allowed (and never needed :)
@@ -165,7 +173,7 @@ class Parser(object):
     #
     # Comparison with minimize statements:
     #   asprin accepts boolean formulas
-    #   asprin accepts no @ symbol
+    #   asprin does not accept @ symbol
     #   if there is no COLON, then asprin interprets it as a literal (clingo interprets it as a term)
     #   asprin accepts ' :: ' as an element
     # Basic case: clingo elements of form
@@ -225,8 +233,8 @@ class Parser(object):
     #
 
     def p_statement_1(self,p):
-        """ statement : PREFERENCE LPAREN term COMMA term RPAREN LBRACE elem_list RBRACE body
-                      | PREFERENCE LPAREN term COMMA term RPAREN LBRACE           RBRACE body
+        """ statement : PREFERENCE LPAREN simple_atom COMMA simple_atom  RPAREN LBRACE elem_list RBRACE body
+                      | PREFERENCE LPAREN simple_atom COMMA simple_atom RPAREN LBRACE           RBRACE body
         """
         # create preference statement
         s = ast.PStatement()
@@ -357,25 +365,25 @@ class Parser(object):
         p[0] = ast.WBody(p[1],[("ext_atom",["true",["#true"]])])
 
     def p_weighted_body_6(self,p):
-        """ weighted_body :                      POW_NO_WS naming_atom
+        """ weighted_body :                      POW_NO_WS simple_atom
         """
         p[0] = ast.WBody(None,p[2],True)
 
     def p_weighted_body_7(self,p):
-        """ weighted_body : ntermvec_x TWO_COLON POW_NO_WS naming_atom
+        """ weighted_body : ntermvec_x TWO_COLON POW_NO_WS simple_atom
         """
         p[0] = ast.WBody(p[1],p[4],True)
 
     def p_weighted_body_8(self,p):
-        """ weighted_body :            TWO_COLON POW_NO_WS naming_atom
+        """ weighted_body :            TWO_COLON POW_NO_WS simple_atom
         """
         p[0] = ast.WBody(None,p[3],True)
 
-    def p_naming_atom(self,p):
-        """ naming_atom : identifier
-                        | identifier LPAREN argvec RPAREN
-        """
-        p[0] = p[1:]
+#    def p_naming_atom(self,p):
+#        """ naming_atom : identifier
+#                        | identifier LPAREN argvec RPAREN
+#        """
+#        p[0] = p[1:]
 
     #
     # VECTORS
@@ -745,6 +753,12 @@ class Parser(object):
         """
         p[0] = p[1:]
 
+    def p_simple_atom(self,p):
+        """ simple_atom : identifier
+                        | identifier LPAREN argvec RPAREN
+        """
+        p[0] = p[1:]
+
     #
     # CSP
     #   * represented as a triple (type,reified,ast)
@@ -826,7 +840,7 @@ class Parser(object):
     #
 
     def p_statement_2(self,p):
-        """ statement : OPTIMIZE LPAREN term RPAREN body
+        """ statement : OPTIMIZE LPAREN simple_atom RPAREN body
         """
         s = ast.OStatement()
         s.name     = p[3]
@@ -843,11 +857,23 @@ class Parser(object):
         """ statement : PROGRAM identifier LPAREN argvec RPAREN
                       | PROGRAM identifier
         """
-        pass
         s      = ast.ProgramStatement()
         s.name = ast.ast2str(p[2])
         s.type = ast.ast2str(p[4]) if len(p)==6 else EMPTY
         self.list.append(("PROGRAM",s)) # appends to self.list
+        self.program = s.name
+
+    #
+    # CONST
+    #
+
+    def p_statement_4(self,p):
+        """ statement : CONST identifier EQ term
+        """
+        if self.program == BASE:
+            self.constants.append((ast.ast2str(p[2]),ast.ast2str(p[4])))
+        else:
+            self.list.append(("CODE","#const " + ast.ast2str(p[2]) + " = " + ast.ast2str(p[4]) + ".\n"))
 
 
     #

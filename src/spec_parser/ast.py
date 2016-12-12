@@ -39,25 +39,23 @@ FOR   = "for"
 #
 
 BF_ENCODING = """
-#sat(and(X,Y)) :- #sat(X), #sat(Y), #bf(and(X,Y)).
-#sat(or (X,Y)) :- #sat(X),          #bf(or (X,Y)).
-#sat(or (X,Y)) :- #sat(Y),          #bf(or (X,Y)).
-#sat(neg(X  )) :- not #sat(X),      #bf(neg(X  )).
-#bf(X) :- #bf(and(X,Y)).
-#bf(Y) :- #bf(and(X,Y)).
-#bf(X) :- #bf(or (X,Y)).
-#bf(Y) :- #bf(or (X,Y)).
-#bf(X) :- #bf(neg(X  )).
+##sat(and(X,Y)) :- ##sat(X), ##sat(Y), ##bf(and(X,Y)).
+##sat(or (X,Y)) :- ##sat(X),           ##bf(or (X,Y)).
+##sat(or (X,Y)) :- ##sat(Y),           ##bf(or (X,Y)).
+##sat(neg(X  )) :- not ##sat(X),       ##bf(neg(X  )).
+##bf(X) :- ##bf(and(X,Y)).
+##bf(Y) :- ##bf(and(X,Y)).
+##bf(X) :- ##bf(or (X,Y)).
+##bf(Y) :- ##bf(or (X,Y)).
+##bf(X) :- ##bf(neg(X  )).
 """
 
 TRUE_ATOM = """
-#true.
+##true.
 """
 
-# TODO: CHECK PREFERENCE ATOMS
-DOM_RULES = """
-#pref_dom(X) :- #preference(X,_).
-#dom(X)      :- #gen_dom(X,0).
+PREF_DOM_RULE = """
+##pref_dom(X) :- ##preference(X,_).
 """
 
 
@@ -120,7 +118,8 @@ class PStatement(Statement):
                 out += k.get_dom_atoms()
         for k in element.cond:
             out += k.get_dom_atoms()
-        Statement.domains.update([item for sublist in [x[1] for x in out] for item in sublist]) # update domains
+        #Statement.domains.update([item for sublist in [x[1] for x in out] for item in sublist]) # update domains
+        Statement.domains.update([x[1] for x in out if x[1] is not None])
         return ", ".join(x[0] for x in out)
 
 
@@ -382,9 +381,9 @@ class WBody:
     def __get_dom_atoms_from_bf(self,bf):
         if bf[0] == "ext_atom":
             if bf[1][0] == "atom":
-                name, arity = self.__get_signature(bf[1][1])
-                return [ (Statement.underscores + DOM + "(" + ast2str(bf[1][1]) + ")",
-                        [ Statement.underscores + GEN_DOM+"("+name+","+str(i)+")." for i in arity ] ) ]
+                tuples = self.__get_signature(bf[1][1]) # (predicate,name,arity) without variables
+                return [ (Statement.underscores + DOM +     "(" + i[0] +              ")",
+                          Statement.underscores + GEN_DOM + "(" + i[1] + "," + i[2] + ").") for i in tuples ]
             else: return []
         elif bf[0] == "and" or bf[0] == "or":
             return self.__get_dom_atoms_from_bf(bf[1][0]) + self.__get_dom_atoms_from_bf(bf[1][1])
@@ -393,13 +392,11 @@ class WBody:
         return [] # csp
 
 
-    # return the atoms in the body as a list of strings (called before str_ functions)
     def get_dom_atoms(self):
-        out = []
         if self.naming:
-            name, arity = self.__get_signature(self.body)
-            return [ (Statement.underscores + PREFERENCE_DOM + "(" + ast2str(self.body) + ")",[])]
-                    #[ Statement.underscores + GEN_PREFERENCE_DOM+"("+name+","+str(i)+")." for i in arity ] ) ] # DOM_RULES
+            tuples = self.__get_signature(self.body) # (predicate,name,arity) without variables
+            return [ (Statement.underscores + PREFERENCE_DOM + "(" + i[0] + ")",None) for i in tuples ]
+        out = []
         for i in self.body:
             out += self.__get_dom_atoms_from_bf(i)
         return out
