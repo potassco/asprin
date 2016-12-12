@@ -6,6 +6,7 @@
 $ asprin [number_of_models] [options] [files]
 ```
 Currently, for computing many optimal models, asprin does projection on the formulas of the preference specification. 
+
 By default, asprin loads its library `asprin.lib`. This may be disabled with option `--no-asprin-lib`.
 
 ## Building
