@@ -5,6 +5,8 @@ import yacc
 from spec_lexer import Lexer
 import ast
 # logging
+import errno
+import os
 import logging
 logging.basicConfig(filename="q.log", level=logging.DEBUG)
 
@@ -14,14 +16,14 @@ logging.basicConfig(filename="q.log", level=logging.DEBUG)
 # defines
 #
 
-BASE      = "base"
-SPEC      = "specification"
-GENERATE  = "generate"
-PPROGRAM  = "preference"
-HEURISTIC = "heuristic"
-APPROX    = "approximation"
-EMPTY     = ""
-
+BASE       = "base"
+SPEC       = "specification"
+GENERATE   = "generate"
+PPROGRAM   = "preference"
+HEURISTIC  = "heuristic"
+APPROX     = "approximation"
+EMPTY      = ""
+ASPRIN_LIB = "asprin.lib"
 
 #
 # Exception Handling
@@ -29,7 +31,11 @@ EMPTY     = ""
 class ParseError(Exception):
     pass
 
-
+#
+# Warnings (TODO: reorganize)
+#
+def warning(string):
+    print "asprin: warning: " + string
 
 #
 #
@@ -47,17 +53,18 @@ class Parser(object):
         self.lexer.underscores = underscores
         self.parser = yacc.yacc(module=self)
         self.log    = logging.getLogger()
-        # semantics
+        # programs
         self.p_statements, self.list = 0, []
         self.programs = dict([(BASE,dict([(EMPTY,"")])),(GENERATE,dict([(EMPTY,"")])),(SPEC,dict([(EMPTY,"")])),(PPROGRAM,dict()),(HEURISTIC,dict()),(APPROX,dict())])
-        # base program statement
+        # base
         self.base      = ast.ProgramStatement()
         self.base.name = BASE
         self.base.type = EMPTY
+        # others
         self.program   = BASE
-        # constants
         self.constants = []
-
+        self.included  = []
+        self.file      = ""
 
     #
     # AUXILIARY FUNCTIONS
@@ -113,30 +120,41 @@ class Parser(object):
         return self.programs
 
 
-    #
-    # Input:  string
-    # Output: string with the translation
-    #
-    def parse_str(self,str):
-        self.__parse_str(str)
-        return self.__print_list()
+    def __parse_file(self,file,open_file):
+        self.file    = file
+        self.program = BASE
+        self.list.append(("PROGRAM",self.base))
+        self.__parse_str(open_file.read())
+
+
+    def __parse_included_files(self,files):
+        while True:
+            included, self.included = self.included, []
+            for i in included: # (filename,fileorigin)
+                file = i[0] if os.path.isfile(i[0]) else os.path.join(os.path.dirname(i[1]),i[0])
+                if file in files: warning('file {} included more than once'.format(file))
+                else:
+                    files.append(file)
+                    self.__parse_file(file,open(file))
+            if self.included == []: return
 
 
     #
-    # Input:  list of files, and bool for reading stdin
-    # Output: string with the translation
+    # Input:  list of files, bool for reading stdin, bool for including asprin lib
+    # Output: string with the translation, underscores, and constants found
     #
-    def parse_files(self,files,read_stdin=False):
+    def parse_files(self,files,read_stdin,asprin_lib):
+        # input files
         for i in files:
-            if self.list != []:
-                self.program = BASE
-                self.list.append(("PROGRAM",self.base))
-            self.__parse_str(open(i).read())
+            self.__parse_file(i,open(i))
+        # standard input
         if read_stdin:
-            if self.list != []:
-                self.program = BASE
-                self.list.append(("PROGRAM",self.base))
-            self.__parse_str(sys.stdin.read())
+            self.__parse_file("-",sys.stdin)
+        # included files
+        self.__parse_included_files(files)
+        # asprin.lib
+        if asprin_lib and ASPRIN_LIB not in files:
+            self.__parse_file(ASPRIN_LIB,open(ASPRIN_LIB))
         return self.__print_list(), self.__get_underscores(), self.constants
 
 
@@ -875,6 +893,15 @@ class Parser(object):
         else:
             self.list.append(("CODE","#const " + ast.ast2str(p[2]) + " = " + ast.ast2str(p[4]) + ".\n"))
 
+
+    #
+    # INCLUDE
+    #
+
+    def p_statement_5(self,p):
+        """ statement : INCLUDE STRING
+        """
+        self.included.append((p[2][1:-1],self.file)) # (file name included,current file name)
 
     #
     # ERROR

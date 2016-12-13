@@ -6,6 +6,7 @@
 
 import re
 import argparse
+from collections import Counter
 from src.spec_parser import spec_parser
 from src.pp_parser   import   pp_parser
 from src.solver      import      solver
@@ -19,10 +20,14 @@ ERROR = "error: asprin: "
 
 
 #
-# global variables
+# global variables and functions
 #
 
 version = "3.0.0"
+
+# TODO: reorganize
+def warning(string):
+    print "asprin: warning: " + string
 
 
 #
@@ -77,7 +82,7 @@ Get help/report bugs via : https://potassco.org/support
             type=int,dest='steps',metavar='<s>',default=0)
         basic.add_argument('-c','--const',dest='constants',action="append",help=argparse.SUPPRESS,default=[])   
         basic.add_argument('--debug',dest='debug',help=argparse.SUPPRESS,action='store_true')   
-        basic.add_argument('--no-asprin-lib',dest='no-asprin-lib',help=': Do not include asprin.lib',action='store_true')   
+        basic.add_argument('--no-asprin-lib',dest='asprin-lib',help=': Do not include asprin.lib',action='store_false')   
         options, unknown = cmd_parser.parse_known_args()
         options = vars(options)
 
@@ -89,10 +94,11 @@ Get help/report bugs via : https://potassco.org/support
             else:                                        options['files'].append(i)
         if options['files'] == []: options['read_stdin'] = True
         
-        # add asprin.lib
-        if not options['no-asprin-lib'] and 'asprin.lib' not in options['files']: 
-            options['files'].append('asprin.lib')
-       
+        # warn about repeated files
+        for i in [ file for file,v in Counter(options['files']).iteritems() if v > 1]: 
+            warning('file {} included more than once'.format(i))
+      
+ 
         # handle constants
         constants = dict()
         for i in options['constants']:
@@ -129,7 +135,7 @@ class Asprin:
         print "Reading from " + ("-" if options['read_stdin'] else options['files'][0]) + " ..."
         # specification parsing
         self.spec_parser = spec_parser.Parser(underscores)
-        programs, underscores, constants = self.spec_parser.parse_files(options['files'],options['read_stdin'])
+        programs, underscores, constants = self.spec_parser.parse_files(options['files'],options['read_stdin'],options['asprin-lib'])
         self.__update_constants(options,constants)
         # preference programs parsing
         self.pp_parser   = pp_parser.Parser(underscores)

@@ -151,13 +151,6 @@ class Solver:
                         (NOT_UNSAT_PRG,[0,prev_step]),(VOLATILE_EXT,[0,prev_step])])
         control.assign_external(self.get_volatile(0,prev_step),True)
 
-    def print_optimum_string(self):
-        print OPTIMUM_FOUND
-
-    def print_shown(self):
-        print "Answer: " + str(self.state.models)
-        print '%s' % ' '.join(map(str,self.shown))
-
     def on_model(self,model):
         global holds, nholds
         holds, nholds, self.shown = [], [], []
@@ -173,6 +166,20 @@ class Solver:
         self.solving_result = None
         if result.satisfiable:     self.solving_result =   SATISFIABLE
         elif result.unsatisfiable: self.solving_result = UNSATISFIABLE
+
+    def print_shown(self):
+        print "Answer: " + str(self.state.models)
+        print '%s' % ' '.join(map(str,self.shown))
+
+    def print_optimum_string(self):
+        print OPTIMUM_FOUND
+
+    def check_last_model(self):
+        global holds, nholds
+        if self.state.old_holds == holds and self.state.old_nholds == nholds:
+            raise Exception("same stable model computed twice, there is an error in the input (f.e., an incorrect or missing preference program)")
+        self.state.old_holds  =  holds
+        self.state.old_nholds = nholds
 
     def relax_previous_model(self):
         state, control = self.state, self.control

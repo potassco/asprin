@@ -21,6 +21,8 @@ class GeneralController:
         self.state.opt_models = 0
         self.state.models     = 0
         self.state.more_models = True
+        self.state.old_holds   = []
+        self.state.old_nholds  = []
 
     def start(self):
         return [self.solver.load_encodings]
@@ -31,7 +33,7 @@ class GeneralController:
     def sat(self):
         self.state.models += 1
         self.state.last_unsat = False
-        return [self.solver.print_shown]
+        return [self.solver.check_last_model,self.solver.print_shown]
 
     def unsat_pre(self):
         if self.state.last_unsat:
