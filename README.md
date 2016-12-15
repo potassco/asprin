@@ -26,7 +26,7 @@ dom(1..5).
 }.
 #optimize(p1).
 
-$ ./asprin 0 examples/example1.lp
+$ asprin 0 examples/example1.lp
 asprin version 3.0.0
 Reading from examples/example1.lp ...
 Solving...
