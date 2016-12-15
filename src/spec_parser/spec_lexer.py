@@ -31,9 +31,10 @@ class Lexer(object):
     def __init__(self):
         self.lexer = lex.lex(module=self)
         self.lexer.push_state('normal')
-        self.code_start = 0
+        self.code_start  = 0
         self.underscores = 0
-        self.bc = 0
+        self.show        = False
+        self.bc          = 0
 
 
     def reset(self):
@@ -257,6 +258,13 @@ class Lexer(object):
     def t_normal_IDENTIFIER(self,t):
         r'_*[a-z][\'A-Za-z0-9_]*'
         self.__update_underscores(t)
+
+    # show: update self.show
+    def t_normal_SHOW(self,t):
+        r'\#show [\t\r ]* (-?_*[a-z][\'A-Za-z0-9_]*/(0|([1-9][0-9]*)))?\.'
+        t.lexer.lexpos = t.lexpos + 1
+        self.show = True
+
 
     #
     # changing state:

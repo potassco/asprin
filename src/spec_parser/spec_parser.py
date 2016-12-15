@@ -140,10 +140,12 @@ class Parser(object):
 
 
     #
-    # Input:  list of files, bool for reading stdin, bool for including asprin lib
+    # Input:  options[list of files, bool for reading stdin, bool for including asprin lib]
     # Output: string with the translation, underscores, and constants found
     #
-    def parse_files(self,files,read_stdin,asprin_lib):
+    def parse_files(self,options):
+        # gather options
+        files, read_stdin, asprin_lib = options['files'], options['read_stdin'], options['asprin-lib']
         # input files
         for i in files:
             self.__parse_file(i,open(i))
@@ -155,7 +157,7 @@ class Parser(object):
         # asprin.lib
         if asprin_lib and ASPRIN_LIB not in files:
             self.__parse_file(ASPRIN_LIB,open(ASPRIN_LIB))
-        return self.__print_list(), self.__get_underscores(), self.constants
+        return self.__print_list(), self.__get_underscores(), self.constants, self.lexer.show
 
 
 

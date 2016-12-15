@@ -67,7 +67,7 @@ Get help/report bugs via : https://potassco.org/support
         print _version
         
         # command parser
-        _epilog = self.clingo_help + "\n\nusage: " + self.usage + self.epilog
+        _epilog = self.clingo_help + "\nusage: " + self.usage + self.epilog
         cmd_parser = argparse.ArgumentParser(
             usage=self.usage,epilog=_epilog,formatter_class=argparse.RawDescriptionHelpFormatter,
             add_help=False)
@@ -135,7 +135,7 @@ class Asprin:
         print "Reading from " + ("-" if options['read_stdin'] else options['files'][0]) + " ..."
         # specification parsing
         self.spec_parser = spec_parser.Parser(underscores)
-        programs, underscores, constants = self.spec_parser.parse_files(options['files'],options['read_stdin'],options['asprin-lib'])
+        programs, underscores, constants, options['show'] = self.spec_parser.parse_files(options)
         self.__update_constants(options,constants)
         # preference programs parsing
         self.pp_parser   = pp_parser.Parser(underscores)

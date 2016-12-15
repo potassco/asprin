@@ -15,18 +15,24 @@ GEN_DOM    = "gen_dom"       #from spec_parser
 PREFERENCE = "preference"    #from spec_parser
 PPROGRAM   = "preference"    #from spec_parser
 GENERATE   = "generate"      #from spec_parser
-
+SHOW       = "show"
 
 
 class Solver:
 
 
-    def do_base(self,control,programs,options):
+    def do_base(self,control,programs,options,underscores):
         old = [ key                      for key, value in options['constants'].items() ]
         new = [ clingo.parse_term(value) for key, value in options['constants'].items() ]
         control.add(BASE,old,programs[BASE][""])
         control.add(GENERATE,[],programs[GENERATE][""])
         control.ground([(BASE,new),(GENERATE,[])])
+        # add show if needed
+        if not options['show']:
+            show = "\n".join(["#show " + ("" if x[2] else "-") + x[0] + "/" + str(x[1]) + "."
+                             for x in control.symbolic_atoms.signatures if not x[0].startswith(underscores)])
+            control.add(SHOW,[],show)
+            control.ground([(SHOW,[])])
 
 
     def get_domains(self,control,programs,underscores):
@@ -48,6 +54,7 @@ class Solver:
         for atom in control.symbolic_atoms.by_signature(underscores+PREFERENCE,2):
             out.add(str(atom.symbol.arguments[1]))
         return out
+
 
 
 
@@ -106,7 +113,7 @@ class Parser:
         control = clingo.Control(clingo_options)
 
         # ground base program
-        self.solver.do_base(control,programs,options)
+        self.solver.do_base(control,programs,options,self.underscores)
 
         # get domains for the specification
         if options['debug']: self.__print_programs(programs,set([""]))
