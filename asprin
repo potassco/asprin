@@ -88,6 +88,7 @@ Get help/report bugs via : https://potassco.org/support
             type=int,dest='steps',metavar='<s>',default=0)
         basic.add_argument('-c','--const',dest='constants',action="append",help=argparse.SUPPRESS,default=[])   
         basic.add_argument('--debug',dest='debug',help=argparse.SUPPRESS,action='store_true')   
+        basic.add_argument('--project',dest='project',help=': Enable projective solution enumeration',action='store_true')   
         basic.add_argument('--no-asprin-lib',dest='asprin-lib',help=': Do not include asprin.lib',action='store_false')   
         options, unknown = cmd_parser.parse_known_args()
         options = vars(options)
@@ -158,7 +159,7 @@ class Asprin:
 
 if __name__ == "__main__":
     try:
-        asprin = Asprin().run()
+        Asprin().run()
     except Exception as e: 
         print ERROR + str(e)
 

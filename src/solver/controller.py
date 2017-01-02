@@ -4,7 +4,10 @@
 import solver
 import logging
 
+
+
 class GeneralController:
+
 
     def __init__(self,_solver,state):
         self.solver = _solver
@@ -24,16 +27,20 @@ class GeneralController:
         self.state.old_holds   = []
         self.state.old_nholds  = []
 
+
     def start(self):
         return [self.solver.load_encodings]
 
+
     def solve(self):
         return [self.solver.solve]
+
 
     def sat(self):
         self.state.models += 1
         self.state.last_unsat = False
         return [self.solver.check_last_model,self.solver.print_shown]
+
 
     def unsat_pre(self):
         if self.state.last_unsat:
@@ -42,13 +49,14 @@ class GeneralController:
         self.state.last_unsat = True
         self.state.opt_models  += 1
         out = [self.solver.print_optimum_string]
-        if self.state.max_models == self.state.opt_models:
+        if self.state.opt_models == self.state.max_models:
             out.append(self.solver.end)
-        out.append(self.solver.handle_optimal_models)
         return out
+
 
     def unsat_post(self):
         self.state.start_step = self.state.step+1
+
 
     def end_loop(self):
         state = self.state
@@ -56,7 +64,22 @@ class GeneralController:
         if state.steps == state.step: return [self.solver.end]
 
 
+
+class GeneralControllerHandleOptimal:
+
+
+    def __init__(self,_solver,state):
+        self.solver = _solver
+        self.solver.register_pre(solver.UNSAT,self.unsat_pre)
+
+
+    def unsat_pre(self):
+        return [self.solver.handle_optimal_models]
+
+
+
 class BasicMethodController:
+
 
     def __init__(self,_solver,state):
         self.solver = _solver
@@ -64,8 +87,26 @@ class BasicMethodController:
         self.solver.register_pre(solver.START_LOOP,self.start_loop)
         self.solver.register_pre(solver.UNSAT,self.unsat_pre)
 
+
     def start_loop(self):
         if self.state.step > self.state.start_step: return [self.solver.ground_preference_program]
 
+
     def unsat_pre(self):
         return [self.solver.relax_previous_models]
+
+
+
+class EnumerationController:
+
+
+    def __init__(self,_solver,state):
+        self.solver = _solver
+        if not state.project: self.solver.register_pre(solver.UNSAT,self.unsat_pre)
+
+
+    def unsat_pre(self):
+        return [self.solver.enumerate]
+
+
+
