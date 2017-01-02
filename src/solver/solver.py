@@ -55,7 +55,7 @@ PREFERENCE       = "preference" #from pp_parser
 VOLATILE      = "volatile"      #from pp_parser
 MODEL         = "m"             #from pp_parser
 HOLDS_AT_ZERO = "holds_at_zero"
-
+CSP           = "$"
 
 #
 # GLOBAL VARIABLES
@@ -156,7 +156,7 @@ class Solver:
         holds, nholds, self.shown = [], [], []
         for a in model.symbols(shown=True):
             if (a.name == self.holds_at_zero_str): holds.append(a.arguments[0])
-            else:                         self.shown.append(a)
+            else:                                  self.shown.append(a)
         for a in model.symbols(terms=True,complement=True):
             if (a.name == self.holds_at_zero_str): nholds.append(a.arguments[0])
 
@@ -167,9 +167,14 @@ class Solver:
         if result.satisfiable:     self.solving_result =   SATISFIABLE
         elif result.unsatisfiable: self.solving_result = UNSATISFIABLE
 
+    def __symbol2str(self,symbol):
+        if symbol.name == CSP:
+            return str(symbol.arguments[0]) + "=" + str(symbol.arguments[1])
+        return str(symbol)
+
     def print_shown(self):
         print "Answer: " + str(self.state.models)
-        print '%s' % ' '.join(map(str,self.shown))
+        print '%s' % ' '.join(map(self.__symbol2str,self.shown))
 
     def print_optimum_string(self):
         print OPTIMUM_FOUND

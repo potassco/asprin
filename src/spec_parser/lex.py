@@ -302,12 +302,8 @@ class Lexer:
     # as possible.  Don't make changes unless you really know what
     # you are doing
     # ------------------------------------------------------------
-    def token(self):
-        t = self.mytoken()
-        #print "+++" + str(t)
-        return t
 
-    def mytoken(self):
+    def token(self):
         # Make local copies of frequently referenced attributes
         lexpos    = self.lexpos
         lexlen    = self.lexlen

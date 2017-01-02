@@ -6,7 +6,6 @@ import logging
 #logging.basicConfig(filename="q.log", level=logging.DEBUG)
 
 
-
 #
 # Exception Handling
 #
@@ -126,16 +125,6 @@ class Lexer(object):
         'XOR',
         'BNOT',
         'QUESTION',
-        'CSP',
-        'CSP_ADD',
-        'CSP_SUB',
-        'CSP_MUL',
-        'CSP_LEQ',
-        'CSP_LT',
-        'CSP_GEQ',
-        'CSP_GT',
-        'CSP_EQ',
-        'CSP_NEQ',
 
         'NOREACH', # never reachable token
         'IF',      # added to expressions with NOREACH to avoid warning
@@ -189,16 +178,6 @@ class Lexer(object):
     t_XOR	    = r'\^'
     t_BNOT	    = r'\~'
     t_QUESTION	= r'\?'
-    t_CSP	    = r'\$'
-    t_CSP_ADD	= r'\$\+'
-    t_CSP_SUB	= r'\$-'
-    t_CSP_MUL	= r'\$\*'
-    t_CSP_LEQ	= r'\$<='
-    t_CSP_LT	= r'\$<'
-    t_CSP_GEQ	= r'\$>='
-    t_CSP_GT	= r'\$>'
-    t_CSP_EQ	= r'(\$==)|(\$=)'
-    t_CSP_NEQ	= r'(\$!=)|(\$<>)'
 
 
     #
@@ -261,7 +240,7 @@ class Lexer(object):
 
     # show: update self.show
     def t_normal_SHOW(self,t):
-        r'\#show [\t\r ]* (-?_*[a-z][\'A-Za-z0-9_]*/(0|([1-9][0-9]*)))?\.'
+        r'\#show [\n\t\r ]* ([-\$]?_*[a-z][\'A-Za-z0-9_]* [\n\t\r ]* / [\n\t\r ]* (0|([1-9][0-9]*)))? [\n\t\r ]* \.'
         t.lexer.lexpos = t.lexpos + 1
         self.show = True
 

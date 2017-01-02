@@ -32,6 +32,7 @@ NOT   = "not"
 NAME  = "name"
 FOR   = "for"
 
+HASH_SEM = "#sem" # from spec_parser
 
 
 #
@@ -63,28 +64,47 @@ PREF_DOM_RULE = """
 # Global Functions
 #
 
+#
+# Note: an ast is either None, a string, or a list
+#
 
 # Translate ast to string
 def ast2str(ast):
-    out = ""
-    if ast == None:         return out
+    if ast == None:         return ""
     if isinstance(ast,str): return ast
-    for e in ast:
-        out += ast2str(e)
-    return out
+    char, alist = "", ast
+    if len(ast)==2 and ast[0]==HASH_SEM: # pooling
+        char, alist = ";", ast[1]
+    return char.join([ast2str(e) for e in alist])
 
 
 # Translate body to string
 def body2str(i):
     out = ""
     if isinstance(i,list) and len(i) > 0:
-        if isinstance(i[0],str) and i[0] in { "atom", "true", "false", "cmp" }:
+        if isinstance(i[0],str) and i[0] in { ATOM, TRUE, FALSE, CMP}:
             return ast2str(i[1])
-        if isinstance(i[0],str) and i[0] in { "csp" }:
-            return ast2str(i[2])
         for j in i:
             out += body2str(j)
     return out
+
+
+# get variables from ast
+def get_vars(ast):
+    if ast == None: return []
+    if isinstance(ast,str):
+        return [ast] if len(ast)>0 and (ast[0]>="A" and ast[0]<="Z") else []
+    return [ i for l in map(get_vars,ast) for i in l ]
+
+
+# has an ast any variables?
+def has_vars(ast):
+    if ast == None: return False
+    if isinstance(ast,str):
+        return (len(ast)>0 and (ast[0]>="A" and ast[0]<="Z"))
+    for i in ast:
+        if has_vars(i): return True
+    return False
 
 
 
@@ -112,13 +132,9 @@ class PStatement(Statement):
 
 
     def __create_dom_body(self,element):
-        out = []
-        for j in element.sets:
-            for k in j:
-                out += k.get_dom_atoms()
+        out = [ k for i in element.sets for j in i for k in j.get_dom_atoms() ]
         for k in element.cond:
             out += k.get_dom_atoms()
-        #Statement.domains.update([item for sublist in [x[1] for x in out] for item in sublist]) # update domains
         Statement.domains.update([x[1] for x in out if x[1] is not None])
         return ", ".join(x[0] for x in out)
 
@@ -136,6 +152,12 @@ class PStatement(Statement):
         statement_body = body2str(self.body) if self.body is not None else ""
         arrow = " :- " if statement_body != "" else ""
         out = u + PREFERENCE + "({},{}){}{}.\n".format(name,type,arrow,statement_body)
+
+        # handle pooling
+        for i in self.elements:
+            if i.pooling:
+                self.elements = [ k for j in self.elements for k in j.unpool() ]
+                break
 
         # pref/5
         elem = 1
@@ -164,7 +186,7 @@ class PStatement(Statement):
             # condition set
             for k in i.cond:
                 out +=     u + PREFERENCE + "({},(({},{}),({})),{},{},{}){}{}.\n".format(
-                                name,self.number,elem,",".join(i.vars),  0,k.str_body(),k.str_weight(),arrow,body)
+                               name,self.number,elem,",".join(i.vars),  0,k.str_body(),k.str_weight(),arrow,body)
 
             elem += 1
         #end for
@@ -198,17 +220,48 @@ class Element:
 
 
     def __init__(self):
-        self.vars  = set()
-        self.preds = []
-        self.names = []
-        self.body  = None
-        self.sets  = []
-        self.cond  = []
-        self.all_vars  = set() # temporary variable
+        self.sets     = []
+        self.cond     = []
+        self.body     = None
+        self.vars     = None
+        self.all_vars = set() # temporary variable
+        self.pooling  = False
+
+
+    def get_vars(self):
+        vars = [ k for i in self.sets for j in i for k in j.get_vars() ]
+        for j in self.cond:
+            vars += j.get_vars()
+        return set(vars)
+
+
+    def unpool(self):
+        if not self.pooling: return [ self ]
+        sets = [[]]
+        for i in self.sets: # sets
+            set = [[]]
+            for j in i:              # weighted elements
+                wBodies = j.unpool() # a list of WBodies
+                set = [ x + [y] for x in set for y in wBodies ]
+            sets = [ x + [y] for x in sets for y in set ]
+        cond = [[]]
+        for i in self.cond: # cond
+            wBodies = i.unpool() # a list of WBodies
+            cond = [ x + [y] for x in cond for y in wBodies ]
+        element_pairs = [ (x,y) for x in sets for y in cond ]
+        elements = []
+        for i in element_pairs:
+            e = Element()
+            e.sets = i[0]
+            e.cond = i[1]
+            e.body = self.body
+            e.vars = e.get_vars()
+            elements.append(e)
+        return elements
 
 
 
-# exception for WBody (should never rise)
+# exception for WBody (never should rise)
 class AstException(Exception):
     pass
 
@@ -223,8 +276,40 @@ class WBody:
         self.body        = body  # list
         self.naming      = naming
         self.bf          = None  # reified boolean formula representing the body
-        self.atoms_in_bf = set() # extended and csp atoms appearing in (boolean formulas which are not literals)
+        self.atoms_in_bf = set() # extended atoms appearing in (boolean formulas which are not literals)
         self.analyzed    = False
+
+
+    #
+    # UNPOOLING
+    #
+
+
+    def get_vars(self):
+        vars  = []
+        vars += get_vars(self.weight)
+        vars += get_vars(self.body)
+        return vars
+
+
+    def __unpool_term(self,term):
+        if term == None:              return [None]
+        if not isinstance(term,list): return [term]
+        if len(term)==2 and term[0] == HASH_SEM:
+            out = []
+            for i in term[1]:
+                out += self.__unpool_term(i)
+            return out
+        out = [[]]
+        for i in term:
+            out = [ x + [y] for x in out for y in self.__unpool_term(i) ]
+        return out
+
+
+    def unpool(self):
+        weights = self.__unpool_term(self.weight)
+        bodies  = self.__unpool_term(self.body)
+        return [ WBody(i,j,self.naming) for i in weights for j in bodies ]
 
 
     #
@@ -263,8 +348,6 @@ class WBody:
 
     def __translate_lit(self,lit):
         neg  = 0
-        if lit[0] == "csp":
-            return ("lit",lit[1],ast2str(lit[2]))
         while lit[0]=="neg" and neg<=1:
             neg += 1
             lit  = lit[1][0]
@@ -281,6 +364,8 @@ class WBody:
         return ("bf",string,Statement.underscores+SAT+"("+string+")")
 
 
+    #
+    # WARNING: must be called in the first str_ function (now str_body)
     #
     # modifies elements of self.body with triples
     #   (type,reified,string)
@@ -313,16 +398,16 @@ class WBody:
 
 
     # return the body with for() or name()
+    # analyzes the body
     def str_body(self):
         if self.naming: return NAME+"({})".format(ast2str(self.body))
-        if not self.analyzed: self.__analyze_body()
+        self.__analyze_body()
         return FOR+"({})".format(self.bf)
 
 
     # return rules for holds/2
     def str_holds(self,body):
         if self.naming: return ""
-        if not self.analyzed: self.__analyze_body()
         if body != "": body = ", " + body
         return Statement.underscores + HOLDS + "(" + str(self.bf) + ",0) :- " + ", ".join([x[2] for x in self.body]) + body + ".\n"
 
@@ -351,55 +436,55 @@ class WBody:
     # FUNCTIONS FOR GENERATING dom() AND preference_dom() ATOMS
     #
 
+    def __get_arity_and_vars_termvec(self,termvec):
+        # basic case
+        if termvec == None or len(termvec)==0: return 0, False
+        # move to ntermvec
+        ntermvec, arity, _has_vars = termvec[0], 1, False
+        # iterate
+        while len(ntermvec)==3:
+            arity   += 1
+            if not _has_vars: _has_vars = has_vars(ntermvec[2])
+            ntermvec =  ntermvec[0]
+        if not _has_vars: _has_vars = has_vars(ntermvec[0])
+        # return
+        return arity, _has_vars
 
-    def __get_arity_termvec(self,termvec):
-        if termvec == None: return [0]
-        termvec, arity = termvec[0], 1
-        while len(termvec)==3:
-            arity += 1
-            termvec = termvec[0]
-        return arity
 
-
-    def __get_arity_argvec(self,argvec):
-        if   len(argvec) == 1: return [ self.__get_arity_termvec(argvec[0]) ]
-        elif len(argvec) == 3: return self.__get_arity_argvec(argvec[0]) + [ self.__get_arity_termvec(argvec[2]) ]
-
-
-    def __get_signature(self,atom):
-        name, arity, i = "", [], 0
-        if atom[i] == "-":
+    def __get_signature_atom(self,atom):
+        # strong negation?
+        if atom[0] == "-":
             name = "-"
             atom = atom[1:]
+        else: name = ""
+        # name
         name += atom[0]
-        if len(atom)==1: return name, [0] # no parenthesis
-        argvec = atom[2]
-        arity = self.__get_arity_argvec(argvec)
-        return name, arity
+        # if arity is 0
+        if len(atom)==1: return None
+        # else get arity, and whether are there variables, and return
+        arity, _has_vars = self.__get_arity_and_vars_termvec(atom[2][0])
+        return (name, arity) if _has_vars else None
 
 
     def __get_dom_atoms_from_bf(self,bf):
         if bf[0] == "ext_atom":
             if bf[1][0] == "atom":
-                tuples = self.__get_signature(bf[1][1]) # (predicate,name,arity) without variables
-                return [ (Statement.underscores + DOM +     "(" + i[0] +              ")",
-                          Statement.underscores + GEN_DOM + "(" + i[1] + "," + i[2] + ").") for i in tuples ]
+                sig = self.__get_signature_atom(bf[1][1]) # (name,arity) for non ground atoms
+                if sig is None: return []
+                return [ (Statement.underscores + DOM +     "(" + ast2str(bf[1][1]) + ")",
+                          Statement.underscores + GEN_DOM + "(" + sig[0] + "," + str(sig[1]) + ").") ]
             else: return []
         elif bf[0] == "and" or bf[0] == "or":
             return self.__get_dom_atoms_from_bf(bf[1][0]) + self.__get_dom_atoms_from_bf(bf[1][1])
         elif bf[0] == "neg":
             return self.__get_dom_atoms_from_bf(bf[1][0])
-        return [] # csp
+        else: raise Exception("ERROR at __get_dom_atoms_from_bf")
 
 
     def get_dom_atoms(self):
         if self.naming:
-            tuples = self.__get_signature(self.body) # (predicate,name,arity) without variables
-            return [ (Statement.underscores + PREFERENCE_DOM + "(" + i[0] + ")",None) for i in tuples ]
-        out = []
-        for i in self.body:
-            out += self.__get_dom_atoms_from_bf(i)
-        return out
-
+            sig = self.__get_signature_atom(self.body)
+            return [ (Statement.underscores + PREFERENCE_DOM + "(" + ast2str(self.body) + ")",None) ] if sig is not None else []
+        return [ item for list in map(self.__get_dom_atoms_from_bf,self.body) for item in list ]
 
 

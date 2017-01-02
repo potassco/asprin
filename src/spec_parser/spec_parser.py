@@ -4,9 +4,10 @@ import sys
 import yacc
 from spec_lexer import Lexer
 import ast
-# logging
 import errno
 import os
+
+# logging
 import logging
 logging.basicConfig(filename="q.log", level=logging.DEBUG)
 
@@ -24,6 +25,8 @@ HEURISTIC  = "heuristic"
 APPROX     = "approximation"
 EMPTY      = ""
 ASPRIN_LIB = "asprin.lib"
+HASH_SEM   = "#sem"
+
 
 #
 # Exception Handling
@@ -31,11 +34,13 @@ ASPRIN_LIB = "asprin.lib"
 class ParseError(Exception):
     pass
 
+
 #
 # Warnings (TODO: reorganize)
 #
 def warning(string):
     print "asprin: warning: " + string
+
 
 #
 #
@@ -47,32 +52,39 @@ class Parser(object):
 
 
     def __init__(self,underscores):
-        # start famework
+
+         # start famework
         self.lexer  = Lexer()
         self.tokens = self.lexer.tokens
         self.lexer.underscores = underscores
         self.parser = yacc.yacc(module=self)
         self.log    = logging.getLogger()
+
         # programs
         self.p_statements, self.list = 0, []
         self.programs = dict([(BASE,dict([(EMPTY,"")])),(GENERATE,dict([(EMPTY,"")])),(SPEC,dict([(EMPTY,"")])),(PPROGRAM,dict()),(HEURISTIC,dict()),(APPROX,dict())])
+
         # base
         self.base      = ast.ProgramStatement()
         self.base.name = BASE
         self.base.type = EMPTY
+
         # others
         self.program   = BASE
         self.constants = []
         self.included  = []
         self.file      = ""
 
+
     #
     # AUXILIARY FUNCTIONS
     #
 
+
     # return the underscores needed
     def __get_underscores(self):
         return "_" + ("_" * self.lexer.underscores)
+
 
     def __parse_str(self,string):
         self.element = ast.Element()
@@ -144,19 +156,25 @@ class Parser(object):
     # Output: string with the translation, underscores, and constants found
     #
     def parse_files(self,options):
+
         # gather options
         files, read_stdin, asprin_lib = options['files'], options['read_stdin'], options['asprin-lib']
+
         # input files
         for i in files:
             self.__parse_file(i,open(i))
+
         # standard input
         if read_stdin:
             self.__parse_file("-",sys.stdin)
+
         # included files
         self.__parse_included_files(files)
+
         # asprin.lib
         if asprin_lib and ASPRIN_LIB not in files:
             self.__parse_file(ASPRIN_LIB,open(ASPRIN_LIB))
+
         return self.__print_list(), self.__get_underscores(), self.constants, self.lexer.show
 
 
@@ -166,40 +184,41 @@ class Parser(object):
     #   A preference statement has form:
     #     #preference(name,type) { E1; ...; En } [ : B ].
     #   where
-    #     name and type are clingo atoms,
+    #     name and type are terms,
     #     Ei are preference elements, and
-    #     B is a body of clingo literals.
+    #     B is a body of literals.
     #   A preference element has form:
     #     S1 [ >> ... >> Sn ] [ || S0 ] [ : B ]
     #   where
     #     Si is a set with weighted bodies of boolean formulas, or with weighted naming atoms, or with a combination of both.
-    #   A weighted body with boolean formulas has form:
-    #     [[t] :: ][BF1, ..., BFn]
-    #   where BFi is a boolean formula of clingo literals (using 'not', '&', '|', '(' and ')').
+    #   A weighted body of boolean formulas has form:
+    #     [T ::] BF1, ..., BFn
+    #   or
+    #     T ::
+    #   where T is a tuple of terms, and
+    #   BFi is a boolean formula of literals (using 'not', '&', '|', '(' and ')').
+    #   The second case is interpreted as:
+    #     T :: #true
     #   A weighted naming atom has form:
-    #     [[t] :: ][**A]
-    #   where A is a clingo atom.
-    #   Weighted elements may not be empty.
+    #     [T ::] **A
+    #   where A is a term.
     #   An optimize statement has form:
     #     #optimize(name) [ : B ].
     #
     # Minor notes:
     #   (atom)             is not allowed (and never needed :)
     #   bitwise operator & is not allowed (Roland said that this operator will be eliminated from the clingo language)
-    #   weighted elements without right-hand-side:
-    #     [t] ::
-    #   are interpreted as
-    #     [t] :: #true
     #
     # Comparison with minimize statements:
     #   asprin accepts boolean formulas
     #   asprin does not accept @ symbol
-    #   if there is no COLON, then asprin interprets it as a literal (clingo interprets it as a term)
-    #   asprin accepts ' :: ' as an element
-    # Basic case: clingo elements of form
-    #   t : Body
-    # may be written as asprin elements of form
-    #   t :: Body
+    #   asprin requires either 'T ::', or a body of boolean formulas, or a naming atom, while clingo requires T
+    #   if an element has no COLONS, asprin interprets it as a body of boolean formulas, or a naming atom, while clingo interprets it as T
+    # Translation: clingo elements
+    #   T [: [ Body ] ]
+    # without @ symbol, are translated into asprin elements of form
+    #   T :: [ Body ]
+    # The translation in the other direction is not always possible
     #
 
     #
@@ -253,8 +272,8 @@ class Parser(object):
     #
 
     def p_statement_1(self,p):
-        """ statement : PREFERENCE LPAREN simple_atom COMMA simple_atom  RPAREN LBRACE elem_list RBRACE body
-                      | PREFERENCE LPAREN simple_atom COMMA simple_atom RPAREN LBRACE           RBRACE body
+        """ statement : PREFERENCE LPAREN term COMMA term RPAREN LBRACE elem_list RBRACE body
+                      | PREFERENCE LPAREN term COMMA term RPAREN LBRACE           RBRACE body
         """
         # create preference statement
         s = ast.PStatement()
@@ -267,7 +286,6 @@ class Parser(object):
         self.list.append(("PREFERENCE",s)) # appends to self.list
         # restart element
         self.element = ast.Element()
-
 
 
     #
@@ -285,14 +303,13 @@ class Parser(object):
         """ litvec : litvec COMMA         ext_atom
                    | litvec COMMA     NOT ext_atom
                    | litvec COMMA NOT NOT ext_atom
-                   | litvec COMMA      csp_literal
                    |                      ext_atom
                    |                  NOT ext_atom
                    |              NOT NOT ext_atom
-                   |                   csp_literal
         """
         p[0] = p[1:]
         if len(p)>=4 and p[0][1]==",": p[0][1]=", "
+
 
     #
     # PREFERENCE ELEMENTS
@@ -325,7 +342,6 @@ class Parser(object):
         else:
             p[0] = (p[1],p[3])
         self.element.vars     = self.element.all_vars
-        self.element.all_vars = set()
 
     def p_elem_head(self,p):
         """ elem_head : elem_head GTGT weighted_body_set
@@ -364,46 +380,26 @@ class Parser(object):
         """
         p[0] = ast.WBody(None,p[1])
 
-    def p_weighted_body_2(self,p):
-        """ weighted_body :            TWO_COLON
-        """
-        p[0] = ast.WBody(None,[("ext_atom",["true",["#true"]])])
-
     def p_weighted_body_3(self,p):
         """ weighted_body : ntermvec_x TWO_COLON bfvec_x
         """
         p[0] = ast.WBody(p[1],p[3])
 
-    def p_weighted_body_4(self,p):
-        """ weighted_body :            TWO_COLON bfvec_x
-        """
-        p[0] = ast.WBody(None,p[2])
-
     def p_weighted_body_5(self,p):
         """ weighted_body : ntermvec_x TWO_COLON
         """
-        p[0] = ast.WBody(p[1],[("ext_atom",["true",["#true"]])])
+        p[0] = ast.WBody(p[1],[["ext_atom",["true",["#true"]]]])
 
     def p_weighted_body_6(self,p):
-        """ weighted_body :                      POW_NO_WS simple_atom
+        """ weighted_body :                      POW_NO_WS term
         """
         p[0] = ast.WBody(None,p[2],True)
 
     def p_weighted_body_7(self,p):
-        """ weighted_body : ntermvec_x TWO_COLON POW_NO_WS simple_atom
+        """ weighted_body : ntermvec_x TWO_COLON POW_NO_WS term
         """
         p[0] = ast.WBody(p[1],p[4],True)
 
-    def p_weighted_body_8(self,p):
-        """ weighted_body :            TWO_COLON POW_NO_WS simple_atom
-        """
-        p[0] = ast.WBody(None,p[3],True)
-
-#    def p_naming_atom(self,p):
-#        """ naming_atom : identifier
-#                        | identifier LPAREN argvec RPAREN
-#        """
-#        p[0] = p[1:]
 
     #
     # VECTORS
@@ -422,9 +418,9 @@ class Parser(object):
         """
         p[0] = p[1:]
         if len(p)==4:
-            self.atomvec.append(("ext_atom",["atom",p[3]]))
+            self.atomvec.append(["ext_atom",["atom",p[3]]])
         else:
-            self.atomvec = [("ext_atom",["atom",p[1]])]
+            self.atomvec = [["ext_atom",["atom",p[1]]]]
 
     def p_na_ntermvec(self,p):
         """ na_ntermvec : na_term
@@ -483,7 +479,6 @@ class Parser(object):
     # (atom) is not allowed
     #
     #    """ bformula :               ext_atom
-    #                 |            csp_literal
     #                 |         paren_bformula
     #                 | bformula VBAR bformula %prec BFVBAR
     #                 | bformula AND  bformula %prec BFAND
@@ -497,7 +492,6 @@ class Parser(object):
     #        paren_bformula : LPAREN na_bformula RPAREN
     #
     #        na_bformula :            na_ext_atom
-    #                    |            csp_literal
     #                    |         paren_bformula
     #                    | bformula VBAR bformula %prec BFVBAR
     #                    | bformula AND  bformula %prec BFAND
@@ -510,32 +504,27 @@ class Parser(object):
         p[0] = p[1]
 
     def p_bformula_2(self,p):
-        """ bformula :            csp_literal
-        """
-        p[0] = p[1]
-
-    def p_bformula_3(self,p):
         """ bformula :         paren_bformula
         """
         p[0] = p[1]
 
-    def p_bformula_4(self,p):
+    def p_bformula_3(self,p):
         """ bformula : bformula VBAR bformula %prec BFVBAR
         """
-        p[0] = ("or",[p[1],p[3]])
+        p[0] = ["or",[p[1],p[3]]]
 
-    def p_bformula_5(self,p):
+    def p_bformula_4(self,p):
         """ bformula : bformula  AND bformula %prec BFAND
         """
-        p[0] = ("and",[p[1],p[3]])
+        p[0] = ["and",[p[1],p[3]]]
 
-    def p_bformula_6(self,p):
+    def p_bformula_5(self,p):
         """ bformula :           NOT bformula %prec BFNOT
         """
-        p[0] = ("neg",[p[2]])
+        p[0] = ["neg",[p[2]]]
 
     # unreachable
-    def p_formula_7(self,p):
+    def p_formula_6(self,p):
         """ bformula : LPAREN     identifier                      NOREACH IF
                      | LPAREN     identifier LPAREN argvec RPAREN NOREACH IF
                      | LPAREN SUB identifier                      NOREACH IF
@@ -554,29 +543,25 @@ class Parser(object):
         p[0] = p[1]
 
     def p_na_bformula_2(self,p):
-        """ na_bformula :            csp_literal
-        """
-        p[0] = p[1]
-
-    def p_na_bformula_3(self,p):
         """ na_bformula :         paren_bformula
         """
         p[0] = p[1]
 
-    def p_na_bformula_4(self,p):
+    def p_na_bformula_3(self,p):
         """ na_bformula : bformula VBAR bformula %prec BFVBAR
         """
-        p[0] = ("or",[p[1],p[3]])
+        p[0] = ["or",[p[1],p[3]]]
 
-    def p_na_bformula_5(self,p):
+    def p_na_bformula_4(self,p):
         """ na_bformula : bformula  AND bformula %prec BFAND
         """
-        p[0] = ("and",[p[1],p[3]])
+        p[0] = ["and",[p[1],p[3]]]
 
-    def p_na_bformula_6(self,p):
+    def p_na_bformula_5(self,p):
         """ na_bformula :           NOT bformula %prec BFNOT
         """
-        p[0] = ("neg",[p[2]])
+        p[0] = ["neg",[p[2]]]
+
 
     #
     # NOT ATOM TERMS
@@ -680,6 +665,7 @@ class Parser(object):
         p[0] = p[1]
         self.element.all_vars.add(p[1])
 
+
     #
     # GRINGO expressions
     #
@@ -711,11 +697,19 @@ class Parser(object):
         """
         p[0] = p[1:]
 
+    def __handle_sem(self,p):
+        self.element.pooling = True
+        if len(p)==4:
+            if isinstance(p[1],list) and len(p[1])==2 and p[1][0]==HASH_SEM:
+                  return [HASH_SEM,p[1][1] + [p[3]]]
+            else: return [HASH_SEM,[p[1]]  + [p[3]]]
+        return p[1]
+
     def p_unaryargvec(self,p):
-        """ unaryargvec :  term
+        """ unaryargvec :                  term
                         |  unaryargvec SEM term
         """
-        p[0] = p[1:]
+        p[0] = self.__handle_sem(p)
 
     def p_ntermvec(self,p):
         """ ntermvec : term
@@ -737,23 +731,17 @@ class Parser(object):
         """
         p[0] = p[1:]
 
-    def p_tuplevec_sem(self,p):
-        """ tuplevec_sem :              tuple SEM
-                         | tuplevec_sem tuple SEM
-        """
-        p[0] = p[1:]
-
     def p_tuplevec(self,p):
         """ tuplevec :              tuple
-                     | tuplevec_sem tuple
+                     | tuplevec SEM tuple
         """
-        p[0] = p[1:]
+        p[0] = self.__handle_sem(p)
 
     def p_argvec(self,p):
         """ argvec :            termvec
                    | argvec SEM termvec
         """
-        p[0] = p[1:]
+        p[0] = self.__handle_sem(p)
 
     def p_cmp(self,p):
         """ cmp :  GT
@@ -773,81 +761,6 @@ class Parser(object):
         """
         p[0] = p[1:]
 
-    def p_simple_atom(self,p):
-        """ simple_atom : identifier
-                        | identifier LPAREN argvec RPAREN
-        """
-        p[0] = p[1:]
-
-    #
-    # CSP
-    #   * represented as a triple (type,reified,ast)
-    #
-
-    #
-    # csp_mul_term : CSP term CSP_MUL term
-    #              | term CSP_MUL CSP term
-    #              |              CSP term
-    #              |                  term
-    #
-
-    def p_csp_mul_term_1(self,p):
-        """ csp_mul_term : CSP term CSP_MUL term
-        """
-        p[0] = ["csp_mul",
-                "(\""+p[1]+"\","+ast.ast2str(p[2])+",\""+p[3]+"\","+ast.ast2str(p[4])+")",
-                p[1:]]
-
-    def p_csp_mul_term_2(self,p):
-        """ csp_mul_term : term CSP_MUL CSP term
-        """
-        p[0] = ["csp_mul",
-                "("+ast.ast2str(p[1])+",\""+p[2]+"\",\""+p[3]+"\","+ast.ast2str(p[4])+")",
-                p[1:]]
-
-    def p_csp_mul_term_3(self,p):
-        """ csp_mul_term : CSP term
-        """
-        p[0] = ["csp_mul",
-                "(\""+p[1]+"\","+ast.ast2str(p[2])+")",
-                p[1:]]
-
-    def p_csp_mul_term_4(self,p):
-        """ csp_mul_term : term
-        """
-        p[0] = ["csp_mul",
-                ast.ast2str(p[1]),
-                p[1:]]
-
-    def p_csp_add_term(self,p):
-        """ csp_add_term : csp_add_term CSP_ADD csp_mul_term
-                         | csp_add_term CSP_SUB csp_mul_term
-                         |                      csp_mul_term
-        """
-        if len(p) == 2:
-            p[0] = ["csp_add_term",p[1][1],p[1][2]]
-        else:
-            p[0] = ["csp_add_term",
-                    "(" + p[1][1]+",\""+p[2]+"\","+p[3][1]+")",
-                    [p[1][2],p[2],p[3][2]]]
-
-    def p_csp_rel(self,p):
-        """ csp_rel : CSP_GT
-                    | CSP_LT
-                    | CSP_GEQ
-                    | CSP_LEQ
-                    | CSP_EQ
-                    | CSP_NEQ
-        """
-        p[0] = ["csp_rel",p[1],p[1]]
-
-    def p_csp_literal(self,p):
-        """ csp_literal : csp_literal   csp_rel csp_add_term
-                        | csp_add_term  csp_rel csp_add_term
-        """
-        p[0] = ["csp",
-                "csp(" + p[1][1] + ",\"" + p[2][1] + "\"," + p[3][1] + ")",
-                [x[2] for x in p[1:]]]
 
     def p_identifier(self,p):
         """ identifier : IDENTIFIER
@@ -860,7 +773,7 @@ class Parser(object):
     #
 
     def p_statement_2(self,p):
-        """ statement : OPTIMIZE LPAREN simple_atom RPAREN body
+        """ statement : OPTIMIZE LPAREN term RPAREN body
         """
         s = ast.OStatement()
         s.name     = p[3]
@@ -883,6 +796,7 @@ class Parser(object):
         self.list.append(("PROGRAM",s)) # appends to self.list
         self.program = s.name
 
+
     #
     # CONST
     #
@@ -904,6 +818,7 @@ class Parser(object):
         """ statement : INCLUDE STRING
         """
         self.included.append((p[2][1:-1],self.file)) # (file name included,current file name)
+
 
     #
     # ERROR
