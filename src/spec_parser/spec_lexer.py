@@ -30,10 +30,12 @@ class Lexer(object):
     def __init__(self):
         self.lexer = lex.lex(module=self)
         self.lexer.push_state('normal')
-        self.code_start  = 0
-        self.underscores = 0
-        self.show        = False
-        self.bc          = 0
+        self.code_start   = 0
+        self.underscores  = 0
+        self.show         = False
+        self.bc           = 0
+        self.filename     = ""
+        self.lexer.lineno = 1
 
 
     def reset(self):
@@ -50,8 +52,14 @@ class Lexer(object):
             if i>self.underscores: self.underscores = i
 
 
+    def __error(self,string,lexpos):
+        error = "{}:{}:{}: error, lexer error, unexpected {}".format(
+                self.filename,self.lexer.lineno,lexpos-self.lexer.lexdata.rfind('\n',0,lexpos),string)
+        print error
+
+
     def __eof_error(self,t):
-        print("\nlexer error, unexpected <EOF>")
+        self.__error("<EOF>",t.lexpos)
         t.lexer.skip(1)
 
 
@@ -72,7 +80,7 @@ class Lexer(object):
           ('normal',      'exclusive'),
     )
 
-    # List of token names.   This is always required
+    # List of token names. This is always required
     tokens = (
         'CODE', # CODE is only used by the defined states
                 # the rest are only used in the INITIAL state
@@ -193,8 +201,8 @@ class Lexer(object):
         pass
 
     def t_NL(self,t):
-        r'\n'
-        pass
+        r'\n+'
+        self.lexer.lineno += len(t.value)
 
     def t_POW(self,t):
         r'\*\*'
@@ -242,7 +250,7 @@ class Lexer(object):
     def t_normal_SHOW(self,t):
         r'\#show [\n\t\r ]* ([-\$]?_*[a-z][\'A-Za-z0-9_]* [\n\t\r ]* / [\n\t\r ]* (0|([1-9][0-9]*)))? [\n\t\r ]* \.'
         t.lexer.lexpos = t.lexpos + 1
-        self.show = True
+        self.show      = True
 
 
     #
@@ -264,6 +272,7 @@ class Lexer(object):
     def t_normal_SCRIPT(self,t):
         r'\#script[\t\r ]*\([\t\r ]*(python|lua)[\t\r ]*\)'
         t.lexer.push_state('script')
+        t.lexer.lexpos = t.lexpos
 
     def t_normal_DIRECTIVE(self,t):
         r'(\#preference)|(\#optimize)|(\#program)|(\#const)|(\#include)'
@@ -273,7 +282,10 @@ class Lexer(object):
         t.lexer.lexpos = t.lexpos
         return t
 
-    # rest: pass
+    def t_normal_NL(self,t):
+        r'\n+'
+        self.lexer.lineno += len(t.value)
+
     def t_normal_ANY(self,t):
         r'[\000-\377]'
         pass
@@ -299,6 +311,10 @@ class Lexer(object):
         r'%'
         t.lexer.push_state('comment')
 
+    def t_blockcomment_NL(self,t):
+        r'\n+'
+        self.lexer.lineno += len(t.value)
+
     def t_blockcomment_ANY(self,t):
         r'[\000-\377]'
         pass
@@ -318,6 +334,7 @@ class Lexer(object):
 
     def t_comment_NL(self,t):
         r'\n'
+        t.lexer.lineno += 1
         t.lexer.pop_state()
 
     def t_comment_ANY(self,t):
@@ -336,6 +353,10 @@ class Lexer(object):
         r'[\000-\377]\Z'
         self.__eof_error(t)
 
+    def t_script_NL(self,t):
+        r'\n+'
+        self.lexer.lineno += len(t.value)
+
     def t_script_ANY(self,t):
         r'[\000-\377]'
         pass
@@ -345,6 +366,6 @@ class Lexer(object):
     # Error handling
     #
     def t_ANY_error(self,t):
-        print("\nIllegal character '%s'" % t.value[0])
+        self.__error(t.value[0],t.lexpos)
         t.lexer.skip(1)
 

@@ -7,7 +7,7 @@ import ast
 import errno
 import os
 
-# logging
+# logging TODO: handle this
 import logging
 logging.basicConfig(filename="q.log", level=logging.DEBUG)
 
@@ -26,7 +26,7 @@ APPROX     = "approximation"
 EMPTY      = ""
 ASPRIN_LIB = "asprin.lib"
 HASH_SEM   = "#sem"
-
+STDIN      = "<block>"
 
 #
 # Exception Handling
@@ -57,6 +57,7 @@ class Parser(object):
         self.lexer  = Lexer()
         self.tokens = self.lexer.tokens
         self.lexer.underscores = underscores
+        #self.parser = yacc.yacc(module=self,debug=False)
         self.parser = yacc.yacc(module=self)
         self.log    = logging.getLogger()
 
@@ -73,7 +74,7 @@ class Parser(object):
         self.program   = BASE
         self.constants = []
         self.included  = []
-        self.file      = ""
+        self.filename  = ""
 
 
     #
@@ -86,8 +87,9 @@ class Parser(object):
         return "_" + ("_" * self.lexer.underscores)
 
 
-    def __parse_str(self,string):
+    def __parse_str(self,string,filename=""):
         self.element = ast.Element()
+        self.lexer.filename = filename
         self.parser.parse(string, self.lexer.lexer, debug=self.log) # parses into self.list
         self.lexer.reset()
 
@@ -132,11 +134,11 @@ class Parser(object):
         return self.programs
 
 
-    def __parse_file(self,file,open_file):
-        self.file    = file
-        self.program = BASE
+    def __parse_file(self,filename,open_file):
+        self.filename = filename
+        self.program  = BASE
         self.list.append(("PROGRAM",self.base))
-        self.__parse_str(open_file.read())
+        self.__parse_str(open_file.read(),filename)
 
 
     def __parse_included_files(self,files):
@@ -166,7 +168,7 @@ class Parser(object):
 
         # standard input
         if read_stdin:
-            self.__parse_file("-",sys.stdin)
+            self.__parse_file(STDIN,sys.stdin)
 
         # included files
         self.__parse_included_files(files)
@@ -817,7 +819,7 @@ class Parser(object):
     def p_statement_5(self,p):
         """ statement : INCLUDE STRING
         """
-        self.included.append((p[2][1:-1],self.file)) # (file name included,current file name)
+        self.included.append((p[2][1:-1],self.filename)) # (file name included,current file name)
 
 
     #
