@@ -7,21 +7,6 @@ import logging
 
 
 #
-# Exception Handling
-#
-
-class LexError(Exception):
-    pass
-
-class LexIlegalCharacterException(LexError):
-    def __init__(self, char):
-        self.value = char
-    def __str__(self):
-        return "Lexer: Illegal character " + repr(self.value)
-
-
-
-#
 # Lexer
 #
 class Lexer(object):
@@ -41,8 +26,9 @@ class Lexer(object):
     def reset(self):
         while self.lexer.lexstate != 'normal':
             self.lexer.pop_state()
-        self.code_start = 0
-        self.bc = 0
+        self.bc           = 0
+        self.code_start   = 0
+        self.lexer.lineno = 1
 
 
     def __update_underscores(self,t):
@@ -283,8 +269,8 @@ class Lexer(object):
         return t
 
     def t_normal_NL(self,t):
-        r'\n+'
-        self.lexer.lineno += len(t.value)
+        r'\n'
+        self.lexer.lineno += 1
 
     def t_normal_ANY(self,t):
         r'[\000-\377]'
@@ -312,8 +298,8 @@ class Lexer(object):
         t.lexer.push_state('comment')
 
     def t_blockcomment_NL(self,t):
-        r'\n+'
-        self.lexer.lineno += len(t.value)
+        r'\n'
+        self.lexer.lineno += 1
 
     def t_blockcomment_ANY(self,t):
         r'[\000-\377]'
@@ -354,8 +340,8 @@ class Lexer(object):
         self.__eof_error(t)
 
     def t_script_NL(self,t):
-        r'\n+'
-        self.lexer.lineno += len(t.value)
+        r'\n'
+        self.lexer.lineno += 1
 
     def t_script_ANY(self,t):
         r'[\000-\377]'

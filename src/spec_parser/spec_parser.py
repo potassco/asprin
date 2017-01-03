@@ -11,7 +11,16 @@ import os
 import logging
 logging.basicConfig(filename="q.log", level=logging.DEBUG)
 
-
+#
+#TODO:
+#
+# - check stdin, block
+# - error in parser
+# - logging?
+# - test specification closedness (and disable)
+# - test optimize
+# - get preference program error
+#
 
 #
 # defines
