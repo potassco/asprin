@@ -14,12 +14,12 @@ logging.basicConfig(filename="q.log", level=logging.DEBUG)
 #
 #TODO:
 #
-# - check stdin, block
-# - error in parser
+# - check stdin, block (lines...)
 # - logging?
 # - test specification closedness (and disable)
-# - test optimize
-# - get preference program error
+# - test optimize existence (what to do?)
+# - get preference program error/1 predicate
+# - prompt nicely errors in base (column and line ok, not block)
 #
 
 #
@@ -84,11 +84,23 @@ class Parser(object):
         self.constants = []
         self.included  = []
         self.filename  = ""
+        self.error     = False
 
 
     #
     # AUXILIARY FUNCTIONS
     #
+
+    def __syntax_error(self,p,index):
+        print "{}:{}:{}: syntax error, unexpected {}".format(
+              self.filename,p.lineno(index),p.lexpos(index)-self.lexer.lexer.lexdata.rfind('\n',0,p.lexpos(index)),p[index].value)
+        self.error = True
+
+
+    def __error(self,string,p,index):
+        print "{}:{}:{}: syntax error, {}".format(
+              self.filename,p.lineno(index),p.lexpos(index)-self.lexer.lexer.lexdata.rfind('\n',0,p.lexpos(index)),string)
+        self.error = True
 
 
     # return the underscores needed
@@ -96,15 +108,11 @@ class Parser(object):
         return "_" + ("_" * self.lexer.underscores)
 
 
-    def __parse_str(self,string,filename=""):
+    def __parse_str(self,string):
         self.element = ast.Element()
-        self.lexer.filename = filename
         self.parser.parse(string, self.lexer.lexer, debug=self.log) # parses into self.list
         self.lexer.reset()
 
-
-    def __error(self,string):
-        raise ParseError(string)
 
 
     def __update_program(self,program,type,string):
@@ -124,7 +132,6 @@ class Parser(object):
             if i[0] == "CODE":
                 self.__update_program(program,type,i[1])
             if i[0] == "PREFERENCE" or i[0] == "OPTIMIZE":
-                if program != "base": self.__error("preference specification in non base program")
                 self.__update_program(SPEC,EMPTY,i[1].str())
             if i[0] == "PROGRAM":
                 program, type = i[1].name, i[1].type
@@ -144,10 +151,11 @@ class Parser(object):
 
 
     def __parse_file(self,filename,open_file):
-        self.filename = filename
-        self.program  = BASE
+        self.filename       = filename
+        self.lexer.filename = filename
+        self.program        = BASE
         self.list.append(("PROGRAM",self.base))
-        self.__parse_str(open_file.read(),filename)
+        self.__parse_str(open_file.read())
 
 
     def __parse_included_files(self,files):
@@ -163,7 +171,7 @@ class Parser(object):
 
 
     #
-    # Input:  options[list of files, bool for reading stdin, bool for including asprin lib]
+    # Input:  options [list of files, bool for reading stdin, bool for including asprin lib]
     # Output: string with the translation, underscores, and constants found
     #
     def parse_files(self,options):
@@ -185,6 +193,10 @@ class Parser(object):
         # asprin.lib
         if asprin_lib and ASPRIN_LIB not in files:
             self.__parse_file(ASPRIN_LIB,open(ASPRIN_LIB))
+
+        # errors
+        if self.lexer.error or self.error:
+            raise Exception("parsing failed")
 
         return self.__print_list(), self.__get_underscores(), self.constants, self.lexer.show
 
@@ -264,6 +276,12 @@ class Parser(object):
         """
         if len(p) == 3: self.list.append(("CODE",p[2])) # appends to self.list
 
+    def p_program_error(self,p):
+        """ program : program error DOT change_state CODE
+                    | program error DOT_EOF
+        """
+        self.__syntax_error(p,2)
+
     def p_end_statement(self,p):
         """ end_statement : DOT change_state CODE
                           | DOT_EOF
@@ -297,7 +315,7 @@ class Parser(object):
         self.list.append(("PREFERENCE",s)) # appends to self.list
         # restart element
         self.element = ast.Element()
-
+        if self.program != BASE: self.__error("unexpected preference statement in non base program",p,1)
 
     #
     # BODY
@@ -790,15 +808,20 @@ class Parser(object):
         s.name     = p[3]
         s.body     = p[5]
         self.list.append(("OPTIMIZE",s)) # appends to self.list
+        if self.program != BASE: self.__error("unexpected optimize statement in non base program",p,1)
 
 
     #
     # PROGRAM
     #
 
-    # TODO: check arity of program if identifier...
+    def __check_preference_program(self,identifier,ntermvec,p,index):
+        if identifier == PPROGRAM and len(ntermvec)!=1:
+            self.__error("preference program name must consist of a single term",p,index)
+
+
     def p_statement_3(self,p):
-        """ statement : PROGRAM identifier LPAREN argvec RPAREN
+        """ statement : PROGRAM identifier LPAREN ntermvec RPAREN
                       | PROGRAM identifier
         """
         s      = ast.ProgramStatement()
@@ -806,6 +829,8 @@ class Parser(object):
         s.type = ast.ast2str(p[4]) if len(p)==6 else EMPTY
         self.list.append(("PROGRAM",s)) # appends to self.list
         self.program = s.name
+        if len(p)==6:
+            self.__check_preference_program(p[2],p[4],p,3)
 
 
     #
@@ -836,7 +861,5 @@ class Parser(object):
     #
 
     def p_error(self,p):
-        print p
-        print("Syntax error!")
-        sys.exit()
+        return
 

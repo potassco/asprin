@@ -21,6 +21,7 @@ class Lexer(object):
         self.bc           = 0
         self.filename     = ""
         self.lexer.lineno = 1
+        self.error        = False
 
 
     def reset(self):
@@ -42,6 +43,7 @@ class Lexer(object):
         error = "{}:{}:{}: error, lexer error, unexpected {}".format(
                 self.filename,self.lexer.lineno,lexpos-self.lexer.lexdata.rfind('\n',0,lexpos),string)
         print error
+        self.error = True
 
 
     def __eof_error(self,t):

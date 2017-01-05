@@ -6,4 +6,3 @@ dom(1..5).
   a(X) : dom(X)
 }.
 #optimize(p1).
-
