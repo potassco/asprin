@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 import lex
+import sys
 
 #
 # DEFINES
@@ -45,9 +46,9 @@ class Lexer(object):
 
 
     def __error(self,string,lexpos):
-        error = "{}:{}:{}: lexer error, unexpected {}".format(
+        error = "{}:{}:{}: error: lexer error, unexpected {}\n".format(
                 self.filename,self.lexer.lineno,lexpos-self.lexer.lexdata.rfind('\n',0,lexpos),string)
-        print error
+        print >> sys.stderr, error
         self.error = True
 
 

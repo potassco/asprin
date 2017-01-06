@@ -10,12 +10,16 @@ import os
 #
 #TODO:
 #
-# - check stdin, block (lines...)
 # - print stats
 # - test specification closedness (and disable)
 # - test optimize existence (what to do?)
 # - get preference program error/1 predicate
 # - prompt nicely errors in base (column and line ok, not block)
+# - repeated files?
+#
+# - tell Roland about column numbers in lexer errors in clingo
+# - make compatible with Python 3 (ask Roland)?
+# - ask Roland about piping to a file redirecting
 #
 
 #
@@ -31,7 +35,7 @@ APPROX     = "approximation"
 EMPTY      = ""
 ASPRIN_LIB = "asprin.lib"
 HASH_SEM   = "#sem"
-STDIN      = "<block>"
+STDIN      = "-"
 
 #
 # Exception Handling
@@ -87,14 +91,17 @@ class Parser(object):
     #
 
     def __syntax_error(self,p,index):
-        print "{}:{}:{}: syntax error, unexpected {}".format(
-              self.filename,p.lineno(index),p.lexpos(index)-self.lexer.lexer.lexdata.rfind('\n',0,p.lexpos(index)),p[index].value)
+        column = p.lexpos(index)-self.lexer.lexer.lexdata.rfind('\n',0,p.lexpos(index))
+        error = "{}:{}:{}-{}: error: syntax error, unexpected {}\n".format(
+                self.filename,p.lineno(index),column,column+len(p[index].value),p[index].value)
+        print >> sys.stderr, error
         self.error = True
 
 
     def __error(self,string,p,index):
-        print "{}:{}:{}: syntax error, {}".format(
-              self.filename,p.lineno(index),p.lexpos(index)-self.lexer.lexer.lexdata.rfind('\n',0,p.lexpos(index)),string)
+        error =  "{}:{}:{}: error: syntax error, {}\n".format(
+                self.filename,p.lineno(index),p.lexpos(index)-self.lexer.lexer.lexdata.rfind('\n',0,p.lexpos(index)),string)
+        print >> sys.stderr, error
         self.error = True
 
 
@@ -172,15 +179,14 @@ class Parser(object):
     def parse_files(self,options):
 
         # gather options
-        files, read_stdin, asprin_lib = options['files'], options['read_stdin'], options['asprin-lib']
+        files, asprin_lib = options['files'], options['asprin-lib']
 
         # input files
         for i in files:
-            self.__parse_file(i,open(i))
-
-        # standard input
-        if read_stdin:
-            self.__parse_file(STDIN,sys.stdin)
+            if i=="-":
+                self.__parse_file(STDIN,sys.stdin)
+            else:
+                self.__parse_file(i,open(i))
 
         # included files
         self.__parse_included_files(files)

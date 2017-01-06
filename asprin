@@ -6,6 +6,7 @@
 
 import re
 import argparse
+import sys
 from collections import Counter
 from src.spec_parser import spec_parser
 from src.pp_parser   import   pp_parser
@@ -16,8 +17,8 @@ from src.solver      import      solver
 # asprin error
 #
 
-ERROR = "error: asprin: "
-
+ERROR   = "*** ERROR: (asprin): {}"
+UNKNOWN = "UNKNOWN"
 
 #
 # global variables and functions
@@ -79,7 +80,7 @@ Get help/report bugs via : https://potassco.org/support
             add_help=False)
         basic = cmd_parser.add_argument_group('Basic Options')
         basic.add_argument('-h','--help',action='help',help=': Print help and exit')
-        basic.add_argument('-',dest='read_stdin',action='store_true',help=argparse.SUPPRESS)   
+        #basic.add_argument('-',dest='read_stdin',action='store_true',help=argparse.SUPPRESS)   
         basic.add_argument(
             '--models','-n',help=": Compute at most <n> models (0 for all)",
             type=int,dest='max_models',metavar='<n>',default=1)
@@ -96,10 +97,18 @@ Get help/report bugs via : https://potassco.org/support
         # separate files, number of models and clingo options
         options['files'], clingo_options = [], []
         for i in unknown:
-            if   (re.match(r'^([0-9]|[1-9][0-9]+)$',i)): options['max_models'] = int(i)
+            if i=="-":                                   options['files'].append(i)
+            elif (re.match(r'^([0-9]|[1-9][0-9]+)$',i)): options['max_models'] = int(i)
             elif (re.match(r'^-',i)):                    clingo_options.append(i)
             else:                                        options['files'].append(i)
-        if options['files'] == []: options['read_stdin'] = True
+        
+        # when no files, and handle print reading string
+        if options['files'] == []: 
+            options['print_reading'] = "stdin"
+            options['files'].append("-")
+        else:
+            options['print_reading'] = options['files'][0]
+            if len(options['files'])>1: options['print_reading'] += " ..."
         
         # warn about repeated files
         for i in [ file for file,v in Counter(options['files']).iteritems() if v > 1]: 
@@ -140,7 +149,7 @@ class Asprin:
 
         # arguments parsing
         options, clingo_options, underscores = AsprinArgumentParser().run()
-        print "Reading from " + ("-" if options['read_stdin'] else options['files'][0]) + " ..."
+        print "Reading from " + options['print_reading']
 
         # specification parsing
         self.spec_parser = spec_parser.Parser(underscores)
@@ -161,5 +170,7 @@ if __name__ == "__main__":
     try:
         Asprin().run()
     except Exception as e: 
-        print ERROR + str(e)
+        print >> sys.stderr, ERROR.format(str(e))
+        print >> sys.stdout, UNKNOWN
+        sys.exit(65)   # provisional
 
