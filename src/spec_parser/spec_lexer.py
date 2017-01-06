@@ -1,10 +1,13 @@
 #!/usr/bin/python
 
 import lex
-# logging
-import logging
-#logging.basicConfig(filename="q.log", level=logging.DEBUG)
 
+#
+# DEFINES
+#
+
+BASE  = "base" #from spec_parser
+EMPTY = ""     #from spec_parser
 
 #
 # Lexer
@@ -17,11 +20,12 @@ class Lexer(object):
         self.lexer.push_state('normal')
         self.code_start   = 0
         self.underscores  = 0
-        self.show         = False
+        self.show         = set()
         self.bc           = 0
         self.filename     = ""
         self.lexer.lineno = 1
         self.error        = False
+        self.program      = (BASE,EMPTY)
 
 
     def reset(self):
@@ -30,6 +34,7 @@ class Lexer(object):
         self.bc           = 0
         self.code_start   = 0
         self.lexer.lineno = 1
+        self.program      = (BASE,EMPTY)
 
 
     def __update_underscores(self,t):
@@ -40,7 +45,7 @@ class Lexer(object):
 
 
     def __error(self,string,lexpos):
-        error = "{}:{}:{}: error, lexer error, unexpected {}".format(
+        error = "{}:{}:{}: lexer error, unexpected {}".format(
                 self.filename,self.lexer.lineno,lexpos-self.lexer.lexdata.rfind('\n',0,lexpos),string)
         print error
         self.error = True
@@ -238,7 +243,7 @@ class Lexer(object):
     def t_normal_SHOW(self,t):
         r'\#show [\n\t\r ]* ([-\$]?_*[a-z][\'A-Za-z0-9_]* [\n\t\r ]* / [\n\t\r ]* (0|([1-9][0-9]*)))? [\n\t\r ]* \.'
         t.lexer.lexpos = t.lexpos + 1
-        self.show      = True
+        self.show.add(self.program)
 
 
     #

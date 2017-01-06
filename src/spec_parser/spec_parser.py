@@ -7,15 +7,11 @@ import ast
 import errno
 import os
 
-# logging TODO: handle this
-import logging
-logging.basicConfig(filename="q.log", level=logging.DEBUG)
-
 #
 #TODO:
 #
 # - check stdin, block (lines...)
-# - logging?
+# - print stats
 # - test specification closedness (and disable)
 # - test optimize existence (what to do?)
 # - get preference program error/1 predicate
@@ -68,7 +64,6 @@ class Parser(object):
         self.lexer.underscores = underscores
         #self.parser = yacc.yacc(module=self,debug=False)
         self.parser = yacc.yacc(module=self)
-        self.log    = logging.getLogger()
 
         # programs
         self.p_statements, self.list = 0, []
@@ -110,9 +105,8 @@ class Parser(object):
 
     def __parse_str(self,string):
         self.element = ast.Element()
-        self.parser.parse(string, self.lexer.lexer, debug=self.log) # parses into self.list
+        self.parser.parse(string, self.lexer.lexer) # parses into self.list
         self.lexer.reset()
-
 
 
     def __update_program(self,program,type,string):
@@ -153,6 +147,7 @@ class Parser(object):
     def __parse_file(self,filename,open_file):
         self.filename       = filename
         self.lexer.filename = filename
+        self.lexer.program  = (BASE,EMPTY)
         self.program        = BASE
         self.list.append(("PROGRAM",self.base))
         self.__parse_str(open_file.read())
@@ -828,7 +823,8 @@ class Parser(object):
         s.name = ast.ast2str(p[2])
         s.type = ast.ast2str(p[4]) if len(p)==6 else EMPTY
         self.list.append(("PROGRAM",s)) # appends to self.list
-        self.program = s.name
+        self.program       = s.name
+        self.lexer.program = (s.name,s.type)
         if len(p)==6:
             self.__check_preference_program(p[2],p[4],p,3)
 

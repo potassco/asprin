@@ -9,6 +9,7 @@ import transformer
 #
 
 BASE       = "base"          #from spec_parser
+EMPTY      = ""              #from spec_parser
 SPEC       = "specification" #from spec_parser
 DOM        = "dom"           #from spec_parser
 GEN_DOM    = "gen_dom"       #from spec_parser
@@ -28,13 +29,6 @@ class Solver:
         new = [ clingo.parse_term(value) for key, value in options['constants'].items() ]
         control.add(BASE,old,programs[BASE][""])
         control.ground([(BASE,new)])
-
-        # show if needed (CSP variables are not shown in this case)
-        if not options['show']:
-            show = "\n".join(["#show " + ("" if x[2] else "-") + x[0] + "/" + str(x[1]) + "."
-                             for x in control.symbolic_atoms.signatures])
-            control.add(SHOW,[],show)
-            control.ground([(SHOW,[])])
 
         # generate domains
         control.add(GENERATE,[],programs[GENERATE][""])
@@ -125,6 +119,26 @@ class Parser:
                         clingo.parse_program("#program "+name+".\n"+program,lambda stm: b.add(t.visit(stm)))
 
 
+    def __add_show(self,control,options,types):
+
+        # set 'show_underscores' and
+        # if #show in loaded program: return
+        options['show_underscores'], do_return = False, False
+        for i in options['show']:
+            if (i[0]==BASE and i[1]==EMPTY):
+                do_return = True
+            elif (i[0]==PREFERENCE and i[1] in types):
+                do_return = True
+                options['show_underscores'] = True
+        if do_return: return
+
+        # else add #show for atoms in base
+        show = "\n".join(["#show " + ("" if x[2] else "-") + x[0] + "/" + str(x[1]) + "."
+                                 for x in control.symbolic_atoms.signatures if not str(x[0]).startswith(self.underscores)])
+        control.add(SHOW,[],show)
+        control.ground([(SHOW,[])])
+
+
     def parse(self,programs,options,clingo_options):
 
         # create control object
@@ -140,6 +154,9 @@ class Parser:
         # ground specification and get preference types
         types = self.solver.do_spec(control,programs,self.underscores,options)
         types.add("") # add basic case
+
+        # add #show statements if needed (CSP variables are not shown in this case)
+        self.__add_show(control,options,types)
 
         # translate and add the rest of the programs
         if options['debug']: Debugger(self.underscores).debug(control,programs,types)

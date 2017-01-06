@@ -11,15 +11,6 @@ import os
 
 
 #
-# LOGGING
-#
-
-import logging
-#logging.basicConfig(level=logging.INFO)
-
-
-
-#
 # DEFINES
 #
 
@@ -202,8 +193,17 @@ class Solver:
         control.release_external(self.get_volatile(0,state.step-1))
 
 
-    def __same_shown(self):
+    def same_shown(self):
         if set(self.old_shown) == set(self.shown):
+            self.enumerate_flag = True
+            return True
+        return False
+
+
+    # used is some atoms not in base are shown
+    def same_shown_underscores(self):
+        if set([i for i in self.old_shown if not str(i).startswith(self.underscores)]) == \
+           set([i for i in     self.shown if not str(i).startswith(self.underscores)]):
             self.enumerate_flag = True
             return True
         return False
@@ -212,7 +212,7 @@ class Solver:
     def on_model_enumerate(self,model):
         global holds, nholds
         self.shown = [ i for i in model.symbols(shown=True) if i.name != self.holds_at_zero_str ]
-        if self.enumerate_flag or not self.__same_shown():
+        if self.enumerate_flag or not self.state.same_shown_function():
             self.state.models     += 1
             self.state.opt_models += 1
             self.print_shown()
@@ -282,7 +282,6 @@ class Solver:
 
 
     def action(self,node):
-        logging.info("%s",node)
         actions = []
         for i in self.pre[node]:
             ret = i()
@@ -306,7 +305,6 @@ class Solver:
             while True:
                 self.action(START_LOOP)
                 self.action(SOLVE)
-                logging.info("Solving_result = %s",self.solving_result)
                 if   self.solving_result ==   SATISFIABLE: self.action(SAT)
                 elif self.solving_result == UNSATISFIABLE: self.action(UNSAT)
                 else:                                      self.action(UNKNOWN)

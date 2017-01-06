@@ -1,10 +1,6 @@
 #script (python)
 
-#from src.solver import solver
 import solver
-import logging
-
-
 
 class GeneralController:
 
@@ -102,7 +98,9 @@ class EnumerationController:
 
     def __init__(self,_solver,state):
         self.solver = _solver
-        if not state.project: self.solver.register_pre(solver.UNSAT,self.unsat_pre)
+        if not state.project:
+            state.same_shown_function = _solver.same_shown if not state.show_underscores else _solver.same_shown_underscores
+            self.solver.register_pre(solver.UNSAT,self.unsat_pre)
 
 
     def unsat_pre(self):
