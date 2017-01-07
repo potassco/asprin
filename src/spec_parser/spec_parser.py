@@ -10,16 +10,14 @@ import os
 #
 #TODO:
 #
-# - print stats
-# - test specification closedness (and disable)
-# - test optimize existence (what to do?)
 # - get preference program error/1 predicate
-# - prompt nicely errors in base (column and line ok, not block)
-# - repeated files?
-#
+# - pretty print pp errors
+# - print Models, Calls, Time...
+##
 # - tell Roland about column numbers in lexer errors in clingo
-# - make compatible with Python 3 (ask Roland)?
 # - ask Roland about piping to a file redirecting
+# - ask Roland how to get the stats (if possible)
+# - ask Roland how to prompt nicely errors in base (column and line ok, not block)
 #
 
 #

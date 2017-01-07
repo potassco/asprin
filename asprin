@@ -1,35 +1,36 @@
 #!/usr/bin/python
 
 #
-# imports
+# IMPORTS
 #
 
 import re
 import argparse
 import sys
-from collections import Counter
+import clingo
 from src.spec_parser import spec_parser
 from src.pp_parser   import   pp_parser
 from src.solver      import      solver
 
 
 #
-# asprin error
+# DEFINES
 #
 
 ERROR   = "*** ERROR: (asprin): {}"
 UNKNOWN = "UNKNOWN"
+VERSION = "3.0.0"
+
+
 
 #
-# global variables and functions
+# GLOBAL VARIABLES AND FUNCTIONS
 #
 
-version = "3.0.0"
+class MyArgumentParser(argparse.ArgumentParser):
 
-# TODO: reorganize
-def warning(string):
-    print "asprin: warning: " + string
-
+    def error(self, message):
+        raise argparse.ArgumentError(None,"SyntaxError: " + message)
 
 
 #
@@ -66,16 +67,19 @@ Get help/report bugs via : https://potassco.org/support
         while len(new)>i and new[i]=="_": i+=1
         if i>self.underscores: self.underscores = i
 
+
+    def __add_file(self,files,file):
+        if file in files:
+            print >> sys.stderr, "<cmd>: warning: already included file:\n  {}\n".format(file)  
+        else:
+            files.append(file)
     
+
     def run(self):
     
-        # version
-        _version = "asprin version " + version
-        print _version
-        
         # command parser
         _epilog = self.clingo_help + "\nusage: " + self.usage + self.epilog
-        cmd_parser = argparse.ArgumentParser(
+        cmd_parser = MyArgumentParser(
             usage=self.usage,epilog=_epilog,formatter_class=argparse.RawDescriptionHelpFormatter,
             add_help=False)
         basic = cmd_parser.add_argument_group('Basic Options')
@@ -97,23 +101,21 @@ Get help/report bugs via : https://potassco.org/support
         # separate files, number of models and clingo options
         options['files'], clingo_options = [], []
         for i in unknown:
-            if i=="-":                                   options['files'].append(i)
+            if i=="-":                                   self.__add_file(options['files'],i)
             elif (re.match(r'^([0-9]|[1-9][0-9]+)$',i)): options['max_models'] = int(i)
             elif (re.match(r'^-',i)):                    clingo_options.append(i)
-            else:                                        options['files'].append(i)
+            else:                                        self.__add_file(options['files'],i)
         
-        # when no files, and handle print reading string
+        # when no files, add stdin
+        # build prologue
         if options['files'] == []: 
-            options['print_reading'] = "stdin"
+            first_file = "stdin"
             options['files'].append("-")
         else:
-            options['print_reading'] = options['files'][0]
-            if len(options['files'])>1: options['print_reading'] += " ..."
+            first_file = options['files'][0]
+            if len(options['files'])>1: first_file += " ..."
+        prologue = "asprin version " + VERSION + "\nReading from " + first_file
         
-        # warn about repeated files
-        for i in [ file for file,v in Counter(options['files']).iteritems() if v > 1]: 
-            warning('file {} included more than once'.format(i))
-       
         # handle constants
         constants = dict()
         for i in options['constants']:
@@ -125,11 +127,8 @@ Get help/report bugs via : https://potassco.org/support
                 constants[old] = new
         options['constants'] = constants
     
-        # provisional (avoid warnings)
-        clingo_options.append("-Wnone")
-
         # return
-        return options, clingo_options, self.underscores
+        return options, clingo_options, self.underscores, prologue
 
 
 
@@ -145,11 +144,22 @@ class Asprin:
                 options['constants'][i[0]] = i[1]
 
 
+    def __get_control(self,clingo_options):
+        try:
+            return clingo.Control(clingo_options)
+        except Exception as e:
+            raise argparse.ArgumentError(None,e.message)
+
     def run(self):
 
         # arguments parsing
-        options, clingo_options, underscores = AsprinArgumentParser().run()
-        print "Reading from " + options['print_reading']
+        options, clingo_options, underscores, prologue = AsprinArgumentParser().run()
+        
+        # create Control object
+        control = self.__get_control(clingo_options)
+        
+        # print prologue
+        print prologue
 
         # specification parsing
         self.spec_parser = spec_parser.Parser(underscores)
@@ -157,8 +167,7 @@ class Asprin:
         self.__update_constants(options,base_constants)
 
         # preference programs parsing
-        self.pp_parser = pp_parser.Parser(underscores)
-        control        = self.pp_parser.parse(programs,options,clingo_options)
+        pp_parser.Parser(underscores).parse(control,programs,options,clingo_options)
 
         # solving
         _solver = solver.Solver(control,underscores)
@@ -167,10 +176,15 @@ class Asprin:
 
 
 if __name__ == "__main__":
+    #Asprin().run()
     try:
         Asprin().run()
+    except argparse.ArgumentError as e: 
+        print >> sys.stderr, ERROR.format(str(e))
+        print >> sys.stderr, "*** Info : (asprin): Try '--help' for usage information" 
+        sys.exit(1) 
     except Exception as e: 
         print >> sys.stderr, ERROR.format(str(e))
         print >> sys.stdout, UNKNOWN
-        sys.exit(65)   # provisional
+        sys.exit(65) 
 

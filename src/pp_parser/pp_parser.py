@@ -2,7 +2,8 @@
 
 import clingo
 import transformer
-
+import sys
+import argparse
 
 #
 # DEFINES
@@ -17,7 +18,39 @@ PREFERENCE = "preference"    #from spec_parser
 PPROGRAM   = "preference"    #from spec_parser
 GENERATE   = "generate"      #from spec_parser
 SHOW       = "show"
+OPTIMIZE   = "optimize"
+ERROR      = "error"
+CHECK_SPEC = """
+% P names X
+##names(P,X) :- ##preference(P,_,_,name(X),_).
 
+% transitive closure of names
+##tr_names(X,Y) :- ##names(X,Y).
+##tr_names(X,Y) :- ##names(X,Z), ##tr_names(Z,Y).
+
+%
+% errors
+%
+
+% naming loops
+##error(X,"loop") :- ##tr_names(X,X).
+
+% naming non existent statement
+##error(X,"no_reference") :- ##names(X,Y), not ##preference(Y,_).
+
+% optimizing non existent statement
+##error(X,"no_reference") :- ##optimize(X), not ##preference(X,_).
+
+% zero or many optimize statements
+##error("","no_optimize")   :- not ##optimize(_).
+##error("","many_optimize") :- 2 { ##optimize(X) }.
+
+% avoid warnings
+##preference(A,B,C, for(D),E) :- ##preference(A,B,C, for(D),E).
+##preference(A,B,C,name(D),E) :- ##preference(A,B,C,name(D),E).
+"""
+
+# print nicely
 
 class Solver:
 
@@ -49,13 +82,34 @@ class Solver:
         # specification
         old = [ key                      for key, value in options['constants'].items() ]
         new = [ clingo.parse_term(value) for key, value in options['constants'].items() ]
-        control.add(SPEC,old,programs[SPEC][""])
+        control.add(SPEC,old,programs[SPEC][""] + CHECK_SPEC.replace("##",underscores))
         control.ground([(SPEC,new)])
 
-        # get preference types
+        # get specification errors
+        errors = False
+        for atom in control.symbolic_atoms.by_signature(underscores+ERROR,2):
+            print >> sys.stderr, "error in the preference specification: {} - {}".format(str(atom.symbol.arguments[0]),str(atom.symbol.arguments[1]))
+            errors = True
+
+        # get non domain errors
+        for i in [(PREFERENCE,2),(PREFERENCE,5),(OPTIMIZE,1)]:
+            for atom in control.symbolic_atoms.by_signature(underscores+i[0],i[1]):
+                if not atom.is_fact:
+                     print >> sys.stderr, "error in the preference specification: non domain atom {}".format(str(atom.symbol).replace(underscores,"",1))
+                     errors = True
+
+        # get preference types, and test if they have a corresponding preference program
         out = set()
         for atom in control.symbolic_atoms.by_signature(underscores+PREFERENCE,2):
             out.add(str(atom.symbol.arguments[1]))
+            if str(atom.symbol.arguments[1]) not in programs[PREFERENCE]:
+                print >> sys.stderr, "error in the preference specification: preference type {} has no preference program".format(str(atom.symbol.arguments[1]))
+                errors = True
+
+        # if errors
+        if errors:
+            raise Exception("parsing failed")
+
         return out
 
 
@@ -139,10 +193,7 @@ class Parser:
         control.ground([(SHOW,[])])
 
 
-    def parse(self,programs,options,clingo_options):
-
-        # create control object
-        control = clingo.Control(clingo_options)
+    def parse(self,control,programs,options,clingo_options):
 
         # ground base program
         self.solver.do_base(control,programs,options,self.underscores)
@@ -163,7 +214,3 @@ class Parser:
         for name, program in programs.items():
             if name != BASE and name != SPEC:
                 self.__add_program(control,name,program,types)
-
-        # return
-        return control
-
