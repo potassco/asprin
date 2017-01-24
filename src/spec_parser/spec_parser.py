@@ -12,8 +12,13 @@ import os
 #
 # - get preference program error/1 predicate
 # - pretty print pp errors
-# - print Models, Calls, Time...
-##
+# - print Models, Calls, Time... (stats)
+# - check guide
+#     * cyclic constant def
+#  echo "a(a). a(b)." | clingo -c a=b -c b=a#
+#     * no more than 20 errors
+#     * warning on file included many times
+#
 # - tell Roland about column numbers in lexer errors in clingo
 # - ask Roland about piping to a file redirecting
 # - ask Roland how to get the stats (if possible)
@@ -149,13 +154,16 @@ class Parser(object):
         return self.programs
 
 
-    def __parse_file(self,filename,open_file):
+    def __parse_file(self,filename,stdin=False):
         self.filename       = filename
         self.lexer.filename = filename
         self.lexer.program  = (BASE,EMPTY)
         self.program        = BASE
         self.list.append(("PROGRAM",self.base))
-        self.__parse_str(open_file.read())
+        if not stdin:
+            with open(filename) as fd:
+                self.__parse_str(fd.read())
+        else:   self.__parse_str(sys.stdin)
 
 
     def __parse_included_files(self,files):
@@ -166,7 +174,7 @@ class Parser(object):
                 if file in files: warning('file {} included more than once'.format(file))
                 else:
                     files.append(file)
-                    self.__parse_file(file,open(file))
+                    self.__parse_file(file)
             if self.included == []: return
 
 
@@ -182,16 +190,16 @@ class Parser(object):
         # input files
         for i in files:
             if i=="-":
-                self.__parse_file(STDIN,sys.stdin)
+                self.__parse_file(STDIN,True)
             else:
-                self.__parse_file(i,open(i))
+                self.__parse_file(i)
 
         # included files
         self.__parse_included_files(files)
 
         # asprin.lib
         if asprin_lib and ASPRIN_LIB not in files:
-            self.__parse_file(ASPRIN_LIB,open(ASPRIN_LIB))
+            self.__parse_file(ASPRIN_LIB)
 
         # errors
         if self.lexer.error or self.error:
