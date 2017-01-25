@@ -95,6 +95,7 @@ Get help/report bugs via : https://potassco.org/support
         basic.add_argument('--debug',dest='debug',help=argparse.SUPPRESS,action='store_true')   
         basic.add_argument('--project',dest='project',help=': Enable projective solution enumeration',action='store_true')   
         basic.add_argument('--no-asprin-lib',dest='asprin-lib',help=': Do not include asprin.lib',action='store_false')   
+        basic.add_argument('--stats',dest='stats',action='store_true',help=': Print statistics')
         options, unknown = cmd_parser.parse_known_args()
         options = vars(options)
 
@@ -126,7 +127,11 @@ Get help/report bugs via : https://potassco.org/support
             else: 
                 constants[old] = new
         options['constants'] = constants
-    
+   
+        # statistics
+        if options['stats']:
+            clingo_options.append('--stats')
+ 
         # return
         return options, clingo_options, self.underscores, prologue
 

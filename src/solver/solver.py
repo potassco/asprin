@@ -7,8 +7,9 @@
 import clingo
 import pdb
 import controller
+import clingo_stats
 import os
-
+import sys
 
 #
 # DEFINES
@@ -172,12 +173,12 @@ class Solver:
 
 
     def print_shown(self):
-        print "Answer: " + str(self.state.models)
-        print '%s' % ' '.join(map(self.__symbol2str,self.shown))
+        print("Answer: {}".format(self.state.models))
+        print(" ".join(map(self.__symbol2str,self.shown)))
 
 
     def print_optimum_string(self):
-        print OPTIMUM_FOUND
+        print(OPTIMUM_FOUND)
 
 
     def check_last_model(self):
@@ -216,7 +217,7 @@ class Solver:
             self.state.models     += 1
             self.state.opt_models += 1
             self.print_shown()
-            print OPTIMUM_FOUND_STAR
+            print(OPTIMUM_FOUND_STAR)
 
 
     def enumerate(self):
@@ -252,10 +253,14 @@ class Solver:
 
     def end(self):
         state = self.state
-        print
-        print "Models\t\t: "  + str(state.models) + ("+" if state.more_models else "")
-        print "  Optimum\t: " + ("yes" if state.opt_models>0 else "no")
-        print "  Optimal\t: " + str(state.opt_models)
+        print("")
+        print("Models       : {}{}".format(state.models,"+" if state.more_models else ""))
+        print("  Optimum    : {}".format("yes" if state.opt_models>0 else "no"))
+        if state.opt_models > 1:
+            print("  Optimal    : {}".format(state.opt_models))
+        print(clingo_stats.Stats().summary(self.control,False))
+        statistics = clingo_stats.Stats().statistics(self.control)
+        if self.state.stats: print(statistics)
         raise EndException
 
 
@@ -301,7 +306,7 @@ class Solver:
         # loop
         try:
             self.action(START)
-            print "Solving..."
+            print("Solving...")
             while True:
                 self.action(START_LOOP)
                 self.action(SOLVE)
@@ -309,7 +314,7 @@ class Solver:
                 elif self.solving_result == UNSATISFIABLE: self.action(UNSAT)
                 else:                                      self.action(UNKNOWN)
                 self.action(END_LOOP)
-        except RuntimeError as e: print "ERROR (clingo): " + str(e)
+        except RuntimeError as e: print("ERROR (clingo): {}".format(e))
         except EndException as e: self.action(END)
 
 
