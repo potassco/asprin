@@ -7,23 +7,6 @@ import ast
 import errno
 import os
 
-#
-#TODO:
-#
-# - get preference program error/1 predicate
-# - pretty print pp errors
-# - print Models, Calls, Time... (stats)
-# - check guide
-#     * cyclic constant def
-#  echo "a(a). a(b)." | clingo -c a=b -c b=a#
-#     * no more than 20 errors
-#     * warning on file included many times
-#
-# - tell Roland about column numbers in lexer errors in clingo
-# - ask Roland about piping to a file redirecting
-# - ask Roland how to get the stats (if possible)
-# - ask Roland how to prompt nicely errors in base (column and line ok, not block)
-#
 
 #
 # defines
@@ -154,16 +137,15 @@ class Parser(object):
         return self.programs
 
 
-    def __parse_file(self,filename,stdin=False):
+    def __parse_file(self,filename):
         self.filename       = filename
         self.lexer.filename = filename
         self.lexer.program  = (BASE,EMPTY)
         self.program        = BASE
         self.list.append(("PROGRAM",self.base))
-        if not stdin:
-            with open(filename) as fd:
-                self.__parse_str(fd.read())
-        else:   self.__parse_str(sys.stdin)
+        fd = sys.stdin if filename == STDIN else open(filename)
+        self.__parse_str(fd.read())
+        fd.close()
 
 
     def __parse_included_files(self,files):
@@ -190,7 +172,7 @@ class Parser(object):
         # input files
         for i in files:
             if i=="-":
-                self.__parse_file(STDIN,True)
+                self.__parse_file(STDIN)
             else:
                 self.__parse_file(i)
 
