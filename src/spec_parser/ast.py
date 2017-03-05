@@ -176,7 +176,7 @@ class PStatement(Statement):
             # head sets
             for j in i.sets:
                 for k in j:
-                    out += u + PREFERENCE + "({},(({},{}),({})),{},{},{}){}{}.\n".format(
+                    out += u + PREFERENCE + "({},(({},{}),({})),{},{},({})){}{}.\n".format(
                                 name,self.number,elem,",".join(i.vars),set,k.str_body(),k.str_weight(),arrow,body)
                     out += k.str_holds(body)
                     out += k.str_bf   (body)
@@ -185,7 +185,7 @@ class PStatement(Statement):
 
             # condition set
             for k in i.cond:
-                out +=     u + PREFERENCE + "({},(({},{}),({})),{},{},{}){}{}.\n".format(
+                out +=     u + PREFERENCE + "({},(({},{}),({})),{},{},({})){}{}.\n".format(
                                name,self.number,elem,",".join(i.vars),  0,k.str_body(),k.str_weight(),arrow,body)
 
             elem += 1

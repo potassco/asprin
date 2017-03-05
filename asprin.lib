@@ -7,7 +7,7 @@ required(A,B) :- required(A,B). % to avoid warnings
 
 def head(atuple):
     try:
-        return atuple[0]
+        return atuple.arguments[0]
     except:
         return atuple
 
