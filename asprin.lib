@@ -11,6 +11,12 @@ def head(atuple):
     except:
         return atuple
 
+def cat(*args):
+    try:
+        return "".join(args)
+    except:
+        return args
+
 #end.
            
 #program preference(and).
