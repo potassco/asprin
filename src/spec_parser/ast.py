@@ -79,15 +79,17 @@ def ast2str(ast):
 
 
 # Translate body to string
-def body2str(i):
-    out = ""
+def _body2str(i):
+    out = []
     if isinstance(i,list) and len(i) > 0:
         if isinstance(i[0],str) and i[0] in { ATOM, TRUE, FALSE, CMP}:
-            return ast2str(i[1])
+            return [ ast2str(i[1]) ]
         for j in i:
-            out += body2str(j)
+            out += _body2str(j)
     return out
-
+# TODO: CHECK
+def body2str(i):
+    return ", ".join(_body2str(i))
 
 # get variables from ast
 def get_vars(ast):
@@ -176,7 +178,7 @@ class PStatement(Statement):
             # head sets
             for j in i.sets:
                 for k in j:
-                    out += u + PREFERENCE + "({},(({},{}),({})),{},{},{}){}{}.\n".format(
+                    out += u + PREFERENCE + "({},(({},{}),({})),{},{},({})){}{}.\n".format(
                                 name,self.number,elem,",".join(i.vars),set,k.str_body(),k.str_weight(),arrow,body)
                     out += k.str_holds(body)
                     out += k.str_bf   (body)
@@ -185,8 +187,11 @@ class PStatement(Statement):
 
             # condition set
             for k in i.cond:
-                out +=     u + PREFERENCE + "({},(({},{}),({})),{},{},{}){}{}.\n".format(
+                out +=     u + PREFERENCE + "({},(({},{}),({})),{},{},({})){}{}.\n".format(
                                name,self.number,elem,",".join(i.vars),  0,k.str_body(),k.str_weight(),arrow,body)
+                out += k.str_holds(body)
+                out += k.str_bf   (body)
+                out += k.str_sat  (body)
 
             elem += 1
         #end for
