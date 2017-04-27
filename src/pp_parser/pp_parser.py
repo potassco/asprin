@@ -6,6 +6,7 @@ import sys
 import argparse
 import re
 from src.utils import utils
+from src.utils import printer
 
 #
 # DEFINES
@@ -98,46 +99,13 @@ class Parser:
         self.__options = options
         self.__underscores = underscores
 
-
-    def __print_error(self,program,string):
-        if program != BASE:
-            print string
-            return
-        for i in string.splitlines():
-            printed = False
-            match = re.match(r'<block>:(\d+):(\d+)-(\d+:)?(\d+)(.*)',i)
-            if match:
-                error_line = int(match.group(1))
-                col_ini    = int(match.group(2))
-                extra_line = int(match.group(3)[:-1]) if match.group(3) is not None else None
-                col_end    = int(match.group(4))
-                rest       =     match.group(5)
-                locations = self.__programs[program][""].get_locations()
-                for loc in locations:
-                    if loc.lines >= error_line:
-                        if error_line == 1:
-                            col_ini += loc.col - 1
-                            if not extra_line:
-                                col_end += loc.col - 1
-                        print("{}:{}:{}-{}{}{}".format(loc.filename, error_line+loc.line-1,col_ini,
-                                                        "{}:".format(extra_line+loc.line-1) if extra_line else "",
-                                                        col_end,rest))
-                        printed = True
-                        break
-                    else:
-                        error_line = error_line - loc.lines
-                        extra_line = extra_line - loc.lines if extra_line else None
-            if not printed: 
-                print i
-
-
     def __add_and_ground(self,name,params,string,list):
         capturer = utils.Capturer(sys.stderr)
         try:
             self.__control.add(name,params,string)
             self.__control.ground(list)
         finally:
-            self.__print_error(name,capturer.read())
+            printer.Printer().print_error(self.__programs,name,capturer.read())
             capturer.close()
 
 

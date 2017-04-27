@@ -12,7 +12,6 @@ import clingo
 from src.spec_parser import spec_parser
 from src.pp_parser   import   pp_parser
 from src.solver      import      solver
-from src.utils       import print_stats
 
 #
 # DEFINES

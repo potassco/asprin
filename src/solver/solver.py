@@ -8,7 +8,7 @@ from __future__ import print_function
 import clingo
 import pdb
 import controller
-from src.utils import print_stats
+from src.utils import printer
 import os
 import sys
 
@@ -261,8 +261,8 @@ class Solver:
 
     def end(self):
         state = self.state
-        print_stats.PrintStats().print(self.control,state.models,state.more_models,
-                                       state.opt_models,state.stats)
+        printer.Printer().print_stats(self.control,state.models,state.more_models,
+                                      state.opt_models,state.stats)
         raise EndException
 
 
