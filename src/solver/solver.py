@@ -4,10 +4,11 @@
 # IMPORTS
 #
 
+from __future__ import print_function
 import clingo
 import pdb
 import controller
-import clingo_stats
+from src.utils import print_stats
 import os
 import sys
 
@@ -28,8 +29,9 @@ SATISFIABLE   = "SATISFIABLE"
 UNSATISFIABLE = "UNSATISFIABLE"
 
 # strings
-OPTIMUM_FOUND      = "OPTIMUM FOUND"
-OPTIMUM_FOUND_STAR = "OPTIMUM FOUND *"
+STR_OPTIMUM_FOUND      = "OPTIMUM FOUND"
+STR_OPTIMUM_FOUND_STAR = "OPTIMUM FOUND *"
+STR_UNSATISFIABLE      = "UNSATISFIABLE"
 
 # program names
 #ENCODINGS        = os.path.dirname(os.path.realpath(__file__)) + "/encodings.lp"
@@ -161,6 +163,8 @@ class Solver:
 
     def solve(self):
         result = self.control.solve(on_model=self.on_model)
+        #print(self.solving_result)
+        #print(self.control.statistics)
         self.solving_result = None
         if result.satisfiable:     self.solving_result =   SATISFIABLE
         elif result.unsatisfiable: self.solving_result = UNSATISFIABLE
@@ -178,7 +182,11 @@ class Solver:
 
 
     def print_optimum_string(self):
-        print(OPTIMUM_FOUND)
+        print(STR_OPTIMUM_FOUND)
+
+
+    def print_unsat(self):
+        print(STR_UNSATISFIABLE)
 
 
     def check_last_model(self):
@@ -217,7 +225,7 @@ class Solver:
             self.state.models     += 1
             self.state.opt_models += 1
             self.print_shown()
-            print(OPTIMUM_FOUND_STAR)
+            print(STR_OPTIMUM_FOUND_STAR)
 
 
     def enumerate(self):
@@ -231,7 +239,7 @@ class Solver:
                       [ (clingo.Function(self.holds_str,[x,0]),False) for x in nholds]
         # solve
         self.old_shown, self.enumerate_flag = self.shown, False
-        control.solve(self.on_model_enumerate,assumptions)
+        control.solve(assumptions,self.on_model_enumerate)
         self.shown = self.old_shown
         control.configuration.solve.models = old_models
 
@@ -253,14 +261,8 @@ class Solver:
 
     def end(self):
         state = self.state
-        print("")
-        print("Models       : {}{}".format(state.models,"+" if state.more_models else ""))
-        print("  Optimum    : {}".format("yes" if state.opt_models>0 else "no"))
-        if state.opt_models > 1:
-            print("  Optimal    : {}".format(state.opt_models))
-        print(clingo_stats.Stats().summary(self.control,False))
-        statistics = clingo_stats.Stats().statistics(self.control)
-        if self.state.stats: print(statistics)
+        print_stats.PrintStats().print(self.control,state.models,state.more_models,
+                                       state.opt_models,state.stats)
         raise EndException
 
 
@@ -291,8 +293,11 @@ class Solver:
         for i in self.pre[node]:
             ret = i()
             if ret != None: actions += ret
-        for i in actions:                    i()
-        for i in self.post[node]:            i()
+        for i in actions:
+            #print(i)
+            i()
+        for i in self.post[node]:
+            i()
 
 
     def run(self):

@@ -20,8 +20,8 @@ class GeneralController:
         self.state.opt_models  = 0
         self.state.models      = 0
         self.state.more_models = True
-        self.state.old_holds   = []
-        self.state.old_nholds  = []
+        self.state.old_holds   = None
+        self.state.old_nholds  = None
 
 
     def start_pre(self):
@@ -41,14 +41,15 @@ class GeneralController:
     def unsat_pre(self):
         if self.state.last_unsat:
             self.state.more_models = False
-            return [self.solver.end]
+            out = [] if self.state.models>0 else [self.solver.print_unsat]
+            return out + [self.solver.end]
         self.state.last_unsat = True
         self.state.opt_models  += 1
         out = [self.solver.print_optimum_string]
         if self.state.opt_models == self.state.max_models:
             out.append(self.solver.end)
         if self.state.steps == self.state.step:
-            out.append(self.solver.end) # to exit soon
+            out.append(self.solver.end) # to exit asap in this case
         return out
 
 

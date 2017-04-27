@@ -22,6 +22,11 @@ EMPTY      = ""
 ASPRIN_LIB = "asprin.lib"
 HASH_SEM   = "#sem"
 STDIN      = "-"
+PROGRAM    = "PROGRAM"
+CODE       = "CODE"
+PREFERENCE = "PREFERENCE"
+OPTIMIZE   = "OPTIMIZE"
+END        = "end."
 
 #
 # Exception Handling
@@ -36,6 +41,38 @@ class ParseError(Exception):
 def warning(string):
     print "asprin: warning: " + string
 
+
+#
+# Location and Program
+#
+class Location(object):
+    
+    def __init__(self,filename, line, col, lines=1):
+        self.filename = filename
+        self.line     = line
+        self.col      = col
+        self.lines    = lines
+    
+    def __repr__(self):
+        return "FILENAME: {} LINE: {} POS: {} LINES: {}".format(self.filename,self.line,self.col,self.lines)
+
+class Program(object):
+
+    def __init__(self,string=""):
+        self.__locations = []
+        self.__string = string 
+
+    def get_string(self):
+        return self.__string
+
+    def get_locations(self):
+        return self.__locations
+
+    def extend_string(self,string):
+        self.__string += "\n" + string
+
+    def extend_locations(self,location):
+        self.__locations.append(location)
 
 #
 #
@@ -55,9 +92,11 @@ class Parser(object):
         #self.parser = yacc.yacc(module=self,debug=False)
         self.parser = yacc.yacc(module=self)
 
-        # programs
+        # programs[name][type] is a Program
         self.p_statements, self.list = 0, []
-        self.programs = dict([(BASE,dict([(EMPTY,"")])),(GENERATE,dict([(EMPTY,"")])),(SPEC,dict([(EMPTY,"")])),(PPROGRAM,dict()),(HEURISTIC,dict()),(APPROX,dict())])
+        self.programs = dict([(i,dict()) for i in [BASE,GENERATE,SPEC,PPROGRAM,HEURISTIC,APPROX]])
+        #self.programs = dict([(BASE,dict([(EMPTY,Program(""))])),(GENERATE,dict([(EMPTY,Program(""))])),
+        #                      (SPEC,dict([(EMPTY,Program(""))])),(PPROGRAM,dict()),(HEURISTIC,dict()),(APPROX,dict())])
 
         # base
         self.base      = ast.ProgramStatement()
@@ -65,12 +104,12 @@ class Parser(object):
         self.base.type = EMPTY
 
         # others
-        self.program   = BASE
-        self.constants = []
-        self.included  = []
-        self.filename  = ""
-        self.error     = False
-
+        self.program       = BASE
+        self.constants     = []
+        self.included      = []
+        self.filename      = ""
+        self.error         = False
+        self.location      = None
 
     #
     # AUXILIARY FUNCTIONS
@@ -96,17 +135,20 @@ class Parser(object):
         return "_" + ("_" * self.lexer.underscores)
 
 
-    def __parse_str(self,string):
-        self.element = ast.Element()
-        self.parser.parse(string, self.lexer.lexer) # parses into self.list
-        self.lexer.reset()
-
-
-    def __update_program(self,program,type,string):
-        _dict = self.programs.get(program)
-        if _dict is None: return
-        e = _dict.get(type)
-        _dict[type] = e + string if e is not None else string
+    def __update_program(self,program,type,string,location=None):
+        # consider only the program names in self.programs
+        dictionary = self.programs.get(program)
+        if dictionary is None:
+            return
+        # update the program type
+        program = dictionary.get(type)
+        if program is None:
+            program = Program(string)
+            dictionary[type] = program
+        else:
+            program.extend_string(string)
+        if location is not None:
+            program.extend_locations(location)
 
 
     def __print_list(self):
@@ -116,11 +158,12 @@ class Parser(object):
 
         # add elements of the list
         for i in self.list:
-            if i[0] == "CODE":
-                self.__update_program(program,type,i[1])
-            if i[0] == "PREFERENCE" or i[0] == "OPTIMIZE":
+            if i[0] == CODE:
+                code = i[1] + self.__get_underscores() + END
+                self.__update_program(program,type,code,i[2])
+            if i[0] == PREFERENCE or i[0] == OPTIMIZE:
                 self.__update_program(SPEC,EMPTY,i[1].str())
-            if i[0] == "PROGRAM":
+            if i[0] == PROGRAM:
                 program, type = i[1].name, i[1].type
 
         # adding generation of domains
@@ -137,12 +180,19 @@ class Parser(object):
         return self.programs
 
 
+    def __parse_str(self,string):
+        self.element = ast.Element()
+        self.location = Location(self.filename,1,1)
+        self.parser.parse(string, self.lexer.lexer) # parses into self.list
+        self.lexer.reset()
+
+
     def __parse_file(self,filename):
         self.filename       = filename
         self.lexer.filename = filename
         self.lexer.program  = (BASE,EMPTY)
         self.program        = BASE
-        self.list.append(("PROGRAM",self.base))
+        self.list.append((PROGRAM,self.base))
         fd = sys.stdin if filename == STDIN else open(filename)
         self.__parse_str(fd.read())
         fd.close()
@@ -259,30 +309,31 @@ class Parser(object):
     #
 
     def p_program(self,p):
-        """ program : program CODE
-                    | program statement end_statement
-                    |
+        """ program : program statement change_state CODE
+                    | CODE
         """
-        if len(p) == 3: self.list.append(("CODE",p[2])) # appends to self.list
+        self.location.lines = self.lexer.lexer.lineno - self.location.line + 1 
+        if   len(p) == 5: 
+            self.list.append((CODE,p[4],self.location))
+        elif len(p) == 2: 
+            self.list.append((CODE,p[1],self.location))
 
     def p_program_error(self,p):
-        """ program : program error DOT change_state CODE
-                    | program error DOT_EOF
+        """ program : program error change_state CODE
         """
         self.__syntax_error(p,2)
-
-    def p_end_statement(self,p):
-        """ end_statement : DOT change_state CODE
-                          | DOT_EOF
-        """
-        if len(p) == 4:
-            self.list.append(("CODE",p[3])) # appends to self.list
 
     def p_change_state(self,p):
         """ change_state :
         """
         p.lexer.pop_state()
         self.lexer.code_start = self.lexer.lexer.lexpos
+        # location
+        col = self.lexer.lexer.lexpos - self.lexer.lexer.lexdata.rfind('\n', 0, self.lexer.lexer.lexpos)
+        self.location = Location(self.filename, self.lexer.lexer.lineno, col)
+
+
+
 
 
     #
@@ -290,8 +341,8 @@ class Parser(object):
     #
 
     def p_statement_1(self,p):
-        """ statement : PREFERENCE LPAREN term COMMA term RPAREN LBRACE elem_list RBRACE body
-                      | PREFERENCE LPAREN term COMMA term RPAREN LBRACE           RBRACE body
+        """ statement : PREFERENCE LPAREN term COMMA term RPAREN LBRACE elem_list RBRACE body DOT
+                      | PREFERENCE LPAREN term COMMA term RPAREN LBRACE           RBRACE body DOT
         """
         # create preference statement
         s = ast.PStatement()
@@ -299,9 +350,9 @@ class Parser(object):
         s.number = self.p_statements
         s.name     = p[3]
         s.type     = p[5]
-        s.elements = p[8] if len(p) == 11 else []
-        s.body     = p[len(p)-1]
-        self.list.append(("PREFERENCE",s)) # appends to self.list
+        s.elements = p[8] if len(p) == 12 else []
+        s.body     = p[len(p)-2]
+        self.list.append((PREFERENCE,s)) # appends to self.list
         # restart element
         self.element = ast.Element()
         if self.program != BASE: self.__error("unexpected preference statement in non base program",p,1)
@@ -791,12 +842,12 @@ class Parser(object):
     #
 
     def p_statement_2(self,p):
-        """ statement : OPTIMIZE LPAREN term RPAREN body
+        """ statement : OPTIMIZE LPAREN term RPAREN body DOT
         """
         s = ast.OStatement()
         s.name     = p[3]
         s.body     = p[5]
-        self.list.append(("OPTIMIZE",s)) # appends to self.list
+        self.list.append((OPTIMIZE,s)) # appends to self.list
         if self.program != BASE: self.__error("unexpected optimize statement in non base program",p,1)
 
 
@@ -810,16 +861,16 @@ class Parser(object):
 
 
     def p_statement_3(self,p):
-        """ statement : PROGRAM identifier LPAREN ntermvec RPAREN
-                      | PROGRAM identifier
+        """ statement : PROGRAM identifier LPAREN ntermvec RPAREN DOT
+                      | PROGRAM identifier DOT
         """
         s      = ast.ProgramStatement()
         s.name = ast.ast2str(p[2])
-        s.type = ast.ast2str(p[4]) if len(p)==6 else EMPTY
-        self.list.append(("PROGRAM",s)) # appends to self.list
+        s.type = ast.ast2str(p[4]) if len(p)==7 else EMPTY
+        self.list.append((PROGRAM,s)) # appends to self.list
         self.program       = s.name
         self.lexer.program = (s.name,s.type)
-        if len(p)==6:
+        if len(p)==7:
             self.__check_preference_program(p[2],p[4],p,3)
 
 
@@ -828,12 +879,12 @@ class Parser(object):
     #
 
     def p_statement_4(self,p):
-        """ statement : CONST identifier EQ term
+        """ statement : CONST identifier EQ term DOT
         """
         if self.program == BASE:
             self.constants.append((ast.ast2str(p[2]),ast.ast2str(p[4])))
         else:
-            self.list.append(("CODE","#const " + ast.ast2str(p[2]) + " = " + ast.ast2str(p[4]) + ".\n"))
+            self.list.append((CODE,"#const " + ast.ast2str(p[2]) + " = " + ast.ast2str(p[4]) + ".\n"))
 
 
     #
@@ -841,7 +892,7 @@ class Parser(object):
     #
 
     def p_statement_5(self,p):
-        """ statement : INCLUDE STRING
+        """ statement : INCLUDE STRING DOT
         """
         self.included.append((p[2][1:-1],self.filename)) # (file name included,current file name)
 

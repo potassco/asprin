@@ -154,7 +154,7 @@ class PStatement(Statement):
         statement_body = body2str(self.body) if self.body is not None else ""
         arrow = " :- " if statement_body != "" else ""
         out = u + PREFERENCE + "({},{}){}{}.\n".format(name,type,arrow,statement_body)
-
+        
         # handle pooling
         for i in self.elements:
             if i.pooling:
