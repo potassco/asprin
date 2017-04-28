@@ -9,9 +9,12 @@ import re
 import argparse
 import sys
 import clingo
+import os
 from src.spec_parser import spec_parser
 from src.pp_parser   import   pp_parser
 from src.solver      import      solver
+from src.utils       import     printer
+import errno
 
 #
 # DEFINES
@@ -66,7 +69,9 @@ There is NO WARRANTY, to the extent permitted by law."""
 
 
     def __init__(self):
-        self.underscores = 0
+        self.underscores  = 0
+        self.__first_file = None
+        self.__file_warnings = []
 
     def __update_underscores(self,new):
         i = 0
@@ -75,10 +80,13 @@ There is NO WARRANTY, to the extent permitted by law."""
 
 
     def __add_file(self,files,file):
-        if file in files:
-            print >> sys.stderr, "<cmd>: warning: already included file:\n  {}\n".format(file)
+        abs_file = os.path.abspath(file) if file != "-" else "-"
+        if abs_file in [i[1] for i in files]:
+            self.__file_warnings.append(file)
         else:
-            files.append(file)
+            files.append((file,abs_file))
+        if not self.__first_file:
+            self.__first_file = file
 
 
     def run(self):
@@ -128,12 +136,11 @@ There is NO WARRANTY, to the extent permitted by law."""
         # when no files, add stdin
         # build prologue
         if options['files'] == []:
-            first_file = "stdin"
-            options['files'].append("-")
-        else:
-            first_file = options['files'][0]
-            if len(options['files'])>1: first_file += " ..."
-        prologue = "asprin version " + VERSION + "\nReading from " + first_file
+            self.__first_file = "stdin"
+            options['files'].append(("-","-"))
+        if len(options['files'])>1: 
+            self.__first_file += " ..."
+        prologue = "asprin version " + VERSION + "\nReading from " + self.__first_file
 
         # handle constants
         constants = dict()
@@ -151,7 +158,7 @@ There is NO WARRANTY, to the extent permitted by law."""
         clingo_options.append('--stats')
 
         # return
-        return options, clingo_options, self.underscores, prologue
+        return options, clingo_options, self.underscores, prologue, self.__file_warnings
 
 
 
@@ -176,13 +183,15 @@ class Asprin:
     def run(self):
 
         # arguments parsing
-        options, clingo_options, underscores, prologue = AsprinArgumentParser().run()
+        options, clingo_options, underscores, prologue, warnings = AsprinArgumentParser().run()
 
         # create Control object
         control = self.__get_control(clingo_options)
 
-        # print prologue
+        # print prologue and warnings
         print(prologue)
+        for i in warnings:
+            printer.Printer().warning_included_file(i)
 
         # specification parsing
         self.spec_parser = spec_parser.Parser(underscores)
@@ -205,6 +214,14 @@ class Asprin:
             print(ERROR.format(str(e)),file=sys.stderr)
             print("*** Info : (asprin): Try '--help' for usage information",file=sys.stderr)
             sys.exit(1)
+        except IOError as e:
+            if (e.errno == errno.ENOENT):
+                print("<cmd>: error: file could not be opened:\n  {}\n".format(e.filename),file=sys.stderr)
+                print(ERROR.format("parsing failed"),file=sys.stderr)
+            else: 
+                print(ERROR.format(str(e)),file=sys.stderr)
+            print(UNKNOWN,file=sys.stdout)
+            sys.exit(65)
         except Exception as e:
             print(ERROR.format(str(e)),file=sys.stderr)
             print(UNKNOWN,file=sys.stdout)

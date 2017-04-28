@@ -1,10 +1,10 @@
 from __future__ import print_function
 from src.utils import clingo_stats
 import re
-
+import sys
 
 BASE="base"
-
+WARNING_INCLUDED_FILE="<cmd>: warning: already included file:\n  {}\n"
 
 class Printer:
 
@@ -50,3 +50,25 @@ class Printer:
                         extra_line = extra_line - loc.lines if extra_line else None
             if not printed:
                 print(i)
+
+
+    def __print_warning(sef,string):
+        print(string,file=sys.stderr)
+
+
+    def warning_included_file(self,file):
+        self.__print_warning(WARNING_INCLUDED_FILE.format(file))
+
+
+    def __print_message_location(self,loc):
+        return "{}:{}:{}-{}{}:".format(loc.filename,loc.line,loc.col_ini,
+                                  "{}:".format(loc.extra_line) if loc.extra_line else "",
+                                  loc.col_end)
+
+
+    def warning_included_file(self,file,loc=None):
+        warning = WARNING_INCLUDED_FILE 
+        if loc: 
+            warning = warning.replace("<cmd>:",self.__print_message_location(loc))
+        self.__print_warning(warning.format(file))
+

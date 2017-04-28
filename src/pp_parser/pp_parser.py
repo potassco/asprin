@@ -173,16 +173,16 @@ class Parser:
 
     def add_show(self,types):
 
-        # set 'show_underscores' and
-        # if #show in loaded program: return
-        self.__options['show_underscores'], do_return = False, False
+        # decide if adding #shows to the base, and set 'show_underscores'
+        self.__options['show_underscores'], add_base_show = False, True
         for i in self.__options['show']:
             if (i[0]==BASE and i[1]==EMPTY):
-                do_return = True
+                add_base_show = False
             elif (i[0]==PREFERENCE and i[1] in types):
-                do_return = True
                 self.__options['show_underscores'] = True
-        if do_return: return
+
+        if not add_base_show: 
+            return
 
         # else add #show for atoms in base
         show = "\n".join(["#show " + ("" if x[2] else "-") + x[0] + "/" + str(x[1]) + "."

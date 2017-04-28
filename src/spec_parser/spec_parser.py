@@ -3,6 +3,7 @@
 import sys
 import yacc
 from spec_lexer import Lexer
+from src.utils import printer
 import ast
 import errno
 import os
@@ -19,7 +20,6 @@ PPROGRAM   = "preference"
 HEURISTIC  = "heuristic"
 APPROX     = "approximation"
 EMPTY      = ""
-ASPRIN_LIB = "asprin.lib"
 HASH_SEM   = "#sem"
 STDIN      = "-"
 PROGRAM    = "PROGRAM"
@@ -27,35 +27,35 @@ CODE       = "CODE"
 PREFERENCE = "PREFERENCE"
 OPTIMIZE   = "OPTIMIZE"
 END        = "end."
-
-#
-# Exception Handling
-#
-class ParseError(Exception):
-    pass
+INCLUDE    = "#include"
+ASPRIN_LIB = "asprin.lib"
+# WARNING: next must change if asprin.lib location relative to this file changes
+ASPRIN_LIB_RELATIVE = os.path.dirname(__file__) + "/../../" + ASPRIN_LIB
 
 
 #
-# Warnings (TODO: reorganize)
+# MessageLocation, ProgramLocation and Program
 #
-def warning(string):
-    print "asprin: warning: " + string
+class MessageLocation(object):
 
+    # create a location with (filename,line,extra_line,col_ini,col_end)
+    #   of the last statement in data[:pos] starting with string 
+    def __init__(self,filename,data,pos,lineno,string):
+        string_pos      = data.rfind(string,0,pos)
+        self.filename   = filename
+        self.col_ini    = string_pos - data.rfind('\n',0,string_pos)
+        self.line       = lineno - data[string_pos:pos].count("\n")
+        self.extra_line = None if self.line == lineno else lineno
+        self.col_end    = pos - data.rfind("\n",0,pos)
 
-#
-# Location and Program
-#
-class Location(object):
+class ProgramLocation(object):
     
     def __init__(self,filename, line, col, lines=1):
         self.filename = filename
         self.line     = line
         self.col      = col
-        self.lines    = lines
+        self.lines    = lines # number of lines
     
-    def __repr__(self):
-        return "FILENAME: {} LINE: {} POS: {} LINES: {}".format(self.filename,self.line,self.col,self.lines)
-
 class Program(object):
 
     def __init__(self,string=""):
@@ -95,8 +95,6 @@ class Parser(object):
         # programs[name][type] is a Program
         self.p_statements, self.list = 0, []
         self.programs = dict([(i,dict()) for i in [BASE,GENERATE,SPEC,PPROGRAM,HEURISTIC,APPROX]])
-        #self.programs = dict([(BASE,dict([(EMPTY,Program(""))])),(GENERATE,dict([(EMPTY,Program(""))])),
-        #                      (SPEC,dict([(EMPTY,Program(""))])),(PPROGRAM,dict()),(HEURISTIC,dict()),(APPROX,dict())])
 
         # base
         self.base      = ast.ProgramStatement()
@@ -182,7 +180,7 @@ class Parser(object):
 
     def __parse_str(self,string):
         self.element = ast.Element()
-        self.location = Location(self.filename,1,1)
+        self.location = ProgramLocation(self.filename,1,1)
         self.parser.parse(string, self.lexer.lexer) # parses into self.list
         self.lexer.reset()
 
@@ -203,9 +201,11 @@ class Parser(object):
             included, self.included = self.included, []
             for i in included: # (filename,fileorigin)
                 file = i[0] if os.path.isfile(i[0]) else os.path.join(os.path.dirname(i[1]),i[0])
-                if file in files: warning('file {} included more than once'.format(file))
+                abs_file = os.path.abspath(file)
+                if abs_file in [j[1] for j in files]: 
+                    printer.Printer().warning_included_file(file,i[2])
                 else:
-                    files.append(file)
+                    files.append((file,abs_file))
                     self.__parse_file(file)
             if self.included == []: return
 
@@ -221,17 +221,18 @@ class Parser(object):
 
         # input files
         for i in files:
-            if i=="-":
+            if i[0]=="-":
                 self.__parse_file(STDIN)
             else:
-                self.__parse_file(i)
+                self.__parse_file(i[0])
 
         # included files
         self.__parse_included_files(files)
 
         # asprin.lib
-        if asprin_lib and ASPRIN_LIB not in files:
-            self.__parse_file(ASPRIN_LIB)
+        if asprin_lib and ASPRIN_LIB not in [os.path.basename(i[0]) for i in files]:
+            file = ASPRIN_LIB if os.path.isfile(ASPRIN_LIB) else ASPRIN_LIB_RELATIVE
+            self.__parse_file(file)
 
         # errors
         if self.lexer.error or self.error:
@@ -330,7 +331,7 @@ class Parser(object):
         self.lexer.code_start = self.lexer.lexer.lexpos
         # location
         col = self.lexer.lexer.lexpos - self.lexer.lexer.lexdata.rfind('\n', 0, self.lexer.lexer.lexpos)
-        self.location = Location(self.filename, self.lexer.lexer.lineno, col)
+        self.location = ProgramLocation(self.filename, self.lexer.lexer.lineno, col)
 
 
 
@@ -894,7 +895,11 @@ class Parser(object):
     def p_statement_5(self,p):
         """ statement : INCLUDE STRING DOT
         """
-        self.included.append((p[2][1:-1],self.filename)) # (file name included,current file name)
+        location = MessageLocation(self.filename,self.lexer.lexer.lexdata,
+                                   self.lexer.lexer.lexpos,self.lexer.lexer.lineno,INCLUDE)
+        self.included.append((p[2][1:-1],self.filename,location)) # (file name included,current file name,location)
+    
+        
 
 
     #
