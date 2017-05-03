@@ -35,7 +35,6 @@ STR_UNSATISFIABLE      = "UNSATISFIABLE"
 
 # program names
 #ENCODINGS        = os.path.dirname(os.path.realpath(__file__)) + "/encodings.lp"
-SCRIPT           = "script"
 DO_HOLDS_AT_ZERO = "do_holds_at_zero"
 DO_HOLDS         = "do_holds"
 OPEN_HOLDS       = "open_holds"
@@ -53,31 +52,14 @@ HOLDS         = "holds"
 HOLDS_AT_ZERO = "holds_at_zero"
 CSP           = "$"
 
-#
-# GLOBAL VARIABLES
-#
-
-holds, nholds = [], []
-
 
 #
 # AUXILIARY PROGRAMS
 #
 
-script = """
-#script(python)
-def getHolds():
-    return solver.holds
-def getNHolds():
-    return solver.nholds
-#end.
-"""
-
 token    = "##"
-
 programs = \
-  [(SCRIPT,                 [],script),
-   (DO_HOLDS_AT_ZERO,       [],"#show ##holds_at_zero(X) : ##holds(X,0)."),
+  [(DO_HOLDS_AT_ZERO,       [],"#show ##holds_at_zero(X) : ##holds(X,0)."),
    (DO_HOLDS,            ["m"],"##holds(X,m) :- X = @getHolds()."),
    (OPEN_HOLDS,          ["m"],"{ ##holds(X,m) } :- X = @getHolds().  { ##holds(X,m) } :- X = @getNHolds()."),
    (VOLATILE_FACT, ["m1","m2"],"##volatile(##m(m1),##m(m2))."),
@@ -116,6 +98,9 @@ class Solver:
         self.model_str         = underscores + MODEL
         self.holds_at_zero_str = underscores + HOLDS_AT_ZERO
         self.holds_str         = underscores + HOLDS
+        # holds
+        self.holds             = []
+        self.nholds            = []
         # others
         self.state             = State()
         self.state.max_models  = 1
@@ -132,6 +117,11 @@ class Solver:
                clingo.Function(self.model_str,[int(m1)]),
                clingo.Function(self.model_str,[int(m2)])])
 
+    def getHolds(self):
+        return self.holds
+    
+    def getNHolds(self):
+        return self.nholds
 
     #
     # CLINGO PROXY
@@ -141,24 +131,23 @@ class Solver:
     def load_encodings(self):
         for i in programs:
             self.control.add(i[0],i[1],i[2].replace(token,self.underscores))
-        self.control.ground([(DO_HOLDS_AT_ZERO,[])])
+        self.control.ground([(DO_HOLDS_AT_ZERO,[])],self)
 
 
     def ground_preference_program(self):
         tate, control, prev_step = self.state, self.control, self.state.step-1
         control.ground([(DO_HOLDS,       [prev_step]),(PREFERENCE,    [0,prev_step]),
-                        (NOT_UNSAT_PRG,[0,prev_step]),(VOLATILE_EXT,[0,prev_step])])
+                        (NOT_UNSAT_PRG,[0,prev_step]),(VOLATILE_EXT,[0,prev_step])],self)
         control.assign_external(self.get_volatile(0,prev_step),True)
 
 
     def on_model(self,model):
-        global holds, nholds
-        holds, nholds, self.shown = [], [], []
+        self.holds, self.nholds, self.shown = [], [], []
         for a in model.symbols(shown=True):
-            if a.name == self.holds_at_zero_str: holds.append(a.arguments[0])
+            if a.name == self.holds_at_zero_str: self.holds.append(a.arguments[0])
             else:                                self.shown.append(a)
         for a in model.symbols(terms=True,complement=True):
-            if a.name == self.holds_at_zero_str: nholds.append(a.arguments[0])
+            if a.name == self.holds_at_zero_str: self.nholds.append(a.arguments[0])
 
 
     def solve(self):
@@ -190,11 +179,10 @@ class Solver:
 
 
     def check_last_model(self):
-        global holds, nholds
-        if self.state.old_holds == holds and self.state.old_nholds == nholds:
+        if self.state.old_holds == self.holds and self.state.old_nholds == self.nholds:
             raise Exception("same stable model computed twice, there is an error in the input (f.e., an incorrect or missing preference program)")
-        self.state.old_holds  =  holds
-        self.state.old_nholds = nholds
+        self.state.old_holds  = self.holds
+        self.state.old_nholds = self.nholds
 
 
     def relax_previous_model(self):
@@ -219,7 +207,6 @@ class Solver:
 
 
     def on_model_enumerate(self,model):
-        global holds, nholds
         self.shown = [ i for i in model.symbols(shown=True) if i.name != self.holds_at_zero_str ]
         if self.enumerate_flag or not self.state.same_shown_function():
             self.state.models     += 1
@@ -229,14 +216,13 @@ class Solver:
 
 
     def enumerate(self):
-        global holds, nholds
         # models
         control, old_models = self.control, self.control.configuration.solve.models
         if self.state.max_models == 0: control.configuration.solve.models = 0
         else:                          control.configuration.solve.models = self.state.max_models - self.state.opt_models
         # assumptions
-        assumptions = [ (clingo.Function(self.holds_str,[x,0]),True)  for x in holds ] + \
-                      [ (clingo.Function(self.holds_str,[x,0]),False) for x in nholds]
+        assumptions = [ (clingo.Function(self.holds_str,[x,0]),True)  for x in self.holds ] + \
+                      [ (clingo.Function(self.holds_str,[x,0]),False) for x in self.nholds]
         # solve
         self.old_shown, self.enumerate_flag = self.shown, False
         control.solve(assumptions,self.on_model_enumerate)
@@ -256,7 +242,7 @@ class Solver:
         unsat        = [(UNSAT_PRG,    [prev_step,0])]
         delete_model = [(DELETE_MODEL,            [])]
         volatile     = [(VOLATILE_FACT,[prev_step,0])]
-        control.ground(preference + unsat + delete_model + volatile)
+        control.ground(preference + unsat + delete_model + volatile,self)
 
 
     def end(self):
