@@ -1,19 +1,19 @@
 #script (python)
 
-import solver
+import solver as solver_module
 
 class GeneralController:
 
 
-    def __init__(self,_solver,state):
-        self.solver = _solver
+    def __init__(self,solver,state):
+        self.solver = solver
         self.state  = state
-        self.solver.register_pre(solver.START,self.start_pre)
-        self.solver.register_pre(solver.SOLVE,self.solve_pre)
-        self.solver.register_pre(solver.SAT,self.sat_pre)
-        self.solver.register_pre(solver.UNSAT,self.unsat_pre)
-        self.solver.register_post(solver.UNSAT,self.unsat_post)
-        self.solver.register_pre(solver.END_LOOP,self.end_loop_pre)
+        self.solver.register_pre(solver_module.START,self.start_pre)
+        self.solver.register_pre(solver_module.SOLVE,self.solve_pre)
+        self.solver.register_pre(solver_module.SAT,self.sat_pre)
+        self.solver.register_pre(solver_module.UNSAT,self.unsat_pre)
+        self.solver.register_post(solver_module.UNSAT,self.unsat_post)
+        self.solver.register_pre(solver_module.END_LOOP,self.end_loop_pre)
         self.state.step        = 1
         self.state.start_step  = 1
         self.state.last_unsat  = True
@@ -66,9 +66,9 @@ class GeneralController:
 class GeneralControllerHandleOptimal:
 
 
-    def __init__(self,_solver,state):
-        self.solver = _solver
-        self.solver.register_pre(solver.UNSAT,self.unsat_pre)
+    def __init__(self,solver,state):
+        self.solver = solver
+        self.solver.register_pre(solver_module.UNSAT,self.unsat_pre)
 
 
     def unsat_pre(self):
@@ -79,11 +79,11 @@ class GeneralControllerHandleOptimal:
 class BasicMethodController:
 
 
-    def __init__(self,_solver,state):
-        self.solver = _solver
+    def __init__(self,solver,state):
+        self.solver = solver
         self.state  = state
-        self.solver.register_pre(solver.START_LOOP,self.start_loop_pre)
-        self.solver.register_pre(solver.UNSAT,self.unsat_pre)
+        self.solver.register_pre(solver_module.START_LOOP,self.start_loop_pre)
+        self.solver.register_pre(solver_module.UNSAT,self.unsat_pre)
 
 
     def start_loop_pre(self):
@@ -98,11 +98,11 @@ class BasicMethodController:
 class EnumerationController:
 
 
-    def __init__(self,_solver,state):
-        self.solver = _solver
+    def __init__(self,solver,state):
+        self.solver = solver
         if not state.project:
-            state.same_shown_function = _solver.same_shown if not state.show_underscores else _solver.same_shown_underscores
-            self.solver.register_pre(solver.UNSAT,self.unsat_pre)
+            state.same_shown_function = solver.same_shown if not state.show_underscores else solver.same_shown_underscores
+            self.solver.register_pre(solver_module.UNSAT,self.unsat_pre)
 
 
     def unsat_pre(self):

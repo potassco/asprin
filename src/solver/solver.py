@@ -52,6 +52,8 @@ HOLDS         = "holds"
 HOLDS_AT_ZERO = "holds_at_zero"
 CSP           = "$"
 
+# exceptions
+SAME_MODEL = "same stable model computed twice, there is an error in the input (f.e., an incorrect or missing preference program)"
 
 #
 # AUXILIARY PROGRAMS
@@ -135,7 +137,7 @@ class Solver:
 
 
     def ground_preference_program(self):
-        tate, control, prev_step = self.state, self.control, self.state.step-1
+        state, control, prev_step = self.state, self.control, self.state.step-1
         control.ground([(DO_HOLDS,       [prev_step]),(PREFERENCE,    [0,prev_step]),
                         (NOT_UNSAT_PRG,[0,prev_step]),(VOLATILE_EXT,[0,prev_step])],self)
         control.assign_external(self.get_volatile(0,prev_step),True)
@@ -146,14 +148,13 @@ class Solver:
         for a in model.symbols(shown=True):
             if a.name == self.holds_at_zero_str: self.holds.append(a.arguments[0])
             else:                                self.shown.append(a)
+        #TODO: improve on nholds, we do not need it always
         for a in model.symbols(terms=True,complement=True):
             if a.name == self.holds_at_zero_str: self.nholds.append(a.arguments[0])
 
 
     def solve(self):
         result = self.control.solve(on_model=self.on_model)
-        #print(self.solving_result)
-        #print(self.control.statistics)
         self.solving_result = None
         if result.satisfiable:     self.solving_result =   SATISFIABLE
         elif result.unsatisfiable: self.solving_result = UNSATISFIABLE
@@ -180,7 +181,7 @@ class Solver:
 
     def check_last_model(self):
         if self.state.old_holds == self.holds and self.state.old_nholds == self.nholds:
-            raise Exception("same stable model computed twice, there is an error in the input (f.e., an incorrect or missing preference program)")
+            raise Exception(SAME_MODEL)
         self.state.old_holds  = self.holds
         self.state.old_nholds = self.nholds
 
@@ -197,7 +198,6 @@ class Solver:
         return False
 
 
-    # used is some atoms not in base are shown
     def same_shown_underscores(self):
         if set([i for i in self.old_shown if not str(i).startswith(self.underscores)]) == \
            set([i for i in     self.shown if not str(i).startswith(self.underscores)]):
@@ -208,6 +208,7 @@ class Solver:
 
     def on_model_enumerate(self,model):
         self.shown = [ i for i in model.symbols(shown=True) if i.name != self.holds_at_zero_str ]
+        # self.state.same_shown_function is modified by EnumerationController at controller.py
         if self.enumerate_flag or not self.state.same_shown_function():
             self.state.models     += 1
             self.state.opt_models += 1
