@@ -22,3 +22,6 @@ class Capturer:
 
 class SilentException(Exception):
     pass
+
+class FatalException(Exception):
+    pass

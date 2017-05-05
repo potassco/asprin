@@ -21,10 +21,13 @@ import errno
 # DEFINES
 #
 
-ERROR   = "*** ERROR: (asprin): {}"
-UNKNOWN = "UNKNOWN"
-VERSION = "3.0.0"
-
+VERSION       = "3.0.0"
+UNKNOWN       = "UNKNOWN"
+ERROR         = "*** ERROR: (asprin): {}"
+ERROR_INFO    = "*** Info : (asprin): Try '--help' for usage information"
+ERROR_OPEN    = "<cmd>: error: file could not be opened:\n  {}\n"
+ERROR_FATAL   = "Fatal error, this should not happen.\n"
+ERROR_PARSING = "parsing failed"
 
 
 #
@@ -34,7 +37,7 @@ VERSION = "3.0.0"
 class MyArgumentParser(argparse.ArgumentParser):
 
     def error(self, message):
-        raise argparse.ArgumentError(None,"SyntaxError: " + message)
+        raise argparse.ArgumentError(None,"In context <asprin>: " + message)
 
 
 #
@@ -213,23 +216,26 @@ class Asprin:
             self.run()
         except argparse.ArgumentError as e:
             print(ERROR.format(str(e)),file=sys.stderr)
-            print("*** Info : (asprin): Try '--help' for usage information",file=sys.stderr)
+            print(ERROR_INFO,file=sys.stderr)
             sys.exit(1)
         except IOError as e:
             if (e.errno == errno.ENOENT):
-                print("<cmd>: error: file could not be opened:\n  {}\n".format(e.filename),file=sys.stderr)
-                print(ERROR.format("parsing failed"),file=sys.stderr)
+                print(ERROR_OPEN.format(e.filename),file=sys.stderr)
+                print(ERROR.format(ERROR_PARSING),file=sys.stderr)
             else: 
                 print(ERROR.format(str(e)),file=sys.stderr)
             print(UNKNOWN,file=sys.stdout)
             sys.exit(65)
         except utils.SilentException as e:
             pass
+        except utils.FatalException as e:
+            print(ERROR.format(ERROR_FATAL),file=sys.stderr)
+            print(UNKNOWN,file=sys.stdout)
+            sys.exit(65)
         except Exception as e:
             print(ERROR.format(str(e)),file=sys.stderr)
             print(UNKNOWN,file=sys.stdout)
             sys.exit(65)
-
 
 if __name__ == "__main__":
     #Asprin().run(); sys.exit(1)

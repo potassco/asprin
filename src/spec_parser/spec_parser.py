@@ -158,6 +158,8 @@ class Parser(object):
         for i in self.list:
             if i[0] == CODE:
                 code = i[1] + self.__get_underscores() + END
+                #print(code)
+                #print("###################")
                 self.__update_program(program,type,code,i[2])
             if i[0] == PREFERENCE or i[0] == OPTIMIZE:
                 self.__update_program(SPEC,EMPTY,i[1].str())
@@ -178,34 +180,34 @@ class Parser(object):
         return self.programs
 
 
-    def __parse_str(self,string):
+    def __parse_str(self, string):
         self.element = ast.Element()
-        self.location = ProgramLocation(self.filename,1,1)
+        self.location = ProgramLocation(self.filename, 1, 1)
         self.parser.parse(string, self.lexer.lexer) # parses into self.list
         self.lexer.reset()
 
 
-    def __parse_file(self,filename):
+    def __parse_file(self, filename):
         self.filename       = filename
         self.lexer.filename = filename
-        self.lexer.program  = (BASE,EMPTY)
+        self.lexer.program  = (BASE, EMPTY)
         self.program        = BASE
-        self.list.append((PROGRAM,self.base))
+        self.list.append((PROGRAM, self.base))
         fd = sys.stdin if filename == STDIN else open(filename)
         self.__parse_str(fd.read())
         fd.close()
 
 
-    def __parse_included_files(self,files):
+    def __parse_included_files(self, files):
         while True:
             included, self.included = self.included, []
-            for i in included: # (filename,fileorigin)
-                file = i[0] if os.path.isfile(i[0]) else os.path.join(os.path.dirname(i[1]),i[0])
+            for i in included: # (filename, fileorigin)
+                file = i[0] if os.path.isfile(i[0]) else os.path.join(os.path.dirname(i[1]), i[0])
                 abs_file = os.path.abspath(file)
                 if abs_file in [j[1] for j in files]: 
-                    printer.Printer().warning_included_file(file,i[2])
+                    printer.Printer().warning_included_file(file, i[2])
                 else:
-                    files.append((file,abs_file))
+                    files.append((file, abs_file))
                     self.__parse_file(file)
             if self.included == []: return
 
@@ -885,7 +887,8 @@ class Parser(object):
         if self.program == BASE:
             self.constants.append((ast.ast2str(p[2]),ast.ast2str(p[4])))
         else:
-            self.list.append((CODE,"#const " + ast.ast2str(p[2]) + " = " + ast.ast2str(p[4]) + ".\n"))
+            line = "#const {}={}.\n".format(ast.ast2str(p[2]), ast.ast2str(p[4]))
+            self.list.append((CODE, line, None))
 
 
     #
