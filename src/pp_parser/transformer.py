@@ -34,19 +34,20 @@ PredicateInfo = namedtuple('PredicateInfo','name domain underscores ems arity')
 class Transformer:
 
 
-    underscores, m1, m2, simple_m1, simple_m2 = None, None, None, None, None
-    volatile, unsat, show, edge = None, None, None, None 
+    __underscores, __m1, __m2            = None, None, None # private
+    __simple_m1, __simple_m2, __volatile = None, None, None # private
+    unsat, show, edge                    = None, None, None # used by subclasses
 
 
     def __init__(self,underscores=""):
-        if self.underscores is not None:
+        if self.__underscores is not None:
             return
-        Transformer.underscores = underscores
-        Transformer.m1 = clingo.parse_term("{}({})".format(self.underscore(MODEL),self.underscore(M1)))
-        Transformer.m2 = clingo.parse_term("{}({})".format(self.underscore(MODEL),self.underscore(M2)))
-        Transformer.simple_m1 = clingo.parse_term("{}".format(self.underscore(M1))) # for holds
-        Transformer.simple_m2 = clingo.parse_term("{}".format(self.underscore(M2))) # for holds'
-        Transformer.volatile = self.underscore(VOLATILE)
+        Transformer.__underscores = underscores
+        Transformer.__m1 = clingo.parse_term("{}({})".format(self.underscore(MODEL),self.underscore(M1)))
+        Transformer.__m2 = clingo.parse_term("{}({})".format(self.underscore(MODEL),self.underscore(M2)))
+        Transformer.__simple_m1 = clingo.parse_term("{}".format(self.underscore(M1))) # for holds
+        Transformer.__simple_m2 = clingo.parse_term("{}".format(self.underscore(M2))) # for holds'
+        Transformer.__volatile = self.underscore(VOLATILE)
         Transformer.unsat = self.underscore(UNSAT)
         Transformer.show = self.underscore(SHOW)
         Transformer.edge = self.underscore(EDGE)
@@ -54,18 +55,18 @@ class Transformer:
 
 
     def underscore(self,x):
-        return self.underscores + x
+        return self.__underscores + x
 
 
     def get_ems(self,loc,ems):
-        if   ems == M1:    return [clingo.ast.Symbol(loc,self.simple_m1)]
-        elif ems == M2:    return [clingo.ast.Symbol(loc,self.simple_m2)]
-        elif ems == M1_M2: return [clingo.ast.Symbol(loc,self.m1), clingo.ast.Symbol(loc,self.m2)]
+        if   ems == M1:    return [clingo.ast.Symbol(loc,self.__simple_m1)]
+        elif ems == M2:    return [clingo.ast.Symbol(loc,self.__simple_m2)]
+        elif ems == M1_M2: return [clingo.ast.Symbol(loc,self.__m1), clingo.ast.Symbol(loc,self.__m2)]
         else:              return []
 
 
     def get_volatile_atom(self,loc):
-        fun = clingo.ast.Function(loc,self.volatile,self.get_ems(loc,M1_M2),False)
+        fun = clingo.ast.Function(loc,self.__volatile,self.get_ems(loc,M1_M2),False)
         return clingo.ast.Literal(loc,clingo.ast.Sign.NoSign,clingo.ast.SymbolicAtom(fun))
 
 
@@ -170,9 +171,11 @@ class PreferenceProgramTransformer(Transformer):
     # Statements
     #
 
+
     # TODO(EFF): implement
     def __head_is_det(self, rule):
         return False
+
 
     def visit_Rule(self, rule):
         if self.__head_is_det(rule): return rule
@@ -188,20 +191,25 @@ class PreferenceProgramTransformer(Transformer):
         self.__visit_body_literal_list(rule.body,rule.location)
         return rule
 
+
     def visit_Definition(self,d):
         return d
+
 
     # TODO(EFF): implement
     def __sig_is_det(self,sig):
         return False
 
+
     def visit_ShowSignature(self, sig):
         if self.__sig_is_det(sig): return sig
         return self.term_transformer.transform_signature(sig)
 
+
     # TODO(EFF): implement
     def __body_is_det(self,body):
         return False
+
 
     def visit_ShowTerm(self,show):
         if self.__body_is_det(show.body): return show
@@ -209,11 +217,14 @@ class PreferenceProgramTransformer(Transformer):
         self.__visit_body_literal_list(show.body,show.location)
         return show
 
+
     def visit_Minimize(self,min):
         raise Exception("clingo optimization statements not allowed in " + self.type + "programs: " + str(min))
 
+
     def visit_Script(self,script):
         return script
+
 
     def visit_Program(self, prg):
         if prg.name == BASE: return prg
@@ -223,8 +234,10 @@ class PreferenceProgramTransformer(Transformer):
         prg.parameters = [id1, id2]
         return prg
 
+
     def visit_External(self,ext):
         raise Exception("clingo optimization externals not allowed in " + self.type + "programs: " + str(ext))
+
 
     # TODO(EFF):do not translate if *all* edge statements are deterministic
     def visit_Edge(self,edge):
@@ -233,14 +246,17 @@ class PreferenceProgramTransformer(Transformer):
         self.__visit_body_literal_list(edge.body,edge.location)
         return edge
 
+
     # TODO(EFF): do not add if head is deterministic
     def visit_Heuristic(self,heur):
         heur.atom = self.term_transformer.visit(heur.atom)
         self.__visit_body_literal_list(heur.body,heur.location)
         return heur
 
+
     def visit_ProjectAtom(self,atom):
         raise Exception("clingo projection not allowed in " + self.type + "programs: " + str(atom))
+
 
     def visit_ProjectSignature(self, sig):
         raise Exception("clingo projection not allowed in " + self.type + "programs: " + str(atom))
@@ -254,16 +270,19 @@ class PreferenceProgramTransformer(Transformer):
         atom.term = self.term_transformer.visit(atom.term)
         return atom
 
+
     def visit_ConditionalLiteral(self,c):
         self.visit_children(c)
         c.condition.append(self.get_volatile_atom(c.location))
         return c
+
 
     def visit_BodyAggregate(self,b):
         self.visit_children(b)
         for i in b.elements:
             i.condition.append(self.get_volatile_atom(b.location))
         return b
+
 
     def visit_Disjoint(self,d):
         self.visit_children(d)
