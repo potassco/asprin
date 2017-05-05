@@ -1,5 +1,6 @@
 #script (python)
 
+from __future__ import print_function
 import clingo
 import transformer
 import sys
@@ -53,41 +54,30 @@ CHECK_SPEC = """
 ##preference(A,B,C,name(D),E) :- ##preference(A,B,C,name(D),E).
 """
 
-class Debugger:
 
-    
-    def __add_program(self,underscores,control,name,programs,types):
-        l = []
-        if name == PPROGRAM:
-            with control.builder() as b:
-                t = transformer.ProgramTransformer(underscores)
-                for type, program in programs.items():
-                    if type in types:
-                        clingo.parse_program("#program "+name+".\n"+program,lambda stm: l.append(t.visit(stm)))
-        for i in l:
-            print i
+class ProgramsPrinter:
 
 
     def print_programs(self,programs,types):
-        print "\n###programs"
-        for name, program in programs.items():
-            print "##name = " + str(name)
-            for name2, program2 in program.items():
-                if str(name2) in types:
-                    print "#type = " + str(name2)
-                    print program2
-                    print "#end"
+        for name, programs in programs.items():
+            if name in { BASE, GENERATE, SPEC }:
+                for type, program in programs.items():
+                    if type in types:
+                        print("#program {}{}.".format(name,"({})".format(type) if type!="" else ""))
+                        print(program.get_string())
 
 
-    def debug(self,control,programs,types):
+    def run(self,control,programs,underscores,types):
         self.print_programs(programs,types)
-        print "\n###translations"
-        for name, program in programs.items():
-            if name != BASE and name != SPEC:
-                self.__add_program(control,name,program,types)
-        print "\n###types\n" + str(types) + "\n"
-        raise Exception("DEBUGGING: STOPPED")
-
+        l, t = [], transformer.PreferenceProgramTransformer(underscores)
+        for name, programs in programs.items():
+            if name == PPROGRAM:
+                for type, program in programs.items():
+                    if type in types:
+                        clingo.parse_program("#program "+name+".\n"+program.get_string(),
+                                             lambda stm: l.append(t.visit(stm)))
+        for i in l:
+            print(i)
 
 
 class Parser:
@@ -98,6 +88,7 @@ class Parser:
         self.__programs = programs
         self.__options = options
         self.__underscores = underscores
+
 
     def __add_and_ground(self,name,params,string,list):
         capturer = utils.Capturer(sys.stderr)
@@ -121,6 +112,7 @@ class Parser:
         self.__add_and_ground(BASE,old,programs[BASE][""].get_string(),[(BASE,new)])
         self.__add_and_ground(GENERATE,[],programs[GENERATE][""].get_string(),[(GENERATE,[])])
 
+
     def get_domains(self):
         out, control, underscores = "", self.__control, self.__underscores
         for atom in control.symbolic_atoms.by_signature(underscores+GEN_DOM,2):
@@ -143,16 +135,16 @@ class Parser:
         # get specification errors
         errors = False
         for atom in control.symbolic_atoms.by_signature(underscores+ERROR,2):
-            print >> sys.stderr, "error in the preference specification: {} - {}".format(
-                     str(atom.symbol.arguments[0]),str(atom.symbol.arguments[1]))
+            print("error in the preference specification: {} - {}".format(
+                  str(atom.symbol.arguments[0]),str(atom.symbol.arguments[1])),file=sys.stderr)
             errors = True
 
         # get non domain errors
         for i in [(PREFERENCE,2),(PREFERENCE,5),(OPTIMIZE,1)]:
             for atom in control.symbolic_atoms.by_signature(underscores+i[0],i[1]):
                 if not atom.is_fact:
-                     print >> sys.stderr, "error in the preference specification: non domain atom {}".format(
-                              str(atom.symbol).replace(underscores,"",1))
+                     print("error in the preference specification: non domain atom {}".format(
+                           str(atom.symbol).replace(underscores,"",1)),file=sys.stderr)
                      errors = True
 
         # get preference types, and test if they have a corresponding preference program
@@ -160,8 +152,8 @@ class Parser:
         for atom in control.symbolic_atoms.by_signature(underscores+PREFERENCE,2):
             out.add(str(atom.symbol.arguments[1]))
             if str(atom.symbol.arguments[1]) not in programs[PREFERENCE]:
-                print >> sys.stderr, "error in the preference specification: preference type {} has no preference program".format(
-                         str(atom.symbol.arguments[1]))
+                print("error in the preference specification: preference type {} has no preference program".format(
+                         str(atom.symbol.arguments[1])),file=sys.stderr)
                 errors = True
 
         # if errors
@@ -191,13 +183,14 @@ class Parser:
 
 
     def add_programs(self,types):
-        t = transformer.ProgramTransformer(self.__underscores)
+        t = transformer.PreferenceProgramTransformer(self.__underscores)
         with self.__control.builder() as b:
             for name, programs in self.__programs.items():
                 if name == PPROGRAM:
                     for type, program in programs.items():
                         if type in types:
-                            clingo.parse_program("#program "+name+".\n"+program.get_string(),lambda stm: b.add(t.visit(stm)))
+                            clingo.parse_program("#program "+name+".\n"+program.get_string(),
+                                                 lambda stm: b.add(t.visit(stm)))
 
 
     def parse(self):
@@ -206,7 +199,6 @@ class Parser:
         self.do_base()
 
         # get domains for the specification
-        #if options['debug']: Debugger().print_programs(self.__underscores,self.__programs,set([""]))
         self.__programs[SPEC][""].extend_string(self.get_domains())
 
         # ground specification and get preference types
@@ -216,7 +208,11 @@ class Parser:
         # add #show statements if needed (CSP variables are not shown in this case)
         self.add_show(types)
 
+        # print programs?
+        if self.__options['print-programs']:
+            ProgramsPrinter().run(self.__control, self.__programs, self.__underscores, types)
+            raise utils.SilentException()
+
         # translate and add the rest of the programs
-        if self.__options['debug']: Debugger().debug(self.__underscores,self.__control,self.__programs,types)
         self.add_programs(types)
 

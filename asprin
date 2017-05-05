@@ -14,6 +14,7 @@ from src.spec_parser import spec_parser
 from src.pp_parser   import   pp_parser
 from src.solver      import      solver
 from src.utils       import     printer
+from src.utils       import       utils
 import errno
 
 #
@@ -99,9 +100,9 @@ There is NO WARRANTY, to the extent permitted by law."""
 
         # Basic Options
         basic = cmd_parser.add_argument_group('Basic Options')
-        basic.add_argument('--debug',dest='debug',help=argparse.SUPPRESS,action='store_true')
         basic.add_argument('-h','--help',action='help',help=': Print help and exit')
         basic.add_argument('-v','--version',dest='version',action='store_true',help=': Print version information and exit')
+        basic.add_argument('--print-programs',dest='print-programs',help=': Print translated programs and exit',action='store_true')
         #basic.add_argument('-',dest='read_stdin',action='store_true',help=argparse.SUPPRESS)
         basic.add_argument('--stats',dest='stats',action='store_true',help=': Print statistics')
         basic.add_argument('--no-asprin-lib',dest='asprin-lib',help=': Do not include asprin.lib',action='store_false')
@@ -222,6 +223,8 @@ class Asprin:
                 print(ERROR.format(str(e)),file=sys.stderr)
             print(UNKNOWN,file=sys.stdout)
             sys.exit(65)
+        except utils.SilentException as e:
+            pass
         except Exception as e:
             print(ERROR.format(str(e)),file=sys.stderr)
             print(UNKNOWN,file=sys.stdout)

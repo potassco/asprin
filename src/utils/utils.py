@@ -20,4 +20,5 @@ class Capturer:
         os.close(self.__save_original_fd)
         self.__tmp_file.close()
 
-
+class SilentException(Exception):
+    pass
