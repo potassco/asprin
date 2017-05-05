@@ -2,7 +2,6 @@
 
 import clingo
 import clingo.ast
-import pdb
 from collections import namedtuple
 from src.utils import utils
 
@@ -18,7 +17,6 @@ M2       = "m2"
 M1_M2    = "m1_m2"
 VOLATILE = "volatile"
 UNSAT    = "unsat"
-NODE     = "node"
 SHOW     = "show"
 EDGE     = "edge"
 
@@ -30,38 +28,44 @@ PredicateInfo = namedtuple('PredicateInfo','name domain underscores ems arity')
 
 
 #
-# CLASSES
+# CLASS TRANSFORMER
 #
 
 class Transformer:
 
 
-    __underscores, __m1, __m2, __simple_m1, __simple_m2 = None, None, None, None, None
+    underscores, m1, m2, simple_m1, simple_m2 = None, None, None, None, None
+    volatile, unsat, show, edge = None, None, None, None 
 
 
     def __init__(self,underscores=""):
-        if self.__underscores is not None:
+        if self.underscores is not None:
             return
-        Transformer.__underscores = underscores
-        Transformer.__m1 = clingo.parse_term("{}({})".format(self.underscore(MODEL),self.underscore(M1)))
-        Transformer.__m2 = clingo.parse_term("{}({})".format(self.underscore(MODEL),self.underscore(M2)))
-        Transformer.__simple_m1 = clingo.parse_term("{}".format(self.underscore(M1))) # for holds
-        Transformer.__simple_m2 = clingo.parse_term("{}".format(self.underscore(M2))) # for holds'
+        Transformer.underscores = underscores
+        Transformer.m1 = clingo.parse_term("{}({})".format(self.underscore(MODEL),self.underscore(M1)))
+        Transformer.m2 = clingo.parse_term("{}({})".format(self.underscore(MODEL),self.underscore(M2)))
+        Transformer.simple_m1 = clingo.parse_term("{}".format(self.underscore(M1))) # for holds
+        Transformer.simple_m2 = clingo.parse_term("{}".format(self.underscore(M2))) # for holds'
+        Transformer.volatile = self.underscore(VOLATILE)
+        Transformer.unsat = self.underscore(UNSAT)
+        Transformer.show = self.underscore(SHOW)
+        Transformer.edge = self.underscore(EDGE)
+        
 
 
     def underscore(self,x):
-        return self.__underscores + x
+        return self.underscores + x
 
 
     def get_ems(self,loc,ems):
-        if   ems == M1:    return [clingo.ast.Symbol(loc,self.__simple_m1)]
-        elif ems == M2:    return [clingo.ast.Symbol(loc,self.__simple_m2)]
-        elif ems == M1_M2: return [clingo.ast.Symbol(loc,self.__m1), clingo.ast.Symbol(loc,self.__m2)]
+        if   ems == M1:    return [clingo.ast.Symbol(loc,self.simple_m1)]
+        elif ems == M2:    return [clingo.ast.Symbol(loc,self.simple_m2)]
+        elif ems == M1_M2: return [clingo.ast.Symbol(loc,self.m1), clingo.ast.Symbol(loc,self.m2)]
         else:              return []
 
 
     def get_volatile_atom(self,loc):
-        fun = clingo.ast.Function(loc,self.underscore(VOLATILE),self.get_ems(loc,M1_M2),False)
+        fun = clingo.ast.Function(loc,self.volatile,self.get_ems(loc,M1_M2),False)
         return clingo.ast.Literal(loc,clingo.ast.Sign.NoSign,clingo.ast.SymbolicAtom(fun))
 
 
@@ -85,6 +89,10 @@ class Transformer:
         else:
             raise TypeError("unexpected type")
 
+
+#
+# CLASS TERMTRANSFORMER
+#
 
 class TermTransformer(Transformer):
 
@@ -133,10 +141,12 @@ class TermTransformer(Transformer):
 
     def transform_term_reify(self, term, name):
         args = [term] + self.get_ems(term.location, M1_M2)
-        uname = self.underscore(name)
-        return clingo.ast.Function(term.location, uname, args, False)
+        return clingo.ast.Function(term.location, name, args, False)
 
 
+#
+# CLASS PREFERENCEPROGRAMTRANSFORMER
+#
 
 class PreferenceProgramTransformer(Transformer):
 
@@ -171,7 +181,7 @@ class PreferenceProgramTransformer(Transformer):
             and str(rule.head.atom.value == False)):
                 # add unsat head
                 ems = self.get_ems(rule.location, M1_M2)
-                fun = clingo.ast.Function(rule.location, self.underscore(UNSAT), ems, False)
+                fun = clingo.ast.Function(rule.location, self.unsat, ems, False)
                 rule.head = clingo.ast.Literal(rule.location, clingo.ast.Sign.NoSign,
                                                clingo.ast.SymbolicAtom(fun))
         else: self.visit(rule.head)
@@ -195,7 +205,7 @@ class PreferenceProgramTransformer(Transformer):
 
     def visit_ShowTerm(self,show):
         if self.__body_is_det(show.body): return show
-        show.term = self.transform_term_reify(show.term,SHOW)
+        show.term = self.transform_term_reify(show.term,self.show)
         self.__visit_body_literal_list(show.body,show.location)
         return show
 
@@ -218,8 +228,8 @@ class PreferenceProgramTransformer(Transformer):
 
     # TODO(EFF):do not translate if *all* edge statements are deterministic
     def visit_Edge(self,edge):
-        edge.u = self.transform_term_reify(edge.u,EDGE)
-        edge.v = self.transform_term_reify(edge.v,EDGE)
+        edge.u = self.transform_term_reify(edge.u,self.edge)
+        edge.v = self.transform_term_reify(edge.v,self.edge)
         self.__visit_body_literal_list(edge.body,edge.location)
         return edge
 
@@ -260,6 +270,5 @@ class PreferenceProgramTransformer(Transformer):
         for i in d.elements:
             i.condition.append(self.get_volatile_atom(i.location))
         return d
-
 
 
