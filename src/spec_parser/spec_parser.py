@@ -29,7 +29,8 @@ OPTIMIZE   = "OPTIMIZE"
 END        = "end."
 INCLUDE    = "#include"
 ASPRIN_LIB = "asprin.lib"
-# WARNING: next must change if asprin.lib location relative to this file changes
+# WARNING: ASPRIN_LIB_RELATIVE must be changed if 
+#          asprin.lib location relative to this file changes
 ASPRIN_LIB_RELATIVE = os.path.dirname(__file__) + "/../../" + ASPRIN_LIB
 
 
@@ -322,18 +323,21 @@ class Parser(object):
             self.list.append((CODE,p[1],self.location))
 
     def p_program_error(self,p):
-        """ program : program error change_state CODE
+        """ statement : error DOT
+                      | error EOF
         """
-        self.__syntax_error(p,2)
+        self.__syntax_error(p,1)
 
+        #""" program : program error change_state CODE
     def p_change_state(self,p):
         """ change_state :
         """
         p.lexer.pop_state()
-        self.lexer.code_start = self.lexer.lexer.lexpos
+        lexpos, lineno = self.lexer.lexer.lexpos, self.lexer.lexer.lineno
+        self.lexer.code_start = lexpos
         # location
-        col = self.lexer.lexer.lexpos - self.lexer.lexer.lexdata.rfind('\n', 0, self.lexer.lexer.lexpos)
-        self.location = ProgramLocation(self.filename, self.lexer.lexer.lineno, col)
+        col = lexpos - self.lexer.lexer.lexdata.rfind('\n', 0, lexpos)
+        self.location = ProgramLocation(self.filename, lineno, col)
 
 
 
@@ -547,7 +551,7 @@ class Parser(object):
     #
 
     #
-    # using non reachable token NOREACH for making the grammar LALR(1)
+    # using non reachable token NEVER for making the grammar LALR(1)
     # (atom) is not allowed
     #
     #    """ bformula :               ext_atom
@@ -556,10 +560,10 @@ class Parser(object):
     #                 | bformula AND  bformula %prec BFAND
     #                 |          NOT  bformula %prec BFNOT
     #
-    #                 | LPAREN     identifier                      NOREACH
-    #                 | LPAREN     identifier LPAREN argvec RPAREN NOREACH
-    #                 | LPAREN SUB identifier                      NOREACH
-    #                 | LPAREN SUB identifier LPAREN argvec RPAREN NOREACH
+    #                 | LPAREN     identifier                      NEVER
+    #                 | LPAREN     identifier LPAREN argvec RPAREN NEVER
+    #                 | LPAREN SUB identifier                      NEVER
+    #                 | LPAREN SUB identifier LPAREN argvec RPAREN NEVER
     #
     #        paren_bformula : LPAREN na_bformula RPAREN
     #
@@ -597,10 +601,10 @@ class Parser(object):
 
     # unreachable
     def p_formula_6(self,p):
-        """ bformula : LPAREN     identifier                      NOREACH IF
-                     | LPAREN     identifier LPAREN argvec RPAREN NOREACH IF
-                     | LPAREN SUB identifier                      NOREACH IF
-                     | LPAREN SUB identifier LPAREN argvec RPAREN NOREACH IF
+        """ bformula : LPAREN     identifier                      NEVER IF
+                     | LPAREN     identifier LPAREN argvec RPAREN NEVER IF
+                     | LPAREN SUB identifier                      NEVER IF
+                     | LPAREN SUB identifier LPAREN argvec RPAREN NEVER IF
         """
         pass
 
@@ -901,8 +905,6 @@ class Parser(object):
         location = MessageLocation(self.filename,self.lexer.lexer.lexdata,
                                    self.lexer.lexer.lexpos,self.lexer.lexer.lineno,INCLUDE)
         self.included.append((p[2][1:-1],self.filename,location)) # (file name included,current file name,location)
-    
-        
 
 
     #

@@ -138,8 +138,9 @@ class Lexer(object):
         'BNOT',
         'QUESTION',
 
-        'NOREACH', # never reachable token
-        'IF',      # added to expressions with NOREACH to avoid warning
+        'NEVER', # never reachable token
+        'IF',      # added to expressions with NEVER to avoid warning
+        'EOF',
     )
 
     # Regular expression rules for simple tokens
@@ -226,6 +227,10 @@ class Lexer(object):
         self.__update_underscores(t)
         return t
 
+    def t_eof(self,t):
+        t.type = 'EOF'
+        t.value = '<EOF>'
+        return t
 
     #
     # Rules for normal state
