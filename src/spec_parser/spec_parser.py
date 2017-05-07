@@ -86,10 +86,9 @@ class Parser(object):
 
     def __init__(self,underscores):
 
-         # start famework
-        self.lexer  = Lexer()
+        # start lexer and parser
+        self.lexer  = Lexer(underscores)
         self.tokens = self.lexer.tokens
-        self.lexer.underscores = underscores
         #self.parser = yacc.yacc(module=self,debug=False)
         self.parser = yacc.yacc(module=self)
 
@@ -103,12 +102,13 @@ class Parser(object):
         self.base.type = EMPTY
 
         # others
-        self.program       = BASE
-        self.constants     = []
-        self.included      = []
-        self.filename      = ""
-        self.error         = False
-        self.location      = None
+        self.constants = []
+        self.included  = []
+        self.error     = False
+        self.location  = None
+        self.element   = None
+        self.filename  = None
+        self.program   = None
 
     #
     # AUXILIARY FUNCTIONS
@@ -129,9 +129,8 @@ class Parser(object):
         self.error = True
 
 
-    # return the underscores needed
     def __get_underscores(self):
-        return "_" + ("_" * self.lexer.underscores)
+        return "_" + ("_" * self.lexer.get_underscores())
 
 
     def __update_program(self,program,type,string,location=None):
@@ -159,8 +158,6 @@ class Parser(object):
         for i in self.list:
             if i[0] == CODE:
                 code = i[1] + self.__get_underscores() + END
-                #print(code)
-                #print("###################")
                 self.__update_program(program,type,code,i[2])
             if i[0] == PREFERENCE or i[0] == OPTIMIZE:
                 self.__update_program(SPEC,EMPTY,i[1].str())
@@ -170,7 +167,7 @@ class Parser(object):
         # adding generation of domains
         self.__update_program(GENERATE,EMPTY,"\n".join(ast.Statement.domains))
 
-        # adding to specification
+        # adding specification
         out = ""
         if ast.PStatement.bfs:
             out +=  ast.BF_ENCODING.replace("##",ast.Statement.underscores)
@@ -181,21 +178,19 @@ class Parser(object):
         return self.programs
 
 
-    def __parse_str(self, string):
-        self.element = ast.Element()
-        self.location = ProgramLocation(self.filename, 1, 1)
-        self.parser.parse(string, self.lexer.lexer) # parses into self.list
-        self.lexer.reset()
-
-
     def __parse_file(self, filename):
-        self.filename       = filename
-        self.lexer.filename = filename
-        self.lexer.program  = (BASE, EMPTY)
-        self.program        = BASE
+        # set variables
+        self.filename = filename
+        self.program  = BASE
+        self.element  = ast.Element()
+        self.location = ProgramLocation(self.filename, 1, 1)
+        # add #program base to list
         self.list.append((PROGRAM, self.base))
+        # prepare lexer
+        self.lexer.new_file(filename)
+        # handle file descriptor, and parse
         fd = sys.stdin if filename == STDIN else open(filename)
-        self.__parse_str(fd.read())
+        self.parser.parse(fd.read(), self.lexer.lexer) # parses into self.list
         fd.close()
 
 
@@ -214,15 +209,13 @@ class Parser(object):
 
 
     #
-    # Input:  options [list of files, bool for reading stdin, bool for including asprin lib]
-    # Output: string with the translation, underscores, and constants found
+    # Input:  options [list of files, bool for including asprin lib]
+    # Output: translation, underscores, constants, and programs with shown 
     #
     def parse_files(self,options):
 
-        # gather options
-        files, asprin_lib = options['files'], options['asprin-lib']
-
         # input files
+        files = options['files']
         for i in files:
             if i[0]=="-":
                 self.__parse_file(STDIN)
@@ -233,15 +226,15 @@ class Parser(object):
         self.__parse_included_files(files)
 
         # asprin.lib
-        if asprin_lib and ASPRIN_LIB not in [os.path.basename(i[0]) for i in files]:
+        if options['asprin-lib'] and ASPRIN_LIB not in [os.path.basename(i[0]) for i in files]:
             file = ASPRIN_LIB if os.path.isfile(ASPRIN_LIB) else ASPRIN_LIB_RELATIVE
             self.__parse_file(file)
 
         # errors
-        if self.lexer.error or self.error:
+        if self.lexer.get_error() or self.error:
             raise Exception("parsing failed")
 
-        return self.__print_list(), self.__get_underscores(), self.constants, self.lexer.show
+        return self.__print_list(), self.__get_underscores(), self.constants, self.lexer.get_show()
 
 
 
@@ -324,23 +317,18 @@ class Parser(object):
 
     def p_program_error(self,p):
         """ statement : error DOT
-                      | error EOF
         """
         self.__syntax_error(p,1)
 
-        #""" program : program error change_state CODE
     def p_change_state(self,p):
         """ change_state :
         """
         p.lexer.pop_state()
         lexpos, lineno = self.lexer.lexer.lexpos, self.lexer.lexer.lineno
-        self.lexer.code_start = lexpos
+        self.lexer.set_code_start(lexpos)
         # location
         col = lexpos - self.lexer.lexer.lexdata.rfind('\n', 0, lexpos)
         self.location = ProgramLocation(self.filename, lineno, col)
-
-
-
 
 
     #
@@ -876,7 +864,7 @@ class Parser(object):
         s.type = ast.ast2str(p[4]) if len(p)==7 else EMPTY
         self.list.append((PROGRAM,s)) # appends to self.list
         self.program       = s.name
-        self.lexer.program = (s.name,s.type)
+        self.lexer.set_program((s.name,s.type))
         if len(p)==7:
             self.__check_preference_program(p[2],p[4],p,3)
 

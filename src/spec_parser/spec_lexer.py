@@ -2,76 +2,92 @@
 
 import lex
 import sys
+from src.utils import utils
+
 
 #
 # DEFINES
 #
 
-BASE  = "base" #from spec_parser
-EMPTY = ""     #from spec_parser
+BASE  = utils.BASE
+EMPTY = utils.EMPTY
+
 
 #
 # Lexer
 #
+
 class Lexer(object):
 
 
-    def __init__(self):
+    def __init__(self, underscores):
+        self.__underscores = underscores
+        self.__show        = set()
+        self.__error       = False
         self.lexer = lex.lex(module=self)
-        self.underscores  = 0
-        self.show         = set()
-        self.filename     = ""
-        self.error        = False
-        # resettable 
         self.lexer.push_state('normal')
-        self.bc            = 0
-        self.code_start    = 0
-        self.lexer.lineno  = 1
-        self.program       = (BASE,EMPTY)
-        self.eof           = False
 
 
-    def reset(self):
+    def new_file(self, filename):
+        self.__filename   = filename
+        self.__program    = (BASE, EMPTY)
+        self.__code_start = 0
+        self.__bc         = 0
+        self.__eof        = False
+        self.lexer.lineno = 1
         while self.lexer.lexstate != 'normal':
             self.lexer.pop_state()
-        self.bc            = 0
-        self.code_start    = 0
-        self.lexer.lineno  = 1
-        self.program       = (BASE,EMPTY)
-        self.eof           = False
 
-    def __update_underscores(self,t):
+
+    #
+    # GET & SET
+    #
+
+    def get_underscores(self):
+        return self.__underscores
+    
+    def get_error(self):
+        return self.__error
+    
+    def get_show(self):
+        return self.__show
+    
+    def set_program(self,program):
+        self.__program = program
+
+    def set_code_start(self,code_start):
+        self.__code_start = code_start
+
+
+    #
+    # AUXILIARY FUNCTIONS
+    #
+
+    def __update_underscores(self, t):
         if t.value[0] == "_":
             i = 0
             while t.value[i] == "_": i += 1
-            if i>self.underscores: self.underscores = i
+            if i>self.__underscores: self.__underscores = i
 
-
-    def __error(self,string,lexpos):
+    def __print_error(self, string, lexpos):
         error = "{}:{}:{}: error: lexer error, unexpected {}\n".format(
-                self.filename,self.lexer.lineno,lexpos-self.lexer.lexdata.rfind('\n',0,lexpos),string)
+                self.__filename,self.lexer.lineno,lexpos-self.lexer.lexdata.rfind('\n',0,lexpos),string)
         print >> sys.stderr, error
-        self.error = True
+        self.__error = True
 
-
-    def __eof_error(self,t):
-        self.__error("<EOF>",t.lexpos)
+    def __eof_error(self, t):
+        self.__print_error("<EOF>",t.lexpos)
         t.lexer.skip(1)
 
-
     def __eof_ok(self,t):
-        if self.eof:   # the second time, returns None 
+        if self.__eof:   # the second time, returns None 
             return None
-        t.value        = t.lexer.lexdata[self.code_start:t.lexer.lexpos]
+        t.value        = t.lexer.lexdata[self.__code_start:t.lexer.lexpos]
         t.type         = 'CODE'
         t.lexer.lexpos = t.lexpos
-        self.eof       = True
+        self.__eof     = True
         return t       # the first time, returns CODE
 
-
-    #
-    # Lexer input:
-    #
 
     #
     # START OF LEXING RULES
@@ -107,7 +123,6 @@ class Lexer(object):
         'COND',
         'GTGT',
         'GT',
-
         'NOT',
         'INFIMUM',
         'SUPREMUM',
@@ -115,7 +130,6 @@ class Lexer(object):
         'NUMBER',
         'VARIABLE',
         'STRING',
-
         'TRUE',
         'FALSE',
         'DOTS',
@@ -137,10 +151,8 @@ class Lexer(object):
         'XOR',
         'BNOT',
         'QUESTION',
-
         'NEVER', # never reachable token
-        'IF',      # added to expressions with NEVER to avoid warning
-        'EOF',
+        'IF',    # added to expressions with NEVER to avoid warning
     )
 
     # Regular expression rules for simple tokens
@@ -191,7 +203,7 @@ class Lexer(object):
 
 
     #
-    # INITIAL
+    # INITIAL state
     #
 
     def t_NOT(self,t):
@@ -215,7 +227,7 @@ class Lexer(object):
 
     def t_BLOCKCOMMENT(self,t):
         r'%\*'
-        self.bc = 1
+        self.__bc = 1
         t.lexer.push_state('blockcomment')
 
     def t_COMMENT(self,t):
@@ -228,12 +240,12 @@ class Lexer(object):
         return t
 
     def t_eof(self,t):
-        t.type = 'EOF'
-        t.value = '<EOF>'
-        return t
+        self.__eof_error(t)
+        return None
+
 
     #
-    # Rules for normal state
+    # normal state
     #
 
     def t_normal_eof(self,t):
@@ -249,11 +261,11 @@ class Lexer(object):
         r'_*[a-z][\'A-Za-z0-9_]*'
         self.__update_underscores(t)
 
-    # show: update self.show
+    # show: update self.__show
     def t_normal_SHOW(self,t):
         r'\#show [\n\t\r ]* ([-\$]?_*[a-z][\'A-Za-z0-9_]* [\n\t\r ]* / [\n\t\r ]* (0|([1-9][0-9]*)))? [\n\t\r ]* \.'
         t.lexer.lexpos = t.lexpos + 1
-        self.show.add(self.program)
+        self.__show.add(self.__program)
 
 
     #
@@ -263,9 +275,10 @@ class Lexer(object):
     #  #script (python|lua) ->       script
     #  #directive           ->      INITIAL
     #
+
     def t_normal_BLOCKCOMMENT(self,t):
         r'%\*'
-        self.bc = 1
+        self.__bc = 1
         t.lexer.push_state('blockcomment')
 
     def t_normal_COMMENT(self,t):
@@ -281,7 +294,7 @@ class Lexer(object):
     def t_normal_DIRECTIVE(self,t):
         r'(\#preference)|(\#optimize)|(\#program)|(\#const)|(\#include)'
         t.lexer.push_state('INITIAL')
-        t.value = t.lexer.lexdata[self.code_start:t.lexpos]
+        t.value = t.lexer.lexdata[self.__code_start:t.lexpos]
         t.type = 'CODE'
         t.lexer.lexpos = t.lexpos
         return t
@@ -298,18 +311,19 @@ class Lexer(object):
     #
     # blockcomment state
     #
+
     def t_blockcomment_eof(self,t):
         self.__eof_error(t)
         return None
     
     def t_blockcomment_ENDBLOCKCOMMENT(self,t):
         r'\*%'
-        self.bc -= 1
-        if self.bc == 0: t.lexer.pop_state()
+        self.__bc -= 1
+        if self.__bc == 0: t.lexer.pop_state()
 
     def t_blockcomment_BLOCKCOMMENT(self,t):
         r'%\*'
-        self.bc += 1
+        self.__bc += 1
 
     def t_blockcomment_COMMENT(self,t):
         r'%'
@@ -327,8 +341,9 @@ class Lexer(object):
     #
     # comment state
     #
+
     def t_comment_eof(self,t):
-        if self.bc > 0:
+        if self.__bc > 0:
             self.__eof_error(t)
             return None 
         return self.__eof_ok(t)
@@ -346,6 +361,7 @@ class Lexer(object):
     #
     # script state
     #
+
     def t_script_eof(self,t):
         self.__eof_error(t)
         return None
@@ -364,9 +380,10 @@ class Lexer(object):
 
 
     #
-    # Error handling
+    # error handling
     #
+
     def t_ANY_error(self,t):
-        self.__error(t.value[0],t.lexpos)
+        self.__print_error(t.value[0],t.lexpos)
         t.lexer.skip(1)
 

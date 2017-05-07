@@ -1,6 +1,10 @@
 import os
 import tempfile
 
+
+BASE  = "base"
+EMPTY = ""
+
 # check pp_parser for an usage example
 class Capturer:
 
