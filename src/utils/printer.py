@@ -4,6 +4,7 @@ import re
 import sys
 
 BASE="base"
+ERROR_LEXER="{}:{}:{}-{}: error: lexer error, unexpected {}\n"
 WARNING_INCLUDED_FILE="<cmd>: warning: already included file:\n  {}\n"
 
 class Printer:
@@ -71,4 +72,8 @@ class Printer:
         if loc: 
             warning = warning.replace("<cmd>:",self.__print_message_location(loc))
         self.__print_warning(warning.format(file))
+
+    def print_error_lexer(self,filename,lineno,col_ini,col_end,string):
+        print(ERROR_LEXER.format(filename,lineno,col_ini,col_end,string))
+
 

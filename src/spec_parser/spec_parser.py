@@ -4,6 +4,7 @@ import sys
 import yacc
 from spec_lexer import Lexer
 from src.utils import printer
+from src.utils import utils
 import ast
 import errno
 import os
@@ -13,30 +14,37 @@ import os
 # defines
 #
 
-BASE       = "base"
-SPEC       = "specification"
-GENERATE   = "generate"
-PPROGRAM   = "preference"
-HEURISTIC  = "heuristic"
-APPROX     = "approximation"
-EMPTY      = ""
-HASH_SEM   = "#sem"
-STDIN      = "-"
+EMPTY      = utils.EMPTY
+# programs
+BASE       = utils.BASE
+SPEC       = utils.SPEC
+GENERATE   = utils.GENERATE
+PPROGRAM   = utils.PPROGRAM
+HEURISTIC  = utils.HEURISTIC
+APPROX     = utils.APPROX
+# predicate names
+DOM        = utils.DOM
+GEN_DOM    = utils.GEN_DOM
+PREFERENCE = utils.PREFERENCE
+# more
 PROGRAM    = "PROGRAM"
 CODE       = "CODE"
 PREFERENCE = "PREFERENCE"
 OPTIMIZE   = "OPTIMIZE"
+HASH_SEM   = "#sem"
+STDIN      = "-"
 END        = "end."
 INCLUDE    = "#include"
 ASPRIN_LIB = "asprin.lib"
+ASPRIN_LIB_RELATIVE = os.path.dirname(__file__) + "/../../" + ASPRIN_LIB
 # WARNING: ASPRIN_LIB_RELATIVE must be changed if 
 #          asprin.lib location relative to this file changes
-ASPRIN_LIB_RELATIVE = os.path.dirname(__file__) + "/../../" + ASPRIN_LIB
 
 
 #
 # MessageLocation, ProgramLocation and Program
 #
+
 class MessageLocation(object):
 
     # create a location with (filename,line,extra_line,col_ini,col_end)
@@ -863,7 +871,7 @@ class Parser(object):
         s.name = ast.ast2str(p[2])
         s.type = ast.ast2str(p[4]) if len(p)==7 else EMPTY
         self.list.append((PROGRAM,s)) # appends to self.list
-        self.program       = s.name
+        self.program = s.name
         self.lexer.set_program((s.name,s.type))
         if len(p)==7:
             self.__check_preference_program(p[2],p[4],p,3)
@@ -879,7 +887,7 @@ class Parser(object):
         if self.program == BASE:
             self.constants.append((ast.ast2str(p[2]),ast.ast2str(p[4])))
         else:
-            line = "#const {}={}.\n".format(ast.ast2str(p[2]), ast.ast2str(p[4]))
+            line = "#const {}={}.".format(ast.ast2str(p[2]), ast.ast2str(p[4]))
             self.list.append((CODE, line, None))
 
 

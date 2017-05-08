@@ -42,12 +42,14 @@ class Transformer:
     def __init__(self,underscores=""):
         if self.__underscores is not None:
             return
+        # private
         Transformer.__underscores = underscores
         Transformer.__m1 = clingo.parse_term("{}({})".format(self.underscore(MODEL),self.underscore(M1)))
         Transformer.__m2 = clingo.parse_term("{}({})".format(self.underscore(MODEL),self.underscore(M2)))
         Transformer.__simple_m1 = clingo.parse_term("{}".format(self.underscore(M1))) # for holds
         Transformer.__simple_m2 = clingo.parse_term("{}".format(self.underscore(M2))) # for holds'
         Transformer.__volatile = self.underscore(VOLATILE)
+        # public (used by subclasses)
         Transformer.unsat = self.underscore(UNSAT)
         Transformer.show = self.underscore(SHOW)
         Transformer.edge = self.underscore(EDGE)
@@ -213,7 +215,7 @@ class PreferenceProgramTransformer(Transformer):
 
     def visit_ShowTerm(self,show):
         if self.__body_is_det(show.body): return show
-        show.term = self.transform_term_reify(show.term,self.show)
+        show.term = self.term_transformer.transform_term_reify(show.term,self.show)
         self.__visit_body_literal_list(show.body,show.location)
         return show
 
@@ -241,8 +243,8 @@ class PreferenceProgramTransformer(Transformer):
 
     # TODO(EFF):do not translate if *all* edge statements are deterministic
     def visit_Edge(self,edge):
-        edge.u = self.transform_term_reify(edge.u,self.edge)
-        edge.v = self.transform_term_reify(edge.v,self.edge)
+        edge.u = self.term_transformer.transform_term_reify(edge.u,self.edge)
+        edge.v = self.term_transformer.transform_term_reify(edge.v,self.edge)
         self.__visit_body_literal_list(edge.body,edge.location)
         return edge
 

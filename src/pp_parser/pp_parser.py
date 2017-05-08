@@ -13,17 +13,21 @@ from src.utils import printer
 # DEFINES
 #
 
-BASE       = "base"          #from spec_parser
-EMPTY      = ""              #from spec_parser
-SPEC       = "specification" #from spec_parser
-DOM        = "dom"           #from spec_parser
-GEN_DOM    = "gen_dom"       #from spec_parser
-PREFERENCE = "preference"    #from spec_parser
-PPROGRAM   = "preference"    #from spec_parser
-GENERATE   = "generate"      #from spec_parser
+EMPTY      = utils.EMPTY
+# programs
+BASE       = utils.BASE
+SPEC       = utils.SPEC
+GENERATE   = utils.GENERATE
+PPROGRAM   = utils.PPROGRAM
+# predicate names
+DOM        = utils.DOM
+GEN_DOM    = utils.GEN_DOM
+PREFERENCE = utils.PREFERENCE
+# more
 SHOW       = "show"
 OPTIMIZE   = "optimize"
 ERROR      = "error"
+
 CHECK_SPEC = """
 % P names X
 ##names(P,X) :- ##preference(P,_,_,name(X),_).

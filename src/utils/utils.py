@@ -2,8 +2,18 @@ import os
 import tempfile
 
 
-BASE  = "base"
-EMPTY = ""
+EMPTY      = ""
+# programs
+BASE       = "base"
+SPEC       = "specification"
+GENERATE   = "generate"
+PPROGRAM   = "preference"
+HEURISTIC  = "heuristic"
+APPROX     = "approximation"
+# predicate names
+DOM        = "dom"           #from spec_parser
+GEN_DOM    = "gen_dom"       #from spec_parser
+PREFERENCE = "preference"    #from spec_parser
 
 # check pp_parser for an usage example
 class Capturer:
