@@ -1,23 +1,35 @@
 import os
 import tempfile
 
+#
+# defines
+#
 
-EMPTY      = ""
 # programs
+EMPTY      = ""
 BASE       = "base"
 SPEC       = "specification"
 GENERATE   = "generate"
 PPROGRAM   = "preference"
 HEURISTIC  = "heuristic"
 APPROX     = "approximation"
+
 # predicate names
 DOM        = "dom"           #from spec_parser
 GEN_DOM    = "gen_dom"       #from spec_parser
 PREFERENCE = "preference"    #from spec_parser
 
+# translation tokens
+HASH_SEM = "#sem"
+
+
+#
+# classes
+#
+
 # check pp_parser for an usage example
 class Capturer:
-
+    
     def __init__(self,stdx):
         self.__original_fd      = stdx.fileno()
         self.__save_original_fd = os.dup(self.__original_fd)

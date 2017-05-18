@@ -125,6 +125,18 @@ class Solver:
     def getNHolds(self):
         return self.nholds
 
+    def head(atuple):
+        try:
+            return atuple.arguments[0]
+        except:
+            return atuple
+
+    def cat(*args):
+        try:
+            return "".join(args)
+        except:
+            return args
+
     #
     # CLINGO PROXY
     #

@@ -71,10 +71,9 @@ class Lexer(object):
                 self.__underscores = i
 
     def __print_error(self, string, lexpos):
-        lineno = self.lexer.lineno
         col_ini = lexpos-self.lexer.lexdata.rfind('\n', 0, lexpos)
-        col_end = col_ini + len(string)
-        printer.Printer().print_error_lexer(self.__filename, lineno, col_ini, col_end, string)
+        args = [self.__filename, self.lexer.lineno, col_ini, col_ini+1, string]
+        printer.Printer().print_error_lexer(*args)
 
     def __eof_error(self, t):
         self.__error = True

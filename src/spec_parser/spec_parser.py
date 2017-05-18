@@ -1,87 +1,108 @@
 #!/usr/bin/python
 
+import os
 import sys
 import yacc
+from lex import LexToken
 from spec_lexer import Lexer
 from src.utils import printer
 from src.utils import utils
 import ast
-import errno
-import os
 
 
 #
 # defines
 #
 
-EMPTY      = utils.EMPTY
 # programs
+EMPTY      = utils.EMPTY
 BASE       = utils.BASE
 SPEC       = utils.SPEC
 GENERATE   = utils.GENERATE
 PPROGRAM   = utils.PPROGRAM
 HEURISTIC  = utils.HEURISTIC
 APPROX     = utils.APPROX
+
 # predicate names
 DOM        = utils.DOM
 GEN_DOM    = utils.GEN_DOM
 PREFERENCE = utils.PREFERENCE
+
+# translation tokens
+HASH_SEM   = utils.HASH_SEM
+
+# errors
+ERROR_PREFIX = "error: syntax error, "
+ERROR_PREFERENCE = ERROR_PREFIX + "preference statement in non base program\n"
+ERROR_OPTIMIZE  = ERROR_PREFIX + "optimize statement in non base program\n"
+ERROR_PREFERENCE_NAME = ERROR_PREFIX + "incorrect preference name\n"
+ERROR_SYNTAX = ERROR_PREFIX + "unexpected {}\n"
+
 # more
-PROGRAM    = "PROGRAM"
-CODE       = "CODE"
-PREFERENCE = "PREFERENCE"
-OPTIMIZE   = "OPTIMIZE"
-HASH_SEM   = "#sem"
-STDIN      = "-"
-END        = "end."
-INCLUDE    = "#include"
-ASPRIN_LIB = "asprin.lib"
+PROGRAM      = "PROGRAM"
+CODE         = "CODE"
+PREFERENCE   = "PREFERENCE"
+OPTIMIZE     = "OPTIMIZE"
+STDIN        = "-"
+END          = "end."
+ASPRIN_LIB   = "asprin.lib"
 ASPRIN_LIB_RELATIVE = os.path.dirname(__file__) + "/../../" + ASPRIN_LIB
 # WARNING: ASPRIN_LIB_RELATIVE must be changed if 
 #          asprin.lib location relative to this file changes
 
 
 #
-# MessageLocation, ProgramLocation and Program
+# Location, ProgramPosition and Program
 #
 
-class MessageLocation(object):
-
-    # create a location with (filename,line,extra_line,col_ini,col_end)
-    #   of the last statement in data[:pos] starting with string 
-    def __init__(self,filename,data,pos,lineno,string):
-        string_pos      = data.rfind(string,0,pos)
-        self.filename   = filename
-        self.col_ini    = string_pos - data.rfind('\n',0,string_pos)
-        self.line       = lineno - data[string_pos:pos].count("\n")
-        self.extra_line = None if self.line == lineno else lineno
-        self.col_end    = pos - data.rfind("\n",0,pos)
-
-class ProgramLocation(object):
+class Location(object):
     
-    def __init__(self,filename, line, col, lines=1):
+    def __init__(self, filename, line, col_ini, line_extra, col_end):
+        self.filename   = filename
+        self.line       = line
+        self.col_ini    = col_ini
+        self.line_extra = line_extra
+        self.col_end    = col_end
+
+    def get_position(self):
+        return ProgramPosition(self.filename, self.line,
+                               self.col_ini, self.line_extra - self.line)
+
+    def __repr__(self):
+        if not self.line_extra or self.line_extra == self.line:
+            extra = ""
+        else:
+            extra = "{}:".format(self.line_extra)
+        args = (self.filename, self.line, self.col_ini, extra, self.col_end)
+        return "{}:{}:{}-{}{}: ".format(*args)
+
+# TODO: get rid of this, and use just Location
+class ProgramPosition(object):
+
+    def __init__(self, filename, line, col, lines=1):
         self.filename = filename
         self.line     = line
         self.col      = col
         self.lines    = lines # number of lines
-    
+
+
 class Program(object):
 
-    def __init__(self,string=""):
-        self.__locations = []
+    def __init__(self, string):
+        self.__positions = [] # list of ProgramPositions
         self.__string = string 
 
     def get_string(self):
         return self.__string
 
-    def get_locations(self):
-        return self.__locations
+    def get_positions(self):
+        return self.__positions
 
-    def extend_string(self,string):
+    def extend_string(self, string):
         self.__string += "\n" + string
 
-    def extend_locations(self,location):
-        self.__locations.append(location)
+    def extend_positions(self, position):
+        self.__positions.append(position)
 
 #
 #
@@ -92,17 +113,19 @@ class Program(object):
 class Parser(object):
 
 
-    def __init__(self,underscores):
+    def __init__(self, underscores):
 
-        # start lexer and parser
+        # start lexer, parser, and printer
         self.lexer  = Lexer(underscores)
         self.tokens = self.lexer.tokens
         #self.parser = yacc.yacc(module=self,debug=False)
         self.parser = yacc.yacc(module=self)
+        self.printer = printer.Printer()
 
         # programs[name][type] is a Program
         self.p_statements, self.list = 0, []
-        self.programs = dict([(i,dict()) for i in [BASE,GENERATE,SPEC,PPROGRAM,HEURISTIC,APPROX]])
+        l = [BASE, GENERATE, SPEC, PPROGRAM, HEURISTIC, APPROX]
+        self.programs = dict([(i,dict()) for i in l])
 
         # base
         self.base      = ast.ProgramStatement()
@@ -110,38 +133,49 @@ class Parser(object):
         self.base.type = EMPTY
 
         # others
-        self.constants = []
-        self.included  = []
-        self.error     = False
-        self.location  = None
-        self.element   = None
-        self.filename  = None
-        self.program   = None
+        self.constants   = []
+        self.included    = []
+        self.error       = False
+        self.position    = None
+        self.element     = None
+        self.filename    = None
+        self.program     = None
+
 
     #
     # AUXILIARY FUNCTIONS
     #
 
-    def __syntax_error(self,p,index):
-        column = p.lexpos(index)-self.lexer.lexer.lexdata.rfind('\n',0,p.lexpos(index))
-        error = "{}:{}:{}-{}: error: syntax error, unexpected {}\n".format(
-                self.filename,p.lineno(index),column,column+len(p[index].value),p[index].value)
-        print >> sys.stderr, error
+  
+    def __get_col(self, data, pos):
+        return pos - data.rfind('\n', 0, pos)
+
+    
+    # get Location from non terminal p between init and end
+    # p[init] and p[end] should be either terminals, or the error token 
+    def __get_location(self, p, init, end):
+        filename   = self.filename
+        line       = p.lineno(init)
+        col_ini    = self.__get_col(self.lexer.lexer.lexdata, p.lexpos(init))
+        line_extra = p.lineno(end)
+        col_end    = self.__get_col(self.lexer.lexer.lexdata, p.lexpos(end))
+        if isinstance(p[end], str):
+            col_end += len(p[end])
+        elif isinstance(p[end], LexToken):
+            col_end += len(p[end].value)
+        elif init == end:
+            col_end += 1
+        return Location(filename, line, col_ini, line_extra, col_end)
+
+
+    # p[init] and p[end] should be either terminals, or the error token 
+    def __syntax_error(self, p, init, end, string):
         self.error = True
+        location = self.__get_location(p, init, end)
+        self.printer.print_error(location, string)
 
-
-    def __error(self,string,p,index):
-        error =  "{}:{}:{}: error: syntax error, {}\n".format(
-                self.filename,p.lineno(index),p.lexpos(index)-self.lexer.lexer.lexdata.rfind('\n',0,p.lexpos(index)),string)
-        print >> sys.stderr, error
-        self.error = True
-
-
-    def __get_underscores(self):
-        return "_" + ("_" * self.lexer.get_underscores())
-
-
-    def __update_program(self,program,type,string,location=None):
+    
+    def __update_program(self, program, type, string, position=None):
         # consider only the program names in self.programs
         dictionary = self.programs.get(program)
         if dictionary is None:
@@ -153,22 +187,25 @@ class Parser(object):
             dictionary[type] = program
         else:
             program.extend_string(string)
-        if location is not None:
-            program.extend_locations(location)
+        if position is not None:
+            program.extend_positions(position)
 
 
-    def __print_list(self):
+    def __generate_programs(self):
 
-        ast.Statement.underscores = self.__get_underscores()
+        underscores = "_" + ("_" * self.lexer.get_underscores())
+        ast.Statement.underscores = underscores
         program, type = BASE, EMPTY
 
         # add elements of the list
         for i in self.list:
             if i[0] == CODE:
-                code = i[1] + self.__get_underscores() + END
-                self.__update_program(program,type,code,i[2])
+                # add END to mark the end of the code
+                code = i[1] + underscores + END
+                self.__update_program(program, type, code, i[2])
             if i[0] == PREFERENCE or i[0] == OPTIMIZE:
-                self.__update_program(SPEC,EMPTY,i[1].str())
+                # translate statement
+                self.__update_program(SPEC, EMPTY, i[1].str())
             if i[0] == PROGRAM:
                 program, type = i[1].name, i[1].type
 
@@ -178,12 +215,12 @@ class Parser(object):
         # adding specification
         out = ""
         if ast.PStatement.bfs:
-            out +=  ast.BF_ENCODING.replace("##",ast.Statement.underscores)
-        out += "\n" + ast.TRUE_ATOM.replace("##",ast.Statement.underscores)
-        out += "\n" + ast.PREF_DOM_RULE.replace("##",ast.Statement.underscores)
+            out +=  ast.BF_ENCODING.replace("##",underscores)
+        out += "\n" + ast.TRUE_ATOM.replace("##",underscores)
+        out += "\n" + ast.PREF_DOM_RULE.replace("##",underscores)
         self.__update_program(SPEC,EMPTY,out)
 
-        return self.programs
+        return self.programs, underscores
 
 
     def __parse_file(self, filename):
@@ -191,7 +228,7 @@ class Parser(object):
         self.filename = filename
         self.program  = BASE
         self.element  = ast.Element()
-        self.location = ProgramLocation(self.filename, 1, 1)
+        self.position = ProgramPosition(self.filename, 1, 1)
         # add #program base to list
         self.list.append((PROGRAM, self.base))
         # prepare lexer
@@ -206,10 +243,13 @@ class Parser(object):
         while True:
             included, self.included = self.included, []
             for i in included: # (filename, fileorigin)
-                file = i[0] if os.path.isfile(i[0]) else os.path.join(os.path.dirname(i[1]), i[0])
+                if os.path.isfile(i[0]):
+                    file = i[0]
+                else:
+                    file = os.path.join(os.path.dirname(i[1]), i[0])
                 abs_file = os.path.abspath(file)
                 if abs_file in [j[1] for j in files]: 
-                    printer.Printer().warning_included_file(file, i[2])
+                    self.printer.warning_included_file(file, i[2])
                 else:
                     files.append((file, abs_file))
                     self.__parse_file(file)
@@ -234,15 +274,21 @@ class Parser(object):
         self.__parse_included_files(files)
 
         # asprin.lib
-        if options['asprin-lib'] and ASPRIN_LIB not in [os.path.basename(i[0]) for i in files]:
-            file = ASPRIN_LIB if os.path.isfile(ASPRIN_LIB) else ASPRIN_LIB_RELATIVE
+        filenames = [os.path.basename(i[0]) for i in files]
+        if options['asprin-lib'] and ASPRIN_LIB not in filenames:
+            if os.path.isfile(ASPRIN_LIB):
+                file = ASPRIN_LIB
+            else:
+                file = ASPRIN_LIB_RELATIVE
             self.__parse_file(file)
 
         # errors
         if self.lexer.get_error() or self.error:
             raise Exception("parsing failed")
 
-        return self.__print_list(), self.__get_underscores(), self.constants, self.lexer.get_show()
+        # return
+        programs, underscores = self.__generate_programs()
+        return programs, underscores, self.constants, self.lexer.get_show()
 
 
 
@@ -257,13 +303,15 @@ class Parser(object):
     #   A preference element has form:
     #     S1 [ >> ... >> Sn ] [ || S0 ] [ : B ]
     #   where
-    #     Si is a set with weighted bodies of boolean formulas, or with weighted naming atoms, or with a combination of both.
+    #     Si is a set with weighted bodies of boolean formulas, 
+    #     or with weighted naming atoms, or with a combination of both.
     #   A weighted body of boolean formulas has form:
     #     [T ::] BF1, ..., BFn
     #   or
     #     T ::
     #   where T is a tuple of terms, and
-    #   BFi is a boolean formula of literals (using 'not', '&', '|', '(' and ')').
+    #   BFi is a boolean formula of literals 
+    #   (using 'not', '&', '|', '(' and ')').
     #   The second case is interpreted as:
     #     T :: #true
     #   A weighted naming atom has form:
@@ -274,13 +322,16 @@ class Parser(object):
     #
     # Minor notes:
     #   (atom)             is not allowed (and never needed :)
-    #   bitwise operator & is not allowed (Roland said that this operator will be eliminated from the clingo language)
+    #   bitwise operator & is not allowed (Roland said that this operator
+    #     will be eliminated from the clingo language)
     #
     # Comparison with minimize statements:
     #   asprin accepts boolean formulas
     #   asprin does not accept @ symbol
-    #   asprin requires either 'T ::', or a body of boolean formulas, or a naming atom, while clingo requires T
-    #   if an element has no COLONS, asprin interprets it as a body of boolean formulas, or a naming atom, while clingo interprets it as T
+    #   asprin requires either 'T ::', or a body of boolean formulas, or 
+    #     a naming atom, while clingo requires T
+    #   if an element has no COLONS, asprin interprets it as a body of 
+    #     boolean formulas, or a naming atom, while clingo interprets it as T
     # Translation: clingo elements
     #   T [: [ Body ] ]
     # without @ symbol, are translated into asprin elements of form
@@ -317,16 +368,16 @@ class Parser(object):
         """ program : program statement change_state CODE
                     | CODE
         """
-        self.location.lines = self.lexer.lexer.lineno - self.location.line + 1 
+        self.position.lines = self.lexer.lexer.lineno - self.position.line + 1
         if   len(p) == 5: 
-            self.list.append((CODE,p[4],self.location))
+            self.list.append((CODE,p[4],self.position))
         elif len(p) == 2: 
-            self.list.append((CODE,p[1],self.location))
+            self.list.append((CODE,p[1],self.position))
 
     def p_program_error(self,p):
         """ statement : error DOT
         """
-        self.__syntax_error(p,1)
+        self.__syntax_error(p,1,1,ERROR_SYNTAX.format(p[1].value))
 
     def p_change_state(self,p):
         """ change_state :
@@ -334,9 +385,9 @@ class Parser(object):
         p.lexer.pop_state()
         lexpos, lineno = self.lexer.lexer.lexpos, self.lexer.lexer.lineno
         self.lexer.set_code_start(lexpos)
-        # location
+        # position 
         col = lexpos - self.lexer.lexer.lexdata.rfind('\n', 0, lexpos)
-        self.location = ProgramLocation(self.filename, lineno, col)
+        self.position = ProgramPosition(self.filename, lineno, col)
 
 
     #
@@ -358,7 +409,10 @@ class Parser(object):
         self.list.append((PREFERENCE,s)) # appends to self.list
         # restart element
         self.element = ast.Element()
-        if self.program != BASE: self.__error("unexpected preference statement in non base program",p,1)
+        # error if not in base
+        if self.program != BASE:
+            self.__syntax_error(p,1,len(p)-1,ERROR_PREFERENCE)
+
 
     #
     # BODY
@@ -851,17 +905,13 @@ class Parser(object):
         s.name     = p[3]
         s.body     = p[5]
         self.list.append((OPTIMIZE,s)) # appends to self.list
-        if self.program != BASE: self.__error("unexpected optimize statement in non base program",p,1)
+        if self.program != BASE: 
+            self.__syntax_error(p,1,6,ERROR_OPTIMIZE)
 
 
     #
     # PROGRAM
     #
-
-    def __check_preference_program(self,identifier,ntermvec,p,index):
-        if identifier == PPROGRAM and len(ntermvec)!=1:
-            self.__error("preference program name must consist of a single term",p,index)
-
 
     def p_statement_3(self,p):
         """ statement : PROGRAM identifier LPAREN ntermvec RPAREN DOT
@@ -873,8 +923,9 @@ class Parser(object):
         self.list.append((PROGRAM,s)) # appends to self.list
         self.program = s.name
         self.lexer.set_program((s.name,s.type))
-        if len(p)==7:
-            self.__check_preference_program(p[2],p[4],p,3)
+        #TODO: Check if there are variables in ntermvec
+        if len(p)==7 and p[2]==PPROGRAM and len(p[4])!=1:
+            self.__syntax_error(p,3,5,ERROR_PREFERENCE_NAME)
 
 
     #
@@ -888,7 +939,8 @@ class Parser(object):
             self.constants.append((ast.ast2str(p[2]),ast.ast2str(p[4])))
         else:
             line = "#const {}={}.".format(ast.ast2str(p[2]), ast.ast2str(p[4]))
-            self.list.append((CODE, line, None))
+            location = self.__get_location(p,1,5)
+            self.list.append((CODE, line, location.get_position()))
 
 
     #
@@ -897,10 +949,15 @@ class Parser(object):
 
     def p_statement_5(self,p):
         """ statement : INCLUDE STRING DOT
+                      | INCLUDE LT identifier GT DOT
         """
-        location = MessageLocation(self.filename,self.lexer.lexer.lexdata,
-                                   self.lexer.lexer.lexpos,self.lexer.lexer.lineno,INCLUDE)
-        self.included.append((p[2][1:-1],self.filename,location)) # (file name included,current file name,location)
+        location = self.__get_location(p,1,len(p)-1)
+        if len(p)==4:
+            # (file name included, current file name, location)
+            self.included.append((p[2][1:-1],self.filename,location))
+        else:
+            line = "#include <{}>.".format(ast.ast2str(p[3]))
+            self.list.append((CODE, line, location.get_position()))
 
 
     #

@@ -67,7 +67,8 @@ class ProgramsPrinter:
             if name in { BASE, GENERATE, SPEC }:
                 for type, program in programs.items():
                     if type in types:
-                        print("#program {}{}.".format(name,"({})".format(type) if type!="" else ""))
+                        params = "({})".format(type) if type != "" else ""
+                        print("#program {}{}.".format(name,params))
                         print(program.get_string())
 
 
@@ -78,8 +79,8 @@ class ProgramsPrinter:
             if name == PPROGRAM:
                 for type, program in programs.items():
                     if type in types:
-                        clingo.parse_program("#program "+name+".\n"+program.get_string(),
-                                             lambda stm: l.append(t.visit(stm)))
+                        s = "#program " + name + ".\n" + program.get_string()
+                        clingo.parse_program(s,lambda x: l.append(t.visit(x)))
         for i in l:
             print(i)
 
@@ -100,41 +101,50 @@ class Parser:
             self.__control.add(name,params,string)
             self.__control.ground(list)
         finally:
-            printer.Printer().print_error(self.__programs,name,capturer.read())
+            printer.Printer().print_captured_error(self.__programs,
+                                                   name,capturer.read())
             capturer.close()
 
 
     def do_base(self):
 
-        options, control, programs = self.__options, self.__control, self.__programs
+        options, control = self.__options, self.__control
+        programs = self.__programs
 
         # constants
-        old = [ key                      for key, value in options['constants'].items() ]
-        new = [ clingo.parse_term(value) for key, value in options['constants'].items() ]
+        constants = options['constants'].items()
+        old = [ key                      for key, value in constants ]
+        new = [ clingo.parse_term(value) for key, value in constants ]
 
         # add and ground
-        self.__add_and_ground(BASE,old,programs[BASE][""].get_string(),[(BASE,new)])
-        self.__add_and_ground(GENERATE,[],programs[GENERATE][""].get_string(),[(GENERATE,[])])
+        string =  programs[BASE][""].get_string()
+        self.__add_and_ground(BASE,old,string,[(BASE,new)])
+        string =  programs[GENERATE][""].get_string()
+        self.__add_and_ground(GENERATE,[],string,[(GENERATE,[])])
 
 
     def get_domains(self):
         out, control, underscores = "", self.__control, self.__underscores
         for atom in control.symbolic_atoms.by_signature(underscores+GEN_DOM,2):
-            for atom2 in control.symbolic_atoms.by_signature(
-                str(atom.symbol.arguments[0]),int(str(atom.symbol.arguments[1]))):
+            args = atom.symbol.arguments
+            for atom2 in control.symbolic_atoms.by_signature(str(args[0]),
+                                                             int(args[1])):
                 out += underscores + DOM + "(" + str(atom2.symbol) + ").\n"
         return out
 
 
     def do_spec(self):
 
-        control, programs, underscores = self.__control, self.__programs, self.__underscores
-        options = self.__options
+        control, programs = self.__control, self.__programs
+        underscores, options = self.__underscores, self.__options
 
         # specification
-        old = [ key                      for key, value in options['constants'].items() ]
-        new = [ clingo.parse_term(value) for key, value in options['constants'].items() ]
-        self.__add_and_ground(SPEC,old,programs[SPEC][""].get_string() + CHECK_SPEC.replace("##",underscores),[(SPEC,new)])
+        constants = options['constants'].items()
+        old = [ key                      for key, value in constants ]
+        new = [ clingo.parse_term(value) for key, value in constants ]
+        string  = programs[SPEC][""].get_string() 
+        string += CHECK_SPEC.replace("##",underscores)
+        self.__add_and_ground(SPEC,old,string,[(SPEC,new)])
 
         # get specification errors
         errors = False
@@ -181,8 +191,10 @@ class Parser:
             return
 
         # else add #show for atoms in base
-        show = "\n".join(["#show " + ("" if x[2] else "-") + x[0] + "/" + str(x[1]) + "."
-                         for x in self.__control.symbolic_atoms.signatures if not str(x[0]).startswith(self.__underscores)])
+        show = "\n".join(["#show " + ("" if x[2] else "-") + x[0] + "/" +
+                          str(x[1]) + "."
+                          for x in self.__control.symbolic_atoms.signatures if
+                          not str(x[0]).startswith(self.__underscores)])
         self.__add_and_ground(SHOW,[],show,[(SHOW,[])])
 
 
@@ -193,8 +205,8 @@ class Parser:
                 if name == PPROGRAM:
                     for type, program in programs.items():
                         if type in types:
-                            clingo.parse_program("#program "+name+".\n"+program.get_string(),
-                                                 lambda stm: b.add(t.visit(stm)))
+                            s = "#program "+name+".\n"+program.get_string()
+                            clingo.parse_program(s,lambda x: b.add(t.visit(x)))
 
 
     def parse(self):
@@ -209,12 +221,13 @@ class Parser:
         types = self.do_spec()
         types.add("") # add basic case
 
-        # add #show statements if needed (CSP variables are not shown in this case)
+        # add #show statements if needed (CSP variables are not shown)
         self.add_show(types)
 
         # print programs?
         if self.__options['print-programs']:
-            ProgramsPrinter().run(self.__control, self.__programs, self.__underscores, types)
+            ProgramsPrinter().run(self.__control, self.__programs, 
+                                  self.__underscores, types)
             raise utils.SilentException()
 
         # translate and add the rest of the programs

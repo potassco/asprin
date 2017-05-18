@@ -3,21 +3,6 @@ required(P,better) :- optimize(P).
 :- not better(P),  optimize(P).
 required(A,B) :- required(A,B). % to avoid warnings
 
-#script (python)
-
-def head(atuple):
-    try:
-        return atuple.arguments[0]
-    except:
-        return atuple
-
-def cat(*args):
-    try:
-        return "".join(args)
-    except:
-        return args
-
-#end.
            
 #program preference(and).
 
