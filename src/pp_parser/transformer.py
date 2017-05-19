@@ -99,7 +99,7 @@ class Transformer:
 
 
 #
-# CLASS TERMTRANSFORMER
+# CLASS TERM TRANSFORMER
 #
 
 class TermTransformer(Transformer):
@@ -153,12 +153,13 @@ class TermTransformer(Transformer):
 
 
     def transform_term_reify(self, term, name):
+        # always adds M1_M2
         args = [term] + self.get_ems(term.location, M1_M2)
         return clingo.ast.Function(term.location, name, args, False)
 
 
 #
-# CLASS PREFERENCEPROGRAMTRANSFORMER
+# CLASS PREFERENCE PROGRAM TRANSFORMER
 #
 
 class PreferenceProgramTransformer(Transformer):
@@ -191,54 +192,58 @@ class PreferenceProgramTransformer(Transformer):
 
     def visit_Rule(self, rule):
         if self.__head_is_det(rule): return rule
+        # if empty head
         if (str(rule.head.type) == "Literal"
             and str(rule.head.atom.type) == "BooleanConstant"
             and str(rule.head.atom.value == False)):
                 # add unsat head
                 ems = self.get_ems(rule.location, M1_M2)
-                fun = clingo.ast.Function(rule.location, self.unsat, ems, 
+                fun = clingo.ast.Function(rule.location, self.unsat, ems,
                                           False)
+                atom = clingo.ast.SymbolicAtom(fun)
                 rule.head = clingo.ast.Literal(rule.location,
                                                clingo.ast.Sign.NoSign,
-                                               clingo.ast.SymbolicAtom(fun))
+                                               atom)
         else: self.visit(rule.head)
         self.__visit_body_literal_list(rule.body,rule.location)
         return rule
 
 
-    def visit_Definition(self,d):
+    def visit_Definition(self, d):
         return d
 
 
     # TODO(EFF): implement
-    def __sig_is_det(self,sig):
+    def __sig_is_det(self, sig):
         return False
 
 
     def visit_ShowSignature(self, sig):
-        if self.__sig_is_det(sig): return sig
+        if self.__sig_is_det(sig): 
+            return sig
         return self.term_transformer.transform_signature(sig)
 
 
     # TODO(EFF): implement
-    def __body_is_det(self,body):
+    def __body_is_det(self, body):
         return False
 
 
-    def visit_ShowTerm(self,show):
-        if self.__body_is_det(show.body): return show
+    def visit_ShowTerm(self, show):
+        if self.__body_is_det(show.body): 
+            return show
         show.term = self.term_transformer.transform_term_reify(show.term,
                                                                self.show)
         self.__visit_body_literal_list(show.body,show.location)
         return show
 
 
-    def visit_Minimize(self,min):
+    def visit_Minimize(self, min):
         raise Exception("clingo optimization statements not allowed in " + 
                         self.type + "programs: " + str(min))
 
 
-    def visit_Script(self,script):
+    def visit_Script(self, script):
         return script
 
 
@@ -251,23 +256,26 @@ class PreferenceProgramTransformer(Transformer):
         return prg
 
 
-    def visit_External(self,ext):
-        raise Exception("clingo optimization externals not allowed in " + 
-                        self.type + "programs: " + str(ext))
+    def visit_External(self, ext):
+        self.visit(ext.atom)
+        self.__visit_body_literal_list(ext.body, ext.location)
+        return ext
 
 
     # TODO(EFF):do not translate if *all* edge statements are deterministic
-    def visit_Edge(self,edge):
-        edge.u = self.term_transformer.transform_term_reify(edge.u,self.edge)
-        edge.v = self.term_transformer.transform_term_reify(edge.v,self.edge)
-        self.__visit_body_literal_list(edge.body,edge.location)
+    # TODO: Warn if computing many models
+    def visit_Edge(self, edge):
+        e = self.edge
+        edge.u = self.term_transformer.transform_term_reify(edge.u, e)
+        edge.v = self.term_transformer.transform_term_reify(edge.v, e)
+        self.__visit_body_literal_list(edge.body, edge.location)
         return edge
 
 
     # TODO(EFF): do not add if head is deterministic
     def visit_Heuristic(self,heur):
         heur.atom = self.term_transformer.visit(heur.atom)
-        self.__visit_body_literal_list(heur.body,heur.location)
+        self.__visit_body_literal_list(heur.body, heur.location)
         return heur
 
 

@@ -1,15 +1,69 @@
 from __future__ import print_function
 from src.utils import clingo_stats
-import re
+from src.utils import utils
 import sys
 
-BASE="base"
-ERROR_LEXER="{}:{}:{}-{}: error: lexer error, unexpected {}\n"
-ERROR_PARSER="{}:{}:{}-{}: error: syntax error, {}\n"
+BASE = utils.BASE
 WARNING_INCLUDED_FILE="<cmd>: warning: already included file:\n  {}\n"
+MESSAGE_LIMIT = 20
+TOO_MANY = "too many messages."
 
 class Printer:
 
+    messages = 0  # class variables
+    last     = "" #
+
+    #
+    # errors and warnings
+    #
+   
+    def __check_messages(self, n):
+        Printer.messages += n
+        if Printer.messages >= MESSAGE_LIMIT:
+            raise Exception(TOO_MANY) 
+
+    def __last(self, string):
+        if Printer.last == string:
+            return True
+        Printer.last = string
+        return False
+
+    def __print_warning(self, string, **kwargs):
+        if not self.__last(string):
+            print(string, file=sys.stderr, **kwargs)
+            self.__check_messages(1)
+
+    def __print_error(self, string, **kwargs):
+        if not self.__last(string):
+            print(string, file=sys.stderr, **kwargs)
+            self.__check_messages(1)
+
+    def print_error_string(self, string):
+        if not self.__last(string):
+            print(string, file=sys.stderr, end = "")
+            self.__check_messages(int(string.count("\n")/2))
+
+    def print_error(self, location, string):
+        self.__print_error("{}error, {}".format(location,string))
+
+    def print_spec_error(self,string):
+        self.__print_error(string)
+
+    def warning_included_file(self,file,loc=None):
+        warning = WARNING_INCLUDED_FILE 
+        if loc: 
+            warning = warning.replace("<cmd>:",loc)
+        self.__print_warning(warning.format(file))
+
+    #
+    # simply print
+    #
+    def print(self, *args, **kwargs):
+        print(*args, **kwargs)
+
+    #
+    # stats
+    #
 
     def print_stats(self,control,models,more_models,opt_models,stats=False):
         print("")
@@ -20,68 +74,4 @@ class Printer:
         print(clingo_stats.Stats().summary(control,False))
         if stats:
             print(clingo_stats.Stats().statistics(control))
-
-
-    def print_captured_error(self,programs,program,string):
-        if program != BASE:
-            print(string,end="")
-            return
-        for i in string.splitlines():
-            printed = False
-            match = re.match(r'<block>:(\d+):(\d+)-(\d+:)?(\d+)(.*)',i)
-            if match:
-                error_line = int(match.group(1))
-                col_ini    = int(match.group(2))
-                line_extra = int(match.group(3)[:-1]) if match.group(3) is not None else None
-                col_end    = int(match.group(4))
-                rest       =     match.group(5)
-                positions = programs[program][""].get_positions()
-                for loc in positions:
-                    if loc.lines >= error_line:
-                        if error_line == 1:
-                            col_ini += loc.col - 1
-                            if not line_extra:
-                                col_end += loc.col - 1
-                        print("{}:{}:{}-{}{}{}".format(loc.filename, error_line+loc.line-1,col_ini,
-                                                        "{}:".format(line_extra+loc.line-1) if line_extra else "",
-                                                        col_end,rest))
-                        printed = True
-                        break
-                    else:
-                        error_line = error_line - loc.lines
-                        line_extra = line_extra - loc.lines if line_extra else None
-            if not printed:
-                print(i)
-
-
-    def __print_warning(sef,string):
-        print(string,file=sys.stderr)
-
-
-    def warning_included_file(self,file):
-        self.__print_warning(WARNING_INCLUDED_FILE.format(file))
-
-
-    def __print_message_location(self,loc):
-        return "{}:{}:{}-{}{}:".format(loc.filename,loc.line,loc.col_ini,
-                                  "{}:".format(loc.line_extra) if loc.line_extra else "",
-                                  loc.col_end)
-
-
-    def warning_included_file(self,file,loc=None):
-        warning = WARNING_INCLUDED_FILE 
-        if loc: 
-            warning = warning.replace("<cmd>:",self.__print_message_location(loc))
-        self.__print_warning(warning.format(file))
-
-    def print_error_lexer(self,filename,lineno,col_ini,col_end,string):
-        print(ERROR_LEXER.format(filename,lineno,col_ini,col_end,string))
-
-    def print_error_parser(self,filename,lineno,col_ini,col_end,string):
-        print(ERROR_PARSER.format(filename,lineno,col_ini,col_end,string))
-
-
-    def print_error(self, location, string):
-        print("{}{}".format(location,string))
-
 

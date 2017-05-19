@@ -28,6 +28,7 @@ SHOW       = "show"
 OPTIMIZE   = "optimize"
 ERROR      = "error"
 
+# error checking
 CHECK_SPEC = """
 % P names X
 ##names(P,X) :- ##preference(P,_,_,name(X),_).
@@ -40,27 +41,52 @@ CHECK_SPEC = """
 % errors
 %
 
-% naming loops
-##error(X,"loop") :- ##tr_names(X,X).
-
 % naming non existent statement
-##error(X,"no_reference") :- ##names(X,Y), not ##preference(Y,_).
+##error((A,B,C,D,E)):- ##names(X,Y), not ##preference(Y,_), 
+  A = "preference:", 
+  B = X, 
+  C = ": error in the preference specification, ", 
+  D = "naming non existent preference statement ",
+  E = Y.
+
+% naming loops
+##error((A,B,C,D)):- ##tr_names(X,X),
+  A = "preference:", 
+  B = X, 
+  C = ": error in the preference specification, ", 
+  D = "naming loop".
 
 % optimizing non existent statement
-##error(X,"no_reference") :- ##optimize(X), not ##preference(X,_).
+##error((A,B,C,D)):- ##optimize(X), not ##preference(X,_),
+  A = "optimize:", 
+  B = X, 
+  C = ": error in the preference specification, ", 
+  D = "optimizing non existent preference statement".
 
-% zero or many optimize statements
-##error("","no_optimize")   :- not ##optimize(_).
-##error("","many_optimize") :- 2 { ##optimize(X) }.
+% many optimize statements
+##error((A,B,C,D)):- ##optimize(X), 2 { ##optimize(Y) }, 
+  A = "optimize:", 
+  B = X, 
+  C = ": error in the preference specification, ", 
+  D = "many optimize statements".
 
+#program """ + utils.WARNINGS + """.
 % avoid warnings
 ##preference(A,B,C, for(D),E) :- ##preference(A,B,C, for(D),E).
 ##preference(A,B,C,name(D),E) :- ##preference(A,B,C,name(D),E).
+##optimize(X) :- ##optimize(X).
 """
 
+# error printing
+ERROR_SPEC = "error in the preference specification, "
+ERROR_NON_DOMAIN = ERROR_SPEC + "the body contains non domain atoms\n"
+ERROR_PREF_NON_DOMAIN  = "preference:{}: "            + ERROR_NON_DOMAIN
+ERROR_ELEM_NON_DOMAIN  = "preference:{}:element:{}: " + ERROR_NON_DOMAIN
+ERROR_OPT_NON_DOMAIN   = "optimize:{}: "             + ERROR_NON_DOMAIN
+ERROR_NO_PREF_PROGRAM  = "preference:{}: " + ERROR_SPEC + """\
+preference type {} has no preference program\n"""
 
 class ProgramsPrinter:
-
 
     def print_programs(self,programs,types):
         for name, programs in programs.items():
@@ -68,9 +94,9 @@ class ProgramsPrinter:
                 for type, program in programs.items():
                     if type in types:
                         params = "({})".format(type) if type != "" else ""
-                        print("#program {}{}.".format(name,params))
-                        print(program.get_string())
-
+                        p = printer.Printer()
+                        p.print("#program {}{}.".format(name,params))
+                        p.print(program.get_string())
 
     def run(self,control,programs,underscores,types):
         self.print_programs(programs,types)
@@ -82,7 +108,7 @@ class ProgramsPrinter:
                         s = "#program " + name + ".\n" + program.get_string()
                         clingo.parse_program(s,lambda x: l.append(t.visit(x)))
         for i in l:
-            print(i)
+            printer.Printer().print(i)
 
 
 class Parser:
@@ -101,9 +127,10 @@ class Parser:
             self.__control.add(name,params,string)
             self.__control.ground(list)
         finally:
-            printer.Printer().print_captured_error(self.__programs,
-                                                   name,capturer.read())
+            s = capturer.translate_error(self.__programs, name, capturer.read())
             capturer.close()
+            if s != "":
+                printer.Printer().print_error_string(s)
 
 
     def do_base(self):
@@ -133,6 +160,28 @@ class Parser:
         return out
 
 
+    def __cat(self, tuple):
+        return "".join([str(i) for i in tuple.arguments]).replace('"',"")
+
+    def __non_domain_message(self, atom, predicate):
+        # preference statement
+        if predicate == (PREFERENCE,2):
+            u = self.__underscores
+            arg1 = str(atom.symbol.arguments[0]).replace(u, "", 1)
+            return ERROR_PREF_NON_DOMAIN.format(arg1)
+        # preference element
+        elif predicate == (PREFERENCE,5):
+            arg1 = str(atom.symbol.arguments[0])
+            try: # careful here
+                arg2 = str(atom.symbol.arguments[1].arguments[0].arguments[1])
+            except Exception as e:
+                arg2 = str(atom.symbol.arguments[1])
+            return ERROR_ELEM_NON_DOMAIN.format(arg1, arg2)
+        # optimize statement
+        else:
+            arg1 = str(atom.symbol.arguments[0])
+            return ERROR_OPT_NON_DOMAIN.format(arg1)
+
     def do_spec(self):
 
         control, programs = self.__control, self.__programs
@@ -148,26 +197,30 @@ class Parser:
 
         # get specification errors
         errors = False
-        for atom in control.symbolic_atoms.by_signature(underscores+ERROR,2):
-            print("error in the preference specification: {} - {}".format(
-                  str(atom.symbol.arguments[0]),str(atom.symbol.arguments[1])),file=sys.stderr)
+        pr = printer.Printer()
+        for atom in control.symbolic_atoms.by_signature(underscores+ERROR, 1):
+            string = self.__cat(atom.symbol.arguments[0]) + "\n"
+            pr.print_spec_error(string)
             errors = True
 
         # get non domain errors
         for i in [(PREFERENCE,2),(PREFERENCE,5),(OPTIMIZE,1)]:
-            for atom in control.symbolic_atoms.by_signature(underscores+i[0],i[1]):
+            ui0 = underscores + i[0]
+            for atom in control.symbolic_atoms.by_signature(ui0, i[1]):
                 if not atom.is_fact:
-                     print("error in the preference specification: non domain atom {}".format(
-                           str(atom.symbol).replace(underscores,"",1)),file=sys.stderr)
-                     errors = True
+                    pr.print_spec_error(self.__non_domain_message(atom, i))
+                    errors = True
 
-        # get preference types, and test if they have a corresponding preference program
+        # get preference types, and test for a corresponding preference program
         out = set()
-        for atom in control.symbolic_atoms.by_signature(underscores+PREFERENCE,2):
+        upreference = underscores + PREFERENCE
+        for atom in control.symbolic_atoms.by_signature(upreference,2):
             out.add(str(atom.symbol.arguments[1]))
             if str(atom.symbol.arguments[1]) not in programs[PREFERENCE]:
-                print("error in the preference specification: preference type {} has no preference program".format(
-                         str(atom.symbol.arguments[1])),file=sys.stderr)
+                arg1 = str(atom.symbol.arguments[0])
+                arg2 = str(atom.symbol.arguments[1])
+                s = ERROR_NO_PREF_PROGRAM.format(arg1, arg2)
+                pr.print_spec_error(s)
                 errors = True
 
         # if errors
@@ -206,8 +259,11 @@ class Parser:
                     for type, program in programs.items():
                         if type in types:
                             s = "#program "+name+".\n"+program.get_string()
-                            clingo.parse_program(s,lambda x: b.add(t.visit(x)))
+                            clingo.parse_program(s,
+                                                 lambda x: b.add(t.visit(x)))
 
+    def check_programs_errors(self):
+        pass
 
     def parse(self):
 
@@ -232,4 +288,7 @@ class Parser:
 
         # translate and add the rest of the programs
         self.add_programs(types)
+
+        # check for error/1 predicates
+        self.check_programs_errors()
 

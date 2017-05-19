@@ -32,7 +32,7 @@ PREFERENCE = utils.PREFERENCE
 HASH_SEM   = utils.HASH_SEM
 
 # errors
-ERROR_PREFIX = "error: syntax error, "
+ERROR_PREFIX = "syntax error, "
 ERROR_PREFERENCE = ERROR_PREFIX + "preference statement in non base program\n"
 ERROR_OPTIMIZE  = ERROR_PREFIX + "optimize statement in non base program\n"
 ERROR_PREFERENCE_NAME = ERROR_PREFIX + "incorrect preference name\n"
@@ -52,44 +52,12 @@ ASPRIN_LIB_RELATIVE = os.path.dirname(__file__) + "/../../" + ASPRIN_LIB
 
 
 #
-# Location, ProgramPosition and Program
+# Program
 #
-
-class Location(object):
-    
-    def __init__(self, filename, line, col_ini, line_extra, col_end):
-        self.filename   = filename
-        self.line       = line
-        self.col_ini    = col_ini
-        self.line_extra = line_extra
-        self.col_end    = col_end
-
-    def get_position(self):
-        return ProgramPosition(self.filename, self.line,
-                               self.col_ini, self.line_extra - self.line)
-
-    def __repr__(self):
-        if not self.line_extra or self.line_extra == self.line:
-            extra = ""
-        else:
-            extra = "{}:".format(self.line_extra)
-        args = (self.filename, self.line, self.col_ini, extra, self.col_end)
-        return "{}:{}:{}-{}{}: ".format(*args)
-
-# TODO: get rid of this, and use just Location
-class ProgramPosition(object):
-
-    def __init__(self, filename, line, col, lines=1):
-        self.filename = filename
-        self.line     = line
-        self.col      = col
-        self.lines    = lines # number of lines
-
-
 class Program(object):
 
     def __init__(self, string):
-        self.__positions = [] # list of ProgramPositions
+        self.__positions = [] # list of utils.ProgramPositions
         self.__string = string 
 
     def get_string(self):
@@ -146,11 +114,11 @@ class Parser(object):
     # AUXILIARY FUNCTIONS
     #
 
-  
+
     def __get_col(self, data, pos):
         return pos - data.rfind('\n', 0, pos)
 
-    
+
     # get Location from non terminal p between init and end
     # p[init] and p[end] should be either terminals, or the error token 
     def __get_location(self, p, init, end):
@@ -165,7 +133,7 @@ class Parser(object):
             col_end += len(p[end].value)
         elif init == end:
             col_end += 1
-        return Location(filename, line, col_ini, line_extra, col_end)
+        return utils.Location(filename, line, col_ini, line_extra, col_end)
 
 
     # p[init] and p[end] should be either terminals, or the error token 
@@ -174,7 +142,7 @@ class Parser(object):
         location = self.__get_location(p, init, end)
         self.printer.print_error(location, string)
 
-    
+
     def __update_program(self, program, type, string, position=None):
         # consider only the program names in self.programs
         dictionary = self.programs.get(program)
@@ -228,7 +196,7 @@ class Parser(object):
         self.filename = filename
         self.program  = BASE
         self.element  = ast.Element()
-        self.position = ProgramPosition(self.filename, 1, 1)
+        self.position = utils.ProgramPosition(self.filename, 1, 1)
         # add #program base to list
         self.list.append((PROGRAM, self.base))
         # prepare lexer
@@ -387,7 +355,7 @@ class Parser(object):
         self.lexer.set_code_start(lexpos)
         # position 
         col = lexpos - self.lexer.lexer.lexdata.rfind('\n', 0, lexpos)
-        self.position = ProgramPosition(self.filename, lineno, col)
+        self.position = utils.ProgramPosition(self.filename, lineno, col)
 
 
     #

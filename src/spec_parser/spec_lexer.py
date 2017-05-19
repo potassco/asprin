@@ -10,6 +10,7 @@ from src.utils import printer
 
 BASE  = utils.BASE
 EMPTY = utils.EMPTY
+ERROR_LEXER="lexer error, unexpected {}\n"
 
 
 #
@@ -72,8 +73,10 @@ class Lexer(object):
 
     def __print_error(self, string, lexpos):
         col_ini = lexpos-self.lexer.lexdata.rfind('\n', 0, lexpos)
-        args = [self.__filename, self.lexer.lineno, col_ini, col_ini+1, string]
-        printer.Printer().print_error_lexer(*args)
+        loc = utils.Location(self.__filename, self.lexer.lineno,
+                             col_ini, self.lexer.lineno, col_ini+len(string))
+        printer.Printer().print_error(loc,ERROR_LEXER.format(string))
+
 
     def __eof_error(self, t):
         self.__error = True
