@@ -5,7 +5,6 @@ import clingo
 import transformer
 import sys
 import argparse
-import re
 from src.utils import utils
 from src.utils import printer
 
@@ -163,6 +162,7 @@ class Parser:
     def __cat(self, tuple):
         return "".join([str(i) for i in tuple.arguments]).replace('"',"")
 
+
     def __non_domain_message(self, atom, predicate):
         # preference statement
         if predicate == (PREFERENCE,2):
@@ -181,6 +181,7 @@ class Parser:
         else:
             arg1 = str(atom.symbol.arguments[0])
             return ERROR_OPT_NON_DOMAIN.format(arg1)
+
 
     def do_spec(self):
 
@@ -264,6 +265,7 @@ class Parser:
 
     def check_programs_errors(self):
         pass
+
 
     def parse(self):
 
