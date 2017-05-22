@@ -168,8 +168,10 @@ class Parser(object):
         # add elements of the list
         for i in self.list:
             if i[0] == CODE:
-                # add END to mark the end of the code
-                code = i[1] + underscores + END
+                code = i[1] 
+                # if base: add END to mark the end of the code
+                if program == BASE and type == EMPTY:
+                    code += underscores + END
                 self.__update_program(program, type, code, i[2])
             if i[0] == PREFERENCE or i[0] == OPTIMIZE:
                 # translate statement

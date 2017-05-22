@@ -44,7 +44,7 @@ CHECK_SPEC = """
 ##error((A,B,C,D,E)):- ##names(X,Y), not ##preference(Y,_), 
   A = "preference:", 
   B = X, 
-  C = ": error in the preference specification, ", 
+  C = ": error: preference specification error, ", 
   D = "naming non existent preference statement ",
   E = Y.
 
@@ -52,21 +52,27 @@ CHECK_SPEC = """
 ##error((A,B,C,D)):- ##tr_names(X,X),
   A = "preference:", 
   B = X, 
-  C = ": error in the preference specification, ", 
+  C = ": error: preference specification error, ", 
   D = "naming loop".
 
 % optimizing non existent statement
 ##error((A,B,C,D)):- ##optimize(X), not ##preference(X,_),
   A = "optimize:", 
   B = X, 
-  C = ": error in the preference specification, ", 
+  C = ": error: preference specification error, ", 
   D = "optimizing non existent preference statement".
+
+% no optimize statements
+##error((A,B,C)):- { ##optimize(Y) } 0, 
+  A = "optimize",  
+  B = ": error: preference specification error, ", 
+  C = "no optimize statement".
 
 % many optimize statements
 ##error((A,B,C,D)):- ##optimize(X), 2 { ##optimize(Y) }, 
   A = "optimize:", 
   B = X, 
-  C = ": error in the preference specification, ", 
+  C = ": error: preference specification error, ", 
   D = "many optimize statements".
 
 #program """ + utils.WARNINGS + """.
@@ -77,7 +83,7 @@ CHECK_SPEC = """
 """
 
 # error printing
-ERROR_SPEC = "error in the preference specification, "
+ERROR_SPEC = "error: preference specification error, "
 ERROR_NON_DOMAIN = ERROR_SPEC + "the body contains non domain atoms\n"
 ERROR_PREF_NON_DOMAIN  = "preference:{}: "            + ERROR_NON_DOMAIN
 ERROR_ELEM_NON_DOMAIN  = "preference:{}:element:{}: " + ERROR_NON_DOMAIN
@@ -94,8 +100,8 @@ class ProgramsPrinter:
                     if type in types:
                         params = "({})".format(type) if type != "" else ""
                         p = printer.Printer()
-                        p.print("#program {}{}.".format(name,params))
-                        p.print(program.get_string())
+                        p.do_print("#program {}{}.".format(name,params))
+                        p.do_print(program.get_string())
 
     def run(self,control,programs,underscores,types):
         self.print_programs(programs,types)
@@ -107,7 +113,7 @@ class ProgramsPrinter:
                         s = "#program " + name + ".\n" + program.get_string()
                         clingo.parse_program(s,lambda x: l.append(t.visit(x)))
         for i in l:
-            printer.Printer().print(i)
+            printer.Printer().do_print(i)
 
 
 class Parser:
@@ -160,7 +166,10 @@ class Parser:
 
 
     def __cat(self, tuple):
-        return "".join([str(i) for i in tuple.arguments]).replace('"',"")
+        if tuple.arguments:
+            return "".join([str(i) for i in tuple.arguments]).replace('"',"")
+        else:
+            return str(tuple)
 
 
     def __non_domain_message(self, atom, predicate):
@@ -291,6 +300,6 @@ class Parser:
         # translate and add the rest of the programs
         self.add_programs(types)
 
-        # check for error/1 predicates
+        #TODO(after improving translation): check for error/1 predicates
         self.check_programs_errors()
 

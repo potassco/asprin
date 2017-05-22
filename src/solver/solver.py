@@ -61,14 +61,23 @@ SAME_MODEL = "same stable model computed twice, there is an error in the input (
 
 token    = "##"
 programs = \
-  [(DO_HOLDS_AT_ZERO,       [],"#show ##holds_at_zero(X) : ##holds(X,0)."),
-   (DO_HOLDS,            ["m"],"##holds(X,m) :- X = @getHolds()."),
-   (OPEN_HOLDS,          ["m"],"{ ##holds(X,m) } :- X = @getHolds().  { ##holds(X,m) } :- X = @getNHolds()."),
-   (VOLATILE_FACT, ["m1","m2"],"##volatile(##m(m1),##m(m2))."),
-   (VOLATILE_EXT,  ["m1","m2"],"#external ##volatile(##m(m1),##m(m2))."),
-   (DELETE_MODEL,           [],":- ##holds(X,0) : X = @getHolds(); not ##holds(X,0) : X = @getNHolds()."),
-   (UNSAT_PRG,     ["m1","m2"],":- not ##unsat(##m(m1),##m(m2)), ##volatile(##m(m1),##m(m2))."),
-   (NOT_UNSAT_PRG, ["m1","m2"],":-     ##unsat(##m(m1),##m(m2)), ##volatile(##m(m1),##m(m2)).")
+  [(DO_HOLDS_AT_ZERO,       [],"""
+#show ##holds_at_zero(X) : ##holds(X,0)."""),
+   (DO_HOLDS,            ["m"],"""
+##holds(X,m) :- X = @getHolds()."""),
+   (OPEN_HOLDS,          ["m"],"""
+{ ##holds(X,m) } :- X = @getHolds().  
+{ ##holds(X,m) } :- X = @getNHolds()."""),
+   (VOLATILE_FACT, ["m1","m2"],"""
+##volatile(##m(m1),##m(m2))."""),
+   (VOLATILE_EXT,  ["m1","m2"],"""
+#external ##volatile(##m(m1),##m(m2))."""),
+   (DELETE_MODEL,           [],"""
+:- ##holds(X,0) : X = @getHolds(); not ##holds(X,0) : X = @getNHolds()."""),
+   (UNSAT_PRG,     ["m1","m2"],"""
+:- not ##unsat(##m(m1),##m(m2)), ##volatile(##m(m1),##m(m2))."""),
+   (NOT_UNSAT_PRG, ["m1","m2"],"""
+:-     ##unsat(##m(m1),##m(m2)), ##volatile(##m(m1),##m(m2)).""")
   ]
 
 
@@ -131,11 +140,11 @@ class Solver:
         except:
             return atuple
 
-    def cat(*args):
-        try:
-            return "".join(args)
-        except:
-            return args
+    def __cat(self, tuple):
+        if tuple.arguments:
+            return "".join([str(i) for i in tuple.arguments]).replace('"',"")
+        else:
+            return str(tuple)
 
     #
     # CLINGO PROXY
@@ -150,26 +159,41 @@ class Solver:
 
     def ground_preference_program(self):
         state, control, prev_step = self.state, self.control, self.state.step-1
-        control.ground([(DO_HOLDS,       [prev_step]),(PREFERENCE,    [0,prev_step]),
-                        (NOT_UNSAT_PRG,[0,prev_step]),(VOLATILE_EXT,[0,prev_step])],self)
+        control.ground([(DO_HOLDS,       [prev_step]),
+                        (PREFERENCE,     [0,prev_step]),
+                        (NOT_UNSAT_PRG,  [0,prev_step]),
+                        (VOLATILE_EXT,   [0,prev_step])],self)
         control.assign_external(self.get_volatile(0,prev_step),True)
 
+    #TODO: move to pp_parser when translation improved
+    def check_errors(self):
+        # get preference program errors
+        pr, control, u = printer.Printer(), self.control, self.underscores
+        for atom in control.symbolic_atoms.by_signature(u+"_error", 3):
+            string = "\nerror: " + self.__cat(atom.symbol.arguments[0]) + "\n"
+            pr.print_spec_error(string)
+            raise Exception("parsing failed")
 
     def on_model(self,model):
         self.holds, self.nholds, self.shown = [], [], []
         for a in model.symbols(shown=True):
-            if a.name == self.holds_at_zero_str: self.holds.append(a.arguments[0])
-            else:                                self.shown.append(a)
+            if a.name == self.holds_at_zero_str: 
+                self.holds.append(a.arguments[0])
+            else:
+                self.shown.append(a)
         #TODO: improve on nholds, we do not need it always
         for a in model.symbols(terms=True,complement=True):
-            if a.name == self.holds_at_zero_str: self.nholds.append(a.arguments[0])
+            if a.name == self.holds_at_zero_str: 
+                self.nholds.append(a.arguments[0])
 
 
     def solve(self):
         result = self.control.solve(on_model=self.on_model)
         self.solving_result = None
-        if result.satisfiable:     self.solving_result =   SATISFIABLE
-        elif result.unsatisfiable: self.solving_result = UNSATISFIABLE
+        if result.satisfiable:
+            self.solving_result = SATISFIABLE
+        elif result.unsatisfiable:
+            self.solving_result = UNSATISFIABLE
 
 
     def __symbol2str(self,symbol):
@@ -192,8 +216,9 @@ class Solver:
 
 
     def check_last_model(self):
-        if self.state.old_holds == self.holds and self.state.old_nholds == self.nholds:
-            raise Exception(SAME_MODEL)
+        if self.state.old_holds == self.holds and (
+           self.state.old_nholds == self.nholds):
+                raise Exception(SAME_MODEL)
         self.state.old_holds  = self.holds
         self.state.old_nholds = self.nholds
 
@@ -211,16 +236,20 @@ class Solver:
 
 
     def same_shown_underscores(self):
-        if set([i for i in self.old_shown if not str(i).startswith(self.underscores)]) == \
-           set([i for i in     self.shown if not str(i).startswith(self.underscores)]):
+        u = self.underscores
+        s1 = set([i for i in self.old_shown if not str(i).startswith(u)])
+        s2 = set([i for i in     self.shown if not str(i).startswith(u)])
+        if s1 == s2:
             self.enumerate_flag = True
             return True
         return False
 
 
     def on_model_enumerate(self,model):
-        self.shown = [ i for i in model.symbols(shown=True) if i.name != self.holds_at_zero_str ]
-        # self.state.same_shown_function is modified by EnumerationController at controller.py
+        true = model.symbols(shown=True)
+        self.shown = [ i for i in true if i.name != self.holds_at_zero_str ]
+        # self.state.same_shown_function is modified by EnumerationController 
+        # at controller.py
         if self.enumerate_flag or not self.state.same_shown_function():
             self.state.models     += 1
             self.state.opt_models += 1
@@ -230,15 +259,19 @@ class Solver:
 
     def enumerate(self):
         # models
-        control, old_models = self.control, self.control.configuration.solve.models
-        if self.state.max_models == 0: control.configuration.solve.models = 0
-        else:                          control.configuration.solve.models = self.state.max_models - self.state.opt_models
+        control    = self.control
+        old_models = self.control.configuration.solve.models
+        if self.state.max_models == 0: 
+            control.configuration.solve.models = 0
+        else:
+            control.configuration.solve.models = (self.state.max_models -                                                         self.state.opt_models)
         # assumptions
-        assumptions = [ (clingo.Function(self.holds_str,[x,0]),True)  for x in self.holds ] + \
-                      [ (clingo.Function(self.holds_str,[x,0]),False) for x in self.nholds]
+        h = self.holds_str
+        ass  = [ (clingo.Function(h, [x,0]), True)  for x in self.holds ]
+        ass += [ (clingo.Function(h, [x,0]), False) for x in self.nholds]
         # solve
         self.old_shown, self.enumerate_flag = self.shown, False
-        control.solve(assumptions,self.on_model_enumerate)
+        control.solve(ass, self.on_model_enumerate)
         self.shown = self.old_shown
         control.configuration.solve.models = old_models
 
@@ -259,9 +292,9 @@ class Solver:
 
 
     def end(self):
-        state = self.state
-        printer.Printer().print_stats(self.control,state.models,state.more_models,
-                                      state.opt_models,state.stats)
+        state, p = self.state, printer.Printer()
+        p.print_stats(self.control, state.models, state.more_models,
+                      state.opt_models,state.stats)
         raise EndException
 
 
@@ -278,11 +311,12 @@ class Solver:
     # RUN()
     #
 
-
+    # pre functions modify the state, and return a list of solver methods
     def register_pre(self,node,function):
         self.pre[node].append(function)
 
 
+    # post functions modify the state
     def register_post(self,node,function):
         self.post[node].append(function)
 
@@ -302,10 +336,15 @@ class Solver:
     def run(self):
 
         # controllers
-        controller.GeneralController(self,self.state)
-        controller.BasicMethodController(self,self.state)
-        controller.EnumerationController(self,self.state)
-        controller.GeneralControllerHandleOptimal(self,self.state)
+        controller.GeneralController(self, self.state)
+        controller.BasicMethodController(self, self.state)
+        controller.EnumerationController(self, self.state)
+        controller.GeneralControllerHandleOptimal(self, self.state)
+        controller.CheckerController(self, self.state)
+
+        for node in {START_LOOP}:
+            for i in self.post[node]:
+                print(i)
 
         # loop
         try:

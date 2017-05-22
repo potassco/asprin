@@ -44,7 +44,7 @@ class Printer:
             self.__check_messages(int(string.count("\n")/2))
 
     def print_error(self, location, string):
-        self.__print_error("{}error, {}".format(location,string))
+        self.__print_error("{}error: {}".format(location,string))
 
     def print_spec_error(self,string):
         self.__print_error(string)
@@ -58,7 +58,7 @@ class Printer:
     #
     # simply print
     #
-    def print(self, *args, **kwargs):
+    def do_print(self, *args, **kwargs):
         print(*args, **kwargs)
 
     #

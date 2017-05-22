@@ -4,6 +4,7 @@ import clingo
 import clingo.ast
 from collections import namedtuple
 from src.utils import utils
+from src.utils import printer
 
 #
 # DEFINES
@@ -20,6 +21,12 @@ UNSAT    = "unsat"
 SHOW     = "show"
 EDGE     = "edge"
 
+ERROR_PROJECT = """\
+error: syntax error, unexpected #project statement in {} program
+  {}\n"""
+ERROR_MINIMIZE = """\
+error: syntax error, unexpected clingo optimization statement in {} program
+  {}\n"""
 
 #
 # NAMED TUPLE
@@ -179,6 +186,10 @@ class PreferenceProgramTransformer(Transformer):
         self.visit(body)
         body.append(self.get_volatile_atom(location))
 
+    #TODO: collect many messages, and output them together
+    def __raise_exception(self, string):
+        printer.Printer().do_print(string)
+        raise Exception("parsing failed")
 
     #
     # Statements
@@ -239,8 +250,8 @@ class PreferenceProgramTransformer(Transformer):
 
 
     def visit_Minimize(self, min):
-        raise Exception("clingo optimization statements not allowed in " + 
-                        self.type + "programs: " + str(min))
+        string = ERROR_MINIMIZE.format(self.type, str(min))
+        self.__raise_exception(string)
 
 
     def visit_Script(self, script):
@@ -280,13 +291,13 @@ class PreferenceProgramTransformer(Transformer):
 
 
     def visit_ProjectAtom(self,atom):
-        raise Exception("clingo projection not allowed in " + 
-                        self.type + "programs: " + str(atom))
+        string = ERROR_PROJECT.format(self.type, str(atom))
+        self.__raise_exception(string)
 
 
     def visit_ProjectSignature(self, sig):
-        raise Exception("clingo projection not allowed in " + 
-                        self.type + "programs: " + str(atom))
+        string = ERROR_PROJECT.format(self.type, str(sig))
+        self.__raise_exception(string)
 
 
     #

@@ -1,7 +1,7 @@
 1 { a(X) : dom(X) }.
 1 { b(X) : dom(X) }.
 
-#preference(a,subset) { a(X) : dom(X) }. 
+#preference(a,subset) { a(X) : dom(X); **b }. 
 #preference(b,subset) { b(X) : dom(X) }.
 
 dom(1..2).
