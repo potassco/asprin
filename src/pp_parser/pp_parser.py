@@ -160,7 +160,7 @@ class Parser:
         for atom in control.symbolic_atoms.by_signature(underscores+GEN_DOM,2):
             args = atom.symbol.arguments
             for atom2 in control.symbolic_atoms.by_signature(str(args[0]),
-                                                             int(args[1])):
+                                                             int(str(args[1]))):
                 out += underscores + DOM + "(" + str(atom2.symbol) + ").\n"
         return out
 
@@ -254,6 +254,7 @@ class Parser:
             return
 
         # else add #show for atoms in base
+        # NOTE: without #show statements, csp variables are not shown
         show = "\n".join(["#show " + ("" if x[2] else "-") + x[0] + "/" +
                           str(x[1]) + "."
                           for x in self.__control.symbolic_atoms.signatures if

@@ -15,11 +15,17 @@ PPROGRAM   = "preference"
 HEURISTIC  = "heuristic"
 APPROX     = "approximation"
 WARNINGS   = "warnings"
- #
+
 # predicate names
-DOM        = "dom"           #from spec_parser
-GEN_DOM    = "gen_dom"       #from spec_parser
-PREFERENCE = "preference"    #from spec_parser
+DOM        = "dom" 
+GEN_DOM    = "gen_dom"
+VOLATILE   = "volatile"
+MODEL      = "m"
+HOLDS      = "holds" 
+HOLDSP     = "holds'"
+PREFERENCE = "preference"
+OPTIMIZE   = "optimize"
+UNSAT      = "unsat"
 
 # translation tokens
 HASH_SEM = "#sem"
@@ -54,7 +60,7 @@ class Capturer:
         out = ""
         for i in string.splitlines():
             printed = False
-            match = re.match(r'<block>:(\d+):(\d+)-(\d+:)?(\d+)(.*)',i)
+            match = re.match(r'<block>:(\d+):(\d+)-(\d+:)?(\d+): (.*)',i)
             if match:
                 # get parsing
                 error_line = int(match.group(1))

@@ -6,11 +6,9 @@
 
 from __future__ import print_function
 import clingo
-import pdb
 import controller
 from src.utils import printer
-import os
-import sys
+from src.utils import utils
 
 #
 # DEFINES
@@ -29,10 +27,10 @@ SATISFIABLE   = "SATISFIABLE"
 UNSATISFIABLE = "UNSATISFIABLE"
 
 # strings
+STR_ANSWER             = "Answer: {}"
 STR_OPTIMUM_FOUND      = "OPTIMUM FOUND"
 STR_OPTIMUM_FOUND_STAR = "OPTIMUM FOUND *"
 STR_UNSATISFIABLE      = "UNSATISFIABLE"
-
 # program names
 #ENCODINGS        = os.path.dirname(os.path.realpath(__file__)) + "/encodings.lp"
 DO_HOLDS_AT_ZERO = "do_holds_at_zero"
@@ -43,17 +41,21 @@ VOLATILE_EXT     = "volatile_external"
 DELETE_MODEL     = "delete_model"
 UNSAT_PRG        = "unsat"
 NOT_UNSAT_PRG    = "not_unsat"
-PREFERENCE       = "preference" #from pp_parser
+PPROGRAM         = utils.PPROGRAM
 
 # predicate and term names
-VOLATILE      = "volatile"      #from pp_parser
-MODEL         = "m"             #from pp_parser
-HOLDS         = "holds"
+VOLATILE      = utils.VOLATILE
+MODEL         = utils.MODEL
+HOLDS         = utils.HOLDS
+VOLATILE      = utils.VOLATILE
+UNSAT_ATOM    = utils.UNSAT
 HOLDS_AT_ZERO = "holds_at_zero"
 CSP           = "$"
 
 # exceptions
-SAME_MODEL = "same stable model computed twice, there is an error in the input (f.e., an incorrect or missing preference program)"
+SAME_MODEL = """\
+same stable model computed twice, there is an error in the input, \
+probably an incorrect preference program"""
 
 #
 # AUXILIARY PROGRAMS
@@ -62,22 +64,25 @@ SAME_MODEL = "same stable model computed twice, there is an error in the input (
 token    = "##"
 programs = \
   [(DO_HOLDS_AT_ZERO,       [],"""
-#show ##holds_at_zero(X) : ##holds(X,0)."""),
+#show ##holds_at_zero(X) : ##""" + HOLDS + """(X,0)."""),
    (DO_HOLDS,            ["m"],"""
-##holds(X,m) :- X = @getHolds()."""),
+##""" + HOLDS + """(X,m) :- X = @getHolds()."""),
    (OPEN_HOLDS,          ["m"],"""
-{ ##holds(X,m) } :- X = @getHolds().  
-{ ##holds(X,m) } :- X = @getNHolds()."""),
+{ ##""" + HOLDS + """(X,m) } :- X = @getHolds().  
+{ ##""" + HOLDS + """(X,m) } :- X = @getNHolds()."""),
    (VOLATILE_FACT, ["m1","m2"],"""
-##volatile(##m(m1),##m(m2))."""),
+##""" + VOLATILE + """(##m(m1),##m(m2))."""),
    (VOLATILE_EXT,  ["m1","m2"],"""
-#external ##volatile(##m(m1),##m(m2))."""),
+#external ##""" + VOLATILE + """(##m(m1),##m(m2))."""),
    (DELETE_MODEL,           [],"""
-:- ##holds(X,0) : X = @getHolds(); not ##holds(X,0) : X = @getNHolds()."""),
+:-     ##""" + HOLDS + """(X,0) : X = @getHolds(); 
+   not ##""" + HOLDS + """(X,0) : X = @getNHolds()."""),
    (UNSAT_PRG,     ["m1","m2"],"""
-:- not ##unsat(##m(m1),##m(m2)), ##volatile(##m(m1),##m(m2))."""),
+:- not ##""" + UNSAT_ATOM + """(##m(m1),##m(m2)),
+       ##""" +   VOLATILE + """(##m(m1),##m(m2))."""),
    (NOT_UNSAT_PRG, ["m1","m2"],"""
-:-     ##unsat(##m(m1),##m(m2)), ##volatile(##m(m1),##m(m2)).""")
+:-     ##""" + UNSAT_ATOM + """(##m(m1),##m(m2)),
+       ##""" +   VOLATILE + """(##m(m1),##m(m2)).""")
   ]
 
 
@@ -100,7 +105,7 @@ class State:
 
 class Solver:
 
-    def __init__(self,control,underscores):
+    def __init__(self, control, underscores):
         # parameters
         self.control           = control
         self.underscores       = underscores
@@ -115,18 +120,26 @@ class Solver:
         # others
         self.state             = State()
         self.state.max_models  = 1
+        self.state.old_holds   = None
+        self.state.old_nholds  = None
         self.shown             = []
         self.solving_result    = None
-        self.pre  = dict([(START,[]),(START_LOOP,[]),(SOLVE,[]),(SAT,[]),(UNSAT,[]),(UNKNOWN,[]),(END_LOOP,[]),(END,[])])
-        self.post = dict([(START,[]),(START_LOOP,[]),(SOLVE,[]),(SAT,[]),(UNSAT,[]),(UNKNOWN,[]),(END_LOOP,[]),(END,[])])
+        l = [START, START_LOOP, SOLVE, SAT, UNSAT, UNKNOWN, END_LOOP, END]
+        self.pre  = dict([(i, []) for i in l])
+        self.post = dict([(i, []) for i in l])
+        self.externals = dict()
 
     #
     # AUXILIARY
     #
-    def get_volatile(self,m1,m2):
-        return clingo.Function(self.volatile_str,[
-               clingo.Function(self.model_str,[int(m1)]),
-               clingo.Function(self.model_str,[int(m2)])])
+    def get_external(self, m1, m2):
+        external = self.externals.get((m1,m2))
+        if external is None:
+            f1 = clingo.Function(self.model_str, [int(m1)])
+            f2 = clingo.Function(self.model_str, [int(m2)])
+            external = clingo.Function(self.volatile_str, [f1, f2])
+            self.externals[(m1,m2)] = external
+        return external
 
     def getHolds(self):
         return self.holds
@@ -160,30 +173,36 @@ class Solver:
     def ground_preference_program(self):
         state, control, prev_step = self.state, self.control, self.state.step-1
         control.ground([(DO_HOLDS,       [prev_step]),
-                        (PREFERENCE,     [0,prev_step]),
+                        (PPROGRAM,     [0,prev_step]),
                         (NOT_UNSAT_PRG,  [0,prev_step]),
                         (VOLATILE_EXT,   [0,prev_step])],self)
-        control.assign_external(self.get_volatile(0,prev_step),True)
+        control.assign_external(self.get_external(0,prev_step),True)
+
 
     #TODO: move to pp_parser when translation improved
     def check_errors(self):
         # get preference program errors
         pr, control, u = printer.Printer(), self.control, self.underscores
+        error = False 
         for atom in control.symbolic_atoms.by_signature(u+"_error", 3):
-            string = "\nerror: " + self.__cat(atom.symbol.arguments[0]) + "\n"
+            string = "\nerror: " + self.__cat(atom.symbol.arguments[0])
             pr.print_spec_error(string)
+            error = True
+        if error:
+            print("")
             raise Exception("parsing failed")
 
-    def on_model(self,model):
+
+    def on_model(self, model):
         self.holds, self.nholds, self.shown = [], [], []
         for a in model.symbols(shown=True):
-            if a.name == self.holds_at_zero_str: 
+            if a.name == self.holds_at_zero_str:
                 self.holds.append(a.arguments[0])
             else:
                 self.shown.append(a)
         #TODO: improve on nholds, we do not need it always
-        for a in model.symbols(terms=True,complement=True):
-            if a.name == self.holds_at_zero_str: 
+        for a in model.symbols(terms=True, complement=True):
+            if a.name == self.holds_at_zero_str:
                 self.nholds.append(a.arguments[0])
 
 
@@ -203,8 +222,8 @@ class Solver:
 
 
     def print_shown(self):
-        print("Answer: {}".format(self.state.models))
-        print(" ".join(map(self.__symbol2str,self.shown)))
+        print(STR_ANSWER.format(self.state.models))
+        print(" ".join(map(self.__symbol2str, self.shown)))
 
 
     def print_optimum_string(self):
@@ -216,8 +235,9 @@ class Solver:
 
 
     def check_last_model(self):
-        if self.state.old_holds == self.holds and (
+        if self.state.old_holds  == self.holds and (
            self.state.old_nholds == self.nholds):
+                printer.Printer().do_print()
                 raise Exception(SAME_MODEL)
         self.state.old_holds  = self.holds
         self.state.old_nholds = self.nholds
@@ -225,7 +245,7 @@ class Solver:
 
     def relax_previous_model(self):
         state, control = self.state, self.control
-        control.release_external(self.get_volatile(0,state.step-1))
+        control.release_external(self.get_external(0,state.step-1))
 
 
     def same_shown(self):
@@ -279,15 +299,15 @@ class Solver:
     def relax_previous_models(self):
         state, control = self.state, self.control
         for i in range(state.start_step,state.step):
-            control.release_external(self.get_volatile(0,i))
+            control.release_external(self.get_external(0,i))
 
 
     def handle_optimal_models(self):
         state, control, prev_step = self.state, self.control, self.state.step-1
-        preference   = [(PREFERENCE,   [prev_step,0])]
-        unsat        = [(UNSAT_PRG,    [prev_step,0])]
-        delete_model = [(DELETE_MODEL,            [])]
-        volatile     = [(VOLATILE_FACT,[prev_step,0])]
+        preference   = [(PPROGRAM,      [prev_step,0])]
+        unsat        = [(UNSAT_PRG,     [prev_step,0])]
+        delete_model = [(DELETE_MODEL,             [])]
+        volatile     = [(VOLATILE_FACT, [prev_step,0])]
         control.ground(preference + unsat + delete_model + volatile,self)
 
 
@@ -311,53 +331,46 @@ class Solver:
     # RUN()
     #
 
-    # pre functions modify the state, and return a list of solver methods
-    def register_pre(self,node,function):
-        self.pre[node].append(function)
-
-
-    # post functions modify the state
-    def register_post(self,node,function):
-        self.post[node].append(function)
-
-
-    def action(self,node):
-        actions = []
-        for i in self.pre[node]:
-            ret = i()
-            if ret != None: actions += ret
-        for i in actions:
-            #print(i)
-            i()
-        for i in self.post[node]:
-            i()
-
-
     def run(self):
 
         # controllers
-        controller.GeneralController(self, self.state)
-        controller.BasicMethodController(self, self.state)
-        controller.EnumerationController(self, self.state)
-        controller.GeneralControllerHandleOptimal(self, self.state)
-        controller.CheckerController(self, self.state)
-
-        for node in {START_LOOP}:
-            for i in self.post[node]:
-                print(i)
+        general = controller.GeneralController(self, self.state)
+        optimal = controller.GeneralControllerHandleOptimal(self, self.state)
+        basic = controller.BasicMethodController(self, self.state)
+        enumeration = controller.EnumerationController(self, self.state)
+        checker = controller.CheckerController(self, self.state)
 
         # loop
         try:
-            self.action(START)
+            # START
+            general.start()
             print("Solving...")
             while True:
-                self.action(START_LOOP)
-                self.action(SOLVE)
-                if   self.solving_result ==   SATISFIABLE: self.action(SAT)
-                elif self.solving_result == UNSATISFIABLE: self.action(UNSAT)
-                else:                                      self.action(UNKNOWN)
-                self.action(END_LOOP)
-        except RuntimeError as e: print("ERROR (clingo): {}".format(e))
-        except EndException as e: self.action(END)
+                # START_LOOP
+                basic.start_loop()
+                checker.start_loop()
+                # SOLVE
+                general.solve()
+                if self.solving_result == SATISFIABLE:
+                    # SAT
+                    general.sat()
+                elif self.solving_result == UNSATISFIABLE:
+                    # UNSAT
+                    general.unsat()
+                    basic.unsat()
+                    enumeration.unsat()
+                    optimal.unsat()
+                    # UNSAT_POST
+                    general.unsat_post()
+                else:
+                    # UNKNOWN
+                    pass
+                # END_LOOP
+                general.end_loop()
+        except RuntimeError as e: 
+            print("ERROR (clingo): {}".format(e))
+        except EndException as e: 
+            # END
+            pass
 
 

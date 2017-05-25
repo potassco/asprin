@@ -4,7 +4,8 @@ from src.utils import utils
 import sys
 
 BASE = utils.BASE
-WARNING_INCLUDED_FILE="<cmd>: warning: already included file:\n  {}\n"
+WARNING_INCLUDED_FILE = "<cmd>: warning: already included file:\n  {}\n"
+ERROR_INCLUDED_FILE = "file could not be opened:\n  {}\n"
 MESSAGE_LIMIT = 20
 TOO_MANY = "too many messages."
 
@@ -52,8 +53,11 @@ class Printer:
     def warning_included_file(self,file,loc=None):
         warning = WARNING_INCLUDED_FILE 
         if loc: 
-            warning = warning.replace("<cmd>:",loc)
+            warning = warning.replace("<cmd>: ",str(loc))
         self.__print_warning(warning.format(file))
+
+    def error_included_file(self, file, loc):
+        self.print_error(loc, ERROR_INCLUDED_FILE.format(file))
 
     #
     # simply print

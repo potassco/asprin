@@ -97,29 +97,42 @@ There is NO WARRANTY, to the extent permitted by law."""
 
         # command parser
         _epilog = self.clingo_help + "\nusage: " + self.usage + self.epilog
-        cmd_parser = MyArgumentParser(
-            usage=self.usage,epilog=_epilog,formatter_class=argparse.RawDescriptionHelpFormatter,
+        cmd_parser = MyArgumentParser(usage=self.usage, epilog=_epilog,
+            formatter_class=argparse.RawDescriptionHelpFormatter,
             add_help=False)
 
         # Basic Options
         basic = cmd_parser.add_argument_group('Basic Options')
-        basic.add_argument('-h','--help',action='help',help=': Print help and exit')
-        basic.add_argument('-v','--version',dest='version',action='store_true',help=': Print version information and exit')
-        basic.add_argument('--print-programs',dest='print-programs',help=': Print translated programs and exit',action='store_true')
-        #basic.add_argument('-',dest='read_stdin',action='store_true',help=argparse.SUPPRESS)
-        basic.add_argument('--stats',dest='stats',action='store_true',help=': Print statistics')
-        basic.add_argument('--no-asprin-lib',dest='asprin-lib',help=': Do not include asprin.lib',action='store_false')
-        basic.add_argument('-c','--const',dest='constants',action="append",help=argparse.SUPPRESS,default=[])
+        basic.add_argument('-h', '--help', action='help',
+                           help=': Print help and exit')
+        basic.add_argument('-v', '--version', dest='version',
+                           action='store_true',
+                           help=': Print version information and exit')
+        basic.add_argument('--print-programs', dest='print-programs',
+                           help=': Print translated programs and exit',
+                           action='store_true')
+        #basic.add_argument('-', dest='read_stdin', action='store_true',
+        #                   help=argparse.SUPPRESS)
+        basic.add_argument('--stats', dest='stats', action='store_true',
+                           help=': Print statistics')
+        basic.add_argument('--no-asprin-lib', dest='asprin-lib',
+                           help=': Do not include asprin.lib',
+                           action='store_false')
+        basic.add_argument('-c', '--const', dest='constants', 
+                           action="append", help=argparse.SUPPRESS,default=[])
 
         # Solving Options
         solving = cmd_parser.add_argument_group('Solving Options')
-        solving.add_argument(
-            '--models','-n',help=": Compute at most <n> models (0 for all)",
-            type=int,dest='max_models',metavar='<n>',default=1)
-        solving.add_argument(
-            '--steps','-s',help=": Execute at most <s> steps",
-            type=int,dest='steps',metavar='<s>',default=0)
-        solving.add_argument('--project',dest='project',help=': Enable projective solution enumeration',action='store_true')
+        solving.add_argument('--models', '-n',
+                             help=": Compute at most <n> models (0 for all)",
+                             type=int, dest='max_models', metavar='<n>',
+                             default=1)
+        solving.add_argument('--steps', '-s', 
+                             help=": Execute at most <s> steps", type=int,
+                             dest='steps', metavar='<s>', default=0)
+        solving.add_argument('--project', dest='project',
+                             help=': Enable projective solution enumeration',
+                             action='store_true')
 
         options, unknown = cmd_parser.parse_known_args()
         options = vars(options)
@@ -132,10 +145,14 @@ There is NO WARRANTY, to the extent permitted by law."""
         # separate files, number of models and clingo options
         options['files'], clingo_options = [], []
         for i in unknown:
-            if i=="-":                                   self.__add_file(options['files'],i)
-            elif (re.match(r'^([0-9]|[1-9][0-9]+)$',i)): options['max_models'] = int(i)
-            elif (re.match(r'^-',i)):                    clingo_options.append(i)
-            else:                                        self.__add_file(options['files'],i)
+            if i=="-":                                   
+                self.__add_file(options['files'],i)
+            elif (re.match(r'^([0-9]|[1-9][0-9]+)$',i)): 
+                options['max_models'] = int(i)
+            elif (re.match(r'^-',i)):                    
+                clingo_options.append(i)
+            else:                                        
+                self.__add_file(options['files'],i)
 
         # when no files, add stdin
         # build prologue
@@ -144,7 +161,8 @@ There is NO WARRANTY, to the extent permitted by law."""
             options['files'].append(("-","-"))
         if len(options['files'])>1: 
             self.__first_file += " ..."
-        prologue = "asprin version " + VERSION + "\nReading from " + self.__first_file
+        prologue = "asprin version " + VERSION + "\nReading from " 
+        prologue += self.__first_file
 
         # handle constants
         constants = dict()
@@ -162,7 +180,8 @@ There is NO WARRANTY, to the extent permitted by law."""
         clingo_options.append('--stats')
 
         # return
-        return options, clingo_options, self.underscores, prologue, self.__file_warnings
+        return options, clingo_options, self.underscores, prologue, \
+               self.__file_warnings
 
 
 
@@ -186,8 +205,9 @@ class Asprin:
 
     def run(self):
 
-        # arguments parsing
-        options, clingo_options, underscores, prologue, warnings = AsprinArgumentParser().run()
+        # arguments parsing 
+        aap = AsprinArgumentParser()
+        options, clingo_options, underscores, prologue, warnings = aap.run()
 
         # create Control object
         control = self.__get_control(clingo_options)
@@ -198,8 +218,9 @@ class Asprin:
             printer.Printer().warning_included_file(i)
 
         # specification parsing
-        self.spec_parser = spec_parser.Parser(underscores)
-        programs, underscores, base_constants, options['show'] = self.spec_parser.parse_files(options)
+        sp = spec_parser.Parser(underscores)
+        programs, underscores, base_constants, options['show'] = \
+                                           sp.parse_files(options)
         self.__update_constants(options,base_constants)
 
         # preference programs parsing

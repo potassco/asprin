@@ -26,7 +26,6 @@ APPROX     = utils.APPROX
 # predicate names
 DOM        = utils.DOM
 GEN_DOM    = utils.GEN_DOM
-PREFERENCE = utils.PREFERENCE
 
 # translation tokens
 HASH_SEM   = utils.HASH_SEM
@@ -45,6 +44,7 @@ PREFERENCE   = "PREFERENCE"
 OPTIMIZE     = "OPTIMIZE"
 STDIN        = "-"
 END          = "end."
+CLINGOPATH   = "CLINGOPATH"
 ASPRIN_LIB   = "asprin.lib"
 ASPRIN_LIB_RELATIVE = os.path.dirname(__file__) + "/../../" + ASPRIN_LIB
 # WARNING: ASPRIN_LIB_RELATIVE must be changed if 
@@ -168,7 +168,7 @@ class Parser(object):
         # add elements of the list
         for i in self.list:
             if i[0] == CODE:
-                code = i[1] 
+                code = i[1]
                 # if base: add END to mark the end of the code
                 if program == BASE and type == EMPTY:
                     code += underscores + END
@@ -209,21 +209,37 @@ class Parser(object):
         fd.close()
 
 
+    def __search_in_clingopath(self, file):
+        path = os.environ.get(CLINGOPATH)
+        if path is None:
+            return None
+        full = os.path.join(os.path.dirname(path), file)
+        if not os.path.isfile(full):
+            return None
+        return file
+
+
     def __parse_included_files(self, files):
         while True:
             included, self.included = self.included, []
             for i in included: # (filename, fileorigin)
-                if os.path.isfile(i[0]):
-                    file = i[0]
-                else:
+                file = i[0]
+                if not os.path.isfile(file): # look in the directory
                     file = os.path.join(os.path.dirname(i[1]), i[0])
+                    if not os.path.isfile(file): # look in CLINGOPATH
+                        file = self.__search_in_clingopath(i[0])
+                        if file is None:
+                            self.printer.error_included_file(i[0], i[2])
+                            self.error = True
+                            continue
                 abs_file = os.path.abspath(file)
                 if abs_file in [j[1] for j in files]: 
                     self.printer.warning_included_file(file, i[2])
                 else:
                     files.append((file, abs_file))
                     self.__parse_file(file)
-            if self.included == []: return
+            if self.included == []:
+                return
 
 
     #
@@ -919,15 +935,10 @@ class Parser(object):
 
     def p_statement_5(self,p):
         """ statement : INCLUDE STRING DOT
-                      | INCLUDE LT identifier GT DOT
         """
         location = self.__get_location(p,1,len(p)-1)
-        if len(p)==4:
-            # (file name included, current file name, location)
-            self.included.append((p[2][1:-1],self.filename,location))
-        else:
-            line = "#include <{}>.".format(ast.ast2str(p[3]))
-            self.list.append((CODE, line, location.get_position()))
+        # (file name included, current file name, location)
+        self.included.append((p[2][1:-1],self.filename,location))
 
 
     #

@@ -10,22 +10,39 @@ from src.utils import printer
 # DEFINES
 #
 
-BASE     = "base"
-PPROGRAM = "preference"
-MODEL    = "m"
+# programs
+BASE     = utils.BASE
+PPROGRAM = utils.PPROGRAM
+
+# predicate names
+VOLATILE   = utils.VOLATILE
+HOLDS      = utils.HOLDS
+HOLDSP     = utils.HOLDSP
+PREFERENCE = utils.PREFERENCE
+OPTIMIZE   = utils.OPTIMIZE
+UNSAT      = utils.UNSAT
+
+# others
+MODEL    = utils.MODEL
 M1       = "m1"
 M2       = "m2"
 M1_M2    = "m1_m2"
-VOLATILE = "volatile"
-UNSAT    = "unsat"
 SHOW     = "show"
 EDGE     = "edge"
+
+### CONTINUE HERE!!!!
 
 ERROR_PROJECT = """\
 error: syntax error, unexpected #project statement in {} program
   {}\n"""
 ERROR_MINIMIZE = """\
 error: syntax error, unexpected clingo optimization statement in {} program
+  {}\n"""
+ERROR_DISJOINT = """\
+error: syntax error, unexpected disjoint atom in {} program
+  {}\n"""
+ERROR_CSPLITERAL = """\
+error: syntax error, unexpected csp literal in {} program
   {}\n"""
 
 #
@@ -115,11 +132,11 @@ class TermTransformer(Transformer):
     def __init__(self,underscores=""):
         Transformer.__init__(self,underscores)
         self.predicate_infos = dict([
-            (("holds",1),      PredicateInfo(None,False,0,M1,1)),
-            (("holds'",1),     PredicateInfo("holds",False,0,M2,1)),
-            (("optimize",1),   PredicateInfo(None,True,0,None,0)),
-            (("preference",2), PredicateInfo(None,True,0,None,0)),
-            (("preference",5), PredicateInfo(None,True,0,None,0))])
+            ((HOLDS,1),      PredicateInfo(None,False,0,M1,1)),
+            ((HOLDSP,1),     PredicateInfo(HOLDS,False,0,M2,1)),
+            ((OPTIMIZE,1),   PredicateInfo(None,True,0,None,0)),
+            ((PREFERENCE,2), PredicateInfo(None,True,0,None,0)),
+            ((PREFERENCE,5), PredicateInfo(None,True,0,None,0))])
         self.default = PredicateInfo(None,False,1,M1_M2,2)
 
 
@@ -321,11 +338,23 @@ class PreferenceProgramTransformer(Transformer):
             i.condition.append(self.get_volatile_atom(b.location))
         return b
 
-
+    # disjoint atoms are not accepted
     def visit_Disjoint(self,d):
-        self.visit_children(d)
-        for i in d.elements:
-            i.condition.append(self.get_volatile_atom(i.location))
-        return d
+        string = ERROR_DISJOINT.format(self.type, str(d))
+        self.__raise_exception(string)
+        #self.visit_children(d)
+        #for i in d.elements:
+        #    i.condition.append(self.get_volatile_atom(i.location))
+        #return d
 
+    # csp literals are not accepted
+    def visit_CSPLiteral(self,csp):
+        string = ERROR_CSPLITERAL.format(self.type, str(csp))
+        self.__raise_exception(string)
+    
+    def visit_TheoryAtom(self,th):
+        self.visit_children(th)
+        for i in th.elements:
+            i.condition.append(self.get_volatile_atom(th.location))
+        return b
 
