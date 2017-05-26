@@ -147,7 +147,7 @@ class Solver:
     def getNHolds(self):
         return self.nholds
 
-    def head(atuple):
+    def head(self, atuple):
         try:
             return atuple.arguments[0]
         except:

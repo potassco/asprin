@@ -50,6 +50,11 @@ ASPRIN_LIB_RELATIVE = os.path.dirname(__file__) + "/../../" + ASPRIN_LIB
 # WARNING: ASPRIN_LIB_RELATIVE must be changed if 
 #          asprin.lib location relative to this file changes
 
+# clingo minimize statements
+MINIMIZE_NAME = "clingo"
+MINIMIZE_TYPE = "less(weight)"
+MAXIMIZE_TYPE = "more(weight)"
+MAXIMIZE      = "#maximize"
 
 #
 # Program
@@ -939,6 +944,67 @@ class Parser(object):
         location = self.__get_location(p,1,len(p)-1)
         # (file name included, current file name, location)
         self.included.append((p[2][1:-1],self.filename,location))
+
+    #
+    # CLINGO OPTIMIZE STATEMENT
+    #
+
+    def p_statement_6(self,p):
+        """ statement : MINIMIZE LBRACE RBRACE DOT
+                      | MAXIMIZE LBRACE RBRACE DOT
+                      | MINIMIZE LBRACE min_elem_list RBRACE DOT 
+                      | MAXIMIZE LBRACE min_elem_list RBRACE DOT 
+        """
+        # create preference statement
+        s = ast.PStatement()
+        self.p_statements += 1
+        s.number = self.p_statements
+        s.name     = MINIMIZE_NAME
+        s.type     = MINIMIZE_TYPE
+        if p[1] == MAXIMIZE:
+            s.type = MAXIMIZE_TYPE
+        s.elements = p[3] if len(p) == 6 else []
+        s.body     = None
+        self.list.append((PREFERENCE,s)) # appends to self.list
+        # restart element
+        self.element = ast.Element()
+        # error if not in base
+        if self.program != BASE:
+            self.__syntax_error(p,1,len(p)-1,ERROR_PREFERENCE)
+        # add optimize statement
+        s = ast.OStatement()
+        s.name     = MINIMIZE_NAME
+        s.body     = None
+        self.list.append((OPTIMIZE,s)) # appends to self.list
+
+
+    def p_min_elem_list(self,p):
+        """ min_elem_list : min_elem_list SEM min_weighted_body
+                          |                   min_weighted_body
+        """
+        # set self.element values & append to elem_list
+        if len(p) == 4:
+            self.element.sets = [[p[3]]]
+            self.element.cond = []
+            self.element.body = None
+            p[0] = p[1] + [self.element]
+        else:
+            self.element.sets = [[p[1]]]
+            self.element.cond = [] 
+            self.element.body = None
+            p[0] = [self.element]
+        # restart element
+        self.element = ast.Element()
+
+    def p_min_weighted_body_1(self,p):
+        """ min_weighted_body : ntermvec COLON bfvec_x
+        """
+        p[0] = ast.WBody(p[1],p[3])
+
+    def p_min_weighted_body_2(self,p):
+        """ min_weighted_body : ntermvec COLON
+        """
+        p[0] = ast.WBody(p[1],[["ext_atom",["true",["#true"]]]])
 
 
     #

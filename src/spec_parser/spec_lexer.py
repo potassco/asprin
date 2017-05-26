@@ -155,6 +155,8 @@ class Lexer(object):
         'XOR',
         'BNOT',
         'QUESTION',
+        'MINIMIZE',
+        'MAXIMIZE',
         'NEVER', # never reachable token
         'IF',    # added to expressions with NEVER to avoid warning
     )
@@ -204,6 +206,8 @@ class Lexer(object):
     t_XOR	    = r'\^'
     t_BNOT	    = r'\~'
     t_QUESTION	= r'\?'
+    t_MINIMIZE = r'\#minimize'
+    t_MAXIMIZE = r'\#maximize'
 
 
     #
@@ -296,7 +300,7 @@ class Lexer(object):
 
     # push INITIAL state, reset lexer lexpos, and return CODE
     def t_normal_DIRECTIVE(self, t):
-        r'(\#preference)|(\#optimize)|(\#program)|(\#const)|(\#include)'
+        r'(\#preference)|(\#optimize)|(\#program)|(\#const)|(\#include)|(\#minimize)|(\#maximize)'
         t.lexer.push_state('INITIAL')
         t.value = t.lexer.lexdata[self.__code_start:t.lexpos]
         t.type = 'CODE'
