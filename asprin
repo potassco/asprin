@@ -10,11 +10,11 @@ import argparse
 import sys
 import clingo
 import os
-from src.spec_parser import spec_parser
-from src.pp_parser   import   pp_parser
-from src.solver      import      solver
-from src.utils       import     printer
-from src.utils       import       utils
+from src.spec_parser    import    spec_parser
+from src.program_parser import program_parser
+from src.solver         import         solver
+from src.utils          import        printer
+from src.utils          import          utils
 import errno
 
 #
@@ -224,7 +224,7 @@ class Asprin:
         self.__update_constants(options,base_constants)
 
         # preference programs parsing
-        pp_parser.Parser(control,programs,options,underscores).parse()
+        program_parser.Parser(control,programs,options,underscores).parse()
 
         # solving
         _solver = solver.Solver(control,underscores)

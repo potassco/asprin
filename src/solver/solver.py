@@ -179,7 +179,7 @@ class Solver:
         control.assign_external(self.get_external(0,prev_step),True)
 
 
-    #TODO: move to pp_parser when translation improved
+    #TODO: move to program_parser when translation improved
     def check_errors(self):
         # get preference program errors
         pr, control, u = printer.Printer(), self.control, self.underscores

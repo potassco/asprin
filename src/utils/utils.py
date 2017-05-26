@@ -35,7 +35,7 @@ HASH_SEM = "#sem"
 # classes
 #
 
-# check pp_parser for an usage example
+# check program_parser for an usage example
 class Capturer:
     
     def __init__(self,stdx):
