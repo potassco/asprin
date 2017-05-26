@@ -153,6 +153,12 @@ class Solver:
         except:
             return atuple
 
+    def second(self, atuple):
+        try:
+            return atuple.arguments[1]
+        except:
+            return atuple
+
     def __cat(self, tuple):
         if tuple.arguments:
             return "".join([str(i) for i in tuple.arguments]).replace('"',"")

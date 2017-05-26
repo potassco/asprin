@@ -577,3 +577,52 @@ error(("superset: In preference element ",N," of preference statement ",P,", ele
              preference(P,(N,_),R,for(X),_), R != 1.
 
 
+#program preference(clingo_minimize).
+
+level(P,L) :- preference(P,clingo_minimize), preference(P,_,_,_,T), L = @second(T).
+           
+better(P) :- preference(P,clingo_minimize),
+             level(P,L), better(P,L), 
+             eq(P,LL) : level(P,LL), LL>L.
+
+bettereq(P) :- better(P), preference(P,clingo_minimize).
+bettereq(P) :-     eq(P), preference(P,clingo_minimize).
+
+eq(P) :- preference(P,clingo_minimize),
+         eq(P,L) : level(P,LL).
+           
+worseeq(P) :-    eq(P), preference(P,clingo_minimize).
+worseeq(P) :- worse(P), preference(P,clingo_minimize).
+           
+worse(P) :- preference(P,clingo_minimize),
+           level(P,L), worse(P,L), 
+           eq(P,LL) : level(P,LL), LL>L.
+           
+better(P,L) :- preference(P,clingo_minimize), required(P,better), level(P,L),
+  1 #sum { -W,T : holds(X),  preference(P,_,_,for(X),T), W = @head(T), L=@second(T); 
+            W,T : holds'(X), preference(P,_,_,for(X),T), W = @head(T), L=@second(T)}.
+
+bettereq(P,L) :- preference(P,clingo_minimize), required(P,better), level(P,L),
+  0 #sum { -W,T : holds(X),  preference(P,_,_,for(X),T), W = @head(T), L=@second(T); 
+            W,T : holds'(X), preference(P,_,_,for(X),T), W = @head(T), L=@second(T)}.
+
+eq(P,L) :- preference(P,clingo_minimize), required(P,better), level(P,L),
+  0 #sum { -W,T : holds(X),  preference(P,_,_,for(X),T), W = @head(T), L=@second(T); 
+            W,T : holds'(X), preference(P,_,_,for(X),T), W = @head(T), L=@second(T)}0.
+
+worseeq(P,L) :- preference(P,clingo_minimize), required(P,better), level(P,L),
+  #sum { -W,T : holds(X),  preference(P,_,_,for(X),T), W = @head(T), L=@second(T); 
+          W,T : holds'(X), preference(P,_,_,for(X),T), W = @head(T), L=@second(T)}0.
+           
+worse(P,L) :- preference(P,clingo_minimize), required(P,better), level(P,L),
+  #sum { -W,T : holds(X),  preference(P,_,_,for(X),T), W = @head(T), L=@second(T); 
+          W,T : holds'(X), preference(P,_,_,for(X),T), W = @head(T), L=@second(T)}-1.
+
+error(("clingo_minimize: In preference element ",N," of preference statement ",P,", naming atom 'name(",X,")' is not allowed.")) :- 
+             preference(P,clingo_minimize), 
+             preference(P,(N,_),_,name(X),_).
+
+error(("clingo_minimize: In preference element ",N," of preference statement ",P,", element '",X,"' is not allowed.")) :- 
+             preference(P,clingo_minimize), 
+             preference(P,(N,_),R,for(X),_), R != 1.
+

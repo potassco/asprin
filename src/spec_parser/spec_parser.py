@@ -54,7 +54,7 @@ ASPRIN_LIB_RELATIVE = os.path.dirname(__file__) + "/../../" + ASPRIN_LIB
 
 # clingo minimize statements
 MINIMIZE_NAME = "clingo"
-MINIMIZE_TYPE = "less(weight)"
+MINIMIZE_TYPE = "clingo_minimize"
 
 #
 # Program
