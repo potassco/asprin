@@ -36,6 +36,8 @@ ERROR_PREFERENCE = ERROR_PREFIX + "preference statement in non base program\n"
 ERROR_OPTIMIZE  = ERROR_PREFIX + "optimize statement in non base program\n"
 ERROR_PREFERENCE_NAME = ERROR_PREFIX + "incorrect preference name\n"
 ERROR_SYNTAX = ERROR_PREFIX + "unexpected {}\n"
+ERROR_CLINGO_STATEMENT = ERROR_PREFIX + """\
+clingo optimize statement mixed with a preference specification\n"""
 
 # more
 PROGRAM      = "PROGRAM"
@@ -53,8 +55,6 @@ ASPRIN_LIB_RELATIVE = os.path.dirname(__file__) + "/../../" + ASPRIN_LIB
 # clingo minimize statements
 MINIMIZE_NAME = "clingo"
 MINIMIZE_TYPE = "less(weight)"
-MAXIMIZE_TYPE = "more(weight)"
-MAXIMIZE      = "#maximize"
 
 #
 # Program
@@ -114,10 +114,22 @@ class Parser(object):
         self.filename    = None
         self.program     = None
 
+        # clingo optimize statements
+        self.preference_statement = False
+        self.clingo_statement     = False
+
 
     #
     # AUXILIARY FUNCTIONS
     #
+
+    def __handle_clingo_statements(self, preference, p, init, end):
+        if preference:
+            self.preference_statement = True
+        else:
+            self.clingo_statement = True
+        if self.preference_statement and self.clingo_statement:
+            self.__syntax_error(p, init, end, ERROR_CLINGO_STATEMENT)
 
 
     def __get_col(self, data, pos):
@@ -355,7 +367,7 @@ class Parser(object):
     # PROGRAM
     #
 
-    def p_program(self,p):
+    def p_program(self, p):
         """ program : program statement change_state CODE
                     | CODE
         """
@@ -365,12 +377,12 @@ class Parser(object):
         elif len(p) == 2: 
             self.list.append((CODE,p[1],self.position))
 
-    def p_program_error(self,p):
+    def p_program_error(self, p):
         """ statement : error DOT
         """
         self.__syntax_error(p,1,1,ERROR_SYNTAX.format(p[1].value))
 
-    def p_change_state(self,p):
+    def p_change_state(self, p):
         """ change_state :
         """
         p.lexer.pop_state()
@@ -385,9 +397,11 @@ class Parser(object):
     # PREFERENCE STATEMENT
     #
 
-    def p_statement_1(self,p):
-        """ statement : PREFERENCE LPAREN term COMMA term RPAREN LBRACE elem_list RBRACE body DOT
-                      | PREFERENCE LPAREN term COMMA term RPAREN LBRACE           RBRACE body DOT
+    def p_statement_1(self, p):
+        """ statement : PREFERENCE LPAREN term COMMA term RPAREN \
+                        LBRACE elem_list RBRACE body DOT
+                      | PREFERENCE LPAREN term COMMA term RPAREN \
+                        LBRACE           RBRACE body DOT
         """
         # create preference statement
         s = ast.PStatement()
@@ -403,20 +417,21 @@ class Parser(object):
         # error if not in base
         if self.program != BASE:
             self.__syntax_error(p,1,len(p)-1,ERROR_PREFERENCE)
+        self.__handle_clingo_statements(True, p, 1, len(p)-1)
 
 
     #
     # BODY
     #
 
-    def p_body(self,p):
+    def p_body(self, p):
         """ body : COLON litvec
                  |
         """
         p[0] = None
         if len(p)==3: p[0] = p[2]
 
-    def p_litvec(self,p):
+    def p_litvec(self, p):
         """ litvec : litvec COMMA         ext_atom
                    | litvec COMMA     NOT ext_atom
                    | litvec COMMA NOT NOT ext_atom
@@ -432,7 +447,7 @@ class Parser(object):
     # PREFERENCE ELEMENTS
     #
 
-    def p_elem_list(self,p):
+    def p_elem_list(self, p):
         """ elem_list : elem_list SEM elem body
                       |               elem body
         """
@@ -450,7 +465,7 @@ class Parser(object):
         # restart element
         self.element = ast.Element()
 
-    def p_elem(self,p):
+    def p_elem(self, p):
         """ elem : elem_head
                  | elem_head COND weighted_body_set
         """
@@ -460,7 +475,7 @@ class Parser(object):
             p[0] = (p[1],p[3])
         self.element.vars     = self.element.all_vars
 
-    def p_elem_head(self,p):
+    def p_elem_head(self, p):
         """ elem_head : elem_head GTGT weighted_body_set
                       |                weighted_body_set
         """
@@ -469,7 +484,7 @@ class Parser(object):
         else:
             p[0] = [p[1]]
 
-    def p_weighted_body_set(self,p):
+    def p_weighted_body_set(self, p):
         """ weighted_body_set : LBRACE weighted_body_vec RBRACE
                               |        weighted_body
         """
@@ -492,27 +507,27 @@ class Parser(object):
     # WEIGHTED BODY
     #
 
-    def p_weighted_body_1(self,p):
+    def p_weighted_body_1(self, p):
         """ weighted_body :                      bfvec_x
         """
         p[0] = ast.WBody(None,p[1])
 
-    def p_weighted_body_3(self,p):
+    def p_weighted_body_3(self, p):
         """ weighted_body : ntermvec_x TWO_COLON bfvec_x
         """
         p[0] = ast.WBody(p[1],p[3])
 
-    def p_weighted_body_5(self,p):
+    def p_weighted_body_5(self, p):
         """ weighted_body : ntermvec_x TWO_COLON
         """
         p[0] = ast.WBody(p[1],[["ext_atom",["true",["#true"]]]])
 
-    def p_weighted_body_6(self,p):
+    def p_weighted_body_6(self, p):
         """ weighted_body :                      POW_NO_WS term
         """
         p[0] = ast.WBody(None,p[2],True)
 
-    def p_weighted_body_7(self,p):
+    def p_weighted_body_7(self, p):
         """ weighted_body : ntermvec_x TWO_COLON POW_NO_WS term
         """
         p[0] = ast.WBody(p[1],p[4],True)
@@ -522,14 +537,14 @@ class Parser(object):
     # VECTORS
     #
 
-    def p_ntermvec_x(self,p):
+    def p_ntermvec_x(self, p):
         """ ntermvec_x : atomvec
                        | na_ntermvec
                        | atomvec COMMA na_ntermvec
         """
         p[0] = p[1:]
 
-    def p_atomvec(self,p):
+    def p_atomvec(self, p):
         """ atomvec : atom
                     | atomvec COMMA atom
         """
@@ -539,7 +554,7 @@ class Parser(object):
         else:
             self.atomvec = [["ext_atom",["atom",p[1]]]]
 
-    def p_na_ntermvec(self,p):
+    def p_na_ntermvec(self, p):
         """ na_ntermvec : na_term
                         | na_term COMMA ntermvec
         """
@@ -553,22 +568,22 @@ class Parser(object):
     #
     #   p[0] becomes a list
     #
-    def p_bfvec_x_1(self,p):
+    def p_bfvec_x_1(self, p):
         """ bfvec_x  : atomvec
         """
         p[0] = self.atomvec
 
-    def p_bfvec_x_2(self,p):
+    def p_bfvec_x_2(self, p):
         """ bfvec_x  : na_bfvec
         """
         p[0] = p[1]
 
-    def p_bfvec_x_3(self,p):
+    def p_bfvec_x_3(self, p):
         """ bfvec_x :  atomvec COMMA na_bfvec
         """
         p[0] = self.atomvec + p[3]
 
-    def p_na_bfvec(self,p):
+    def p_na_bfvec(self, p):
         """ na_bfvec : na_bformula COMMA bfvec
                      | na_bformula
         """
@@ -577,7 +592,7 @@ class Parser(object):
         else:
             p[0] = [p[1]]
 
-    def p_bfvec(self,p):
+    def p_bfvec(self, p):
         """ bfvec    : bfvec COMMA bformula
                      |             bformula
         """
@@ -615,33 +630,33 @@ class Parser(object):
     #                    |          NOT  bformula %prec BFNOT
     #    """
 
-    def p_bformula_1(self,p):
+    def p_bformula_1(self, p):
         """ bformula :               ext_atom
         """
         p[0] = p[1]
 
-    def p_bformula_2(self,p):
+    def p_bformula_2(self, p):
         """ bformula :         paren_bformula
         """
         p[0] = p[1]
 
-    def p_bformula_3(self,p):
+    def p_bformula_3(self, p):
         """ bformula : bformula VBAR bformula %prec BFVBAR
         """
         p[0] = ["or",[p[1],p[3]]]
 
-    def p_bformula_4(self,p):
+    def p_bformula_4(self, p):
         """ bformula : bformula  AND bformula %prec BFAND
         """
         p[0] = ["and",[p[1],p[3]]]
 
-    def p_bformula_5(self,p):
+    def p_bformula_5(self, p):
         """ bformula :           NOT bformula %prec BFNOT
         """
         p[0] = ["neg",[p[2]]]
 
     # unreachable
-    def p_formula_6(self,p):
+    def p_formula_6(self, p):
         """ bformula : LPAREN     identifier                      NEVER IF
                      | LPAREN     identifier LPAREN argvec RPAREN NEVER IF
                      | LPAREN SUB identifier                      NEVER IF
@@ -649,32 +664,32 @@ class Parser(object):
         """
         pass
 
-    def p_paren_formula(self,p):
+    def p_paren_formula(self, p):
         """ paren_bformula : LPAREN na_bformula RPAREN
         """
         p[0] = p[2]
 
-    def p_na_bformula_1(self,p):
+    def p_na_bformula_1(self, p):
         """ na_bformula :            na_ext_atom
         """
         p[0] = p[1]
 
-    def p_na_bformula_2(self,p):
+    def p_na_bformula_2(self, p):
         """ na_bformula :         paren_bformula
         """
         p[0] = p[1]
 
-    def p_na_bformula_3(self,p):
+    def p_na_bformula_3(self, p):
         """ na_bformula : bformula VBAR bformula %prec BFVBAR
         """
         p[0] = ["or",[p[1],p[3]]]
 
-    def p_na_bformula_4(self,p):
+    def p_na_bformula_4(self, p):
         """ na_bformula : bformula  AND bformula %prec BFAND
         """
         p[0] = ["and",[p[1],p[3]]]
 
-    def p_na_bformula_5(self,p):
+    def p_na_bformula_5(self, p):
         """ na_bformula :           NOT bformula %prec BFNOT
         """
         p[0] = ["neg",[p[2]]]
@@ -684,7 +699,7 @@ class Parser(object):
     # NOT ATOM TERMS
     #
 
-    def p_na_term(self,p):
+    def p_na_term(self, p):
         """ na_term : term      DOTS term
                     | term       XOR term
                     | term  QUESTION term
@@ -702,7 +717,7 @@ class Parser(object):
         """
         p[0] = p[1:]
 
-    def p_na_term_more(self,p):
+    def p_na_term_more(self, p):
         """ na_term_more : BNOT term %prec UBNOT
                          | LPAREN tuplevec RPAREN
                          | AT identifier LPAREN   argvec RPAREN
@@ -716,7 +731,7 @@ class Parser(object):
         """
         p[0] = p[1:]
 
-    def p_many_minus(self,p):
+    def p_many_minus(self, p):
         """many_minus : SUB
                       | many_minus SUB %prec UMINUS
         """
@@ -732,22 +747,22 @@ class Parser(object):
     #                | term cmp term
     #   """
     #
-    def p_ext_atom_1(self,p):
+    def p_ext_atom_1(self, p):
         """ ext_atom : TRUE
         """
         p[0] = ["ext_atom",["true",["#true"]]]
 
-    def p_ext_atom_2(self,p):
+    def p_ext_atom_2(self, p):
         """ ext_atom : FALSE
         """
         p[0] = ["ext_atom",["false",["#false"]]]
 
-    def p_ext_atom_3(self,p):
+    def p_ext_atom_3(self, p):
         """ ext_atom : atom
         """
         p[0] = ["ext_atom",["atom",p[1]]]
 
-    def p_ext_atom_4(self,p):
+    def p_ext_atom_4(self, p):
         """ ext_atom : term cmp term
         """
         p[0] = ["ext_atom",["cmp",p[1:]]]
@@ -757,17 +772,17 @@ class Parser(object):
     #                   | FALSE
     #                   | term cmp term
     #   """
-    def p_na_ext_atom_1(self,p):
+    def p_na_ext_atom_1(self, p):
         """ na_ext_atom : TRUE
         """
         p[0] = ["ext_atom",["true",["#true"]]]
 
-    def p_na_ext_atom_2(self,p):
+    def p_na_ext_atom_2(self, p):
         """ na_ext_atom : FALSE
         """
         p[0] = ["ext_atom",["false",["#false"]]]
 
-    def p_na_ext_atom_3(self,p):
+    def p_na_ext_atom_3(self, p):
         """ na_ext_atom : term cmp term
         """
         p[0] = ["ext_atom",["cmp",p[1:]]]
@@ -776,7 +791,7 @@ class Parser(object):
     #
     # VARIABLES
     #
-    def p_variable(self,p):
+    def p_variable(self, p):
         """ variable : VARIABLE
         """
         p[0] = p[1]
@@ -787,7 +802,7 @@ class Parser(object):
     # GRINGO expressions
     #
 
-    def p_term(self,p):
+    def p_term(self, p):
         """ term : term      DOTS term
                  | term       XOR term
                  | term  QUESTION term
@@ -814,7 +829,7 @@ class Parser(object):
         """
         p[0] = p[1:]
 
-    def __handle_sem(self,p):
+    def __handle_sem(self, p):
         self.element.pooling = True
         if len(p)==4:
             if isinstance(p[1],list) and len(p[1])==2 and p[1][0]==HASH_SEM:
@@ -822,25 +837,25 @@ class Parser(object):
             else: return [HASH_SEM,[p[1]]  + [p[3]]]
         return p[1]
 
-    def p_unaryargvec(self,p):
+    def p_unaryargvec(self, p):
         """ unaryargvec :                  term
                         |  unaryargvec SEM term
         """
         p[0] = self.__handle_sem(p)
 
-    def p_ntermvec(self,p):
+    def p_ntermvec(self, p):
         """ ntermvec : term
                      | ntermvec COMMA term
         """
         p[0] = p[1:]
 
-    def p_termvec(self,p):
+    def p_termvec(self, p):
         """ termvec : ntermvec
                     |
         """
         p[0] = p[1:]
 
-    def p_tuple(self,p):
+    def p_tuple(self, p):
         """ tuple : ntermvec COMMA
                   | ntermvec
                   |          COMMA
@@ -848,19 +863,19 @@ class Parser(object):
         """
         p[0] = p[1:]
 
-    def p_tuplevec(self,p):
+    def p_tuplevec(self, p):
         """ tuplevec :              tuple
                      | tuplevec SEM tuple
         """
         p[0] = self.__handle_sem(p)
 
-    def p_argvec(self,p):
+    def p_argvec(self, p):
         """ argvec :            termvec
                    | argvec SEM termvec
         """
         p[0] = self.__handle_sem(p)
 
-    def p_cmp(self,p):
+    def p_cmp(self, p):
         """ cmp :  GT
                 |  LT
                 | GEQ
@@ -870,7 +885,7 @@ class Parser(object):
         """
         p[0] = p[1]
 
-    def p_atom(self,p):
+    def p_atom(self, p):
         """ atom :     identifier
                  |     identifier LPAREN argvec RPAREN
                  | SUB identifier
@@ -879,7 +894,7 @@ class Parser(object):
         p[0] = p[1:]
 
 
-    def p_identifier(self,p):
+    def p_identifier(self, p):
         """ identifier : IDENTIFIER
         """
         p[0] = p[1]
@@ -889,7 +904,7 @@ class Parser(object):
     # OPTIMIZE
     #
 
-    def p_statement_2(self,p):
+    def p_statement_2(self, p):
         """ statement : OPTIMIZE LPAREN term RPAREN body DOT
         """
         s = ast.OStatement()
@@ -898,13 +913,14 @@ class Parser(object):
         self.list.append((OPTIMIZE,s)) # appends to self.list
         if self.program != BASE: 
             self.__syntax_error(p,1,6,ERROR_OPTIMIZE)
+        self.__handle_clingo_statements(True, p, 1, len(p)-1)
 
 
     #
     # PROGRAM
     #
 
-    def p_statement_3(self,p):
+    def p_statement_3(self, p):
         """ statement : PROGRAM identifier LPAREN ntermvec RPAREN DOT
                       | PROGRAM identifier DOT
         """
@@ -923,7 +939,7 @@ class Parser(object):
     # CONST
     #
 
-    def p_statement_4(self,p):
+    def p_statement_4(self, p):
         """ statement : CONST identifier EQ term DOT
         """
         if self.program == BASE:
@@ -938,22 +954,23 @@ class Parser(object):
     # INCLUDE
     #
 
-    def p_statement_5(self,p):
+    def p_statement_5(self, p):
         """ statement : INCLUDE STRING DOT
         """
         location = self.__get_location(p,1,len(p)-1)
         # (file name included, current file name, location)
         self.included.append((p[2][1:-1],self.filename,location))
 
+
     #
     # CLINGO OPTIMIZE STATEMENT
     #
 
-    def p_statement_6(self,p):
+    def p_statement_6(self, p):
         """ statement : MINIMIZE LBRACE RBRACE DOT
                       | MAXIMIZE LBRACE RBRACE DOT
                       | MINIMIZE LBRACE min_elem_list RBRACE DOT 
-                      | MAXIMIZE LBRACE min_elem_list RBRACE DOT 
+                      | MAXIMIZE LBRACE max_elem_list RBRACE DOT 
         """
         # create preference statement
         s = ast.PStatement()
@@ -961,8 +978,6 @@ class Parser(object):
         s.number = self.p_statements
         s.name     = MINIMIZE_NAME
         s.type     = MINIMIZE_TYPE
-        if p[1] == MAXIMIZE:
-            s.type = MAXIMIZE_TYPE
         s.elements = p[3] if len(p) == 6 else []
         s.body     = None
         self.list.append((PREFERENCE,s)) # appends to self.list
@@ -976,9 +991,9 @@ class Parser(object):
         s.name     = MINIMIZE_NAME
         s.body     = None
         self.list.append((OPTIMIZE,s)) # appends to self.list
+        self.__handle_clingo_statements(False, p, 1, len(p)-1)
 
-
-    def p_min_elem_list(self,p):
+    def p_min_elem_list(self, p):
         """ min_elem_list : min_elem_list SEM min_weighted_body
                           |                   min_weighted_body
         """
@@ -996,21 +1011,68 @@ class Parser(object):
         # restart element
         self.element = ast.Element()
 
-    def p_min_weighted_body_1(self,p):
-        """ min_weighted_body : ntermvec COLON bfvec_x
+    def p_min_weighted_body_1(self, p):
+        """ min_weighted_body : min_weight min_tuple COLON bfvec_x
+                              | min_weight min_tuple COLON
+                              | min_weight min_tuple
         """
-        p[0] = ast.WBody(p[1],p[3])
+        if len(p) == 5:
+            p[0] = ast.WBody(p[1]+p[2], p[4])
+        else:
+            p[0] = ast.WBody(p[1]+p[2], [["ext_atom",["true",["#true"]]]])
 
-    def p_min_weighted_body_2(self,p):
-        """ min_weighted_body : ntermvec COLON
+    def p_min_weight(self, p):
+        """ min_weight : term AT term
+                       | term
         """
-        p[0] = ast.WBody(p[1],[["ext_atom",["true",["#true"]]]])
+        if len(p) == 4:
+            p[0] = [p[1], ",", p[3]]
+        else:
+            p[0] = [p[1], ",", "1"] # by default, level 1
+
+    def p_min_tuple(self, p):
+        """ min_tuple : COMMA ntermvec
+                      |
+        """
+        p[0] = []
+        if len(p)==3:
+            p[0] = p[1:]
+
+    # copy from p_min_elem_list
+    def p_max_elem_list(self, p):
+        """ max_elem_list : max_elem_list SEM max_weighted_body
+                          |                   max_weighted_body
+        """
+        # set self.element values & append to elem_list
+        if len(p) == 4:
+            self.element.sets = [[p[3]]]
+            self.element.cond = []
+            self.element.body = None
+            p[0] = p[1] + [self.element]
+        else:
+            self.element.sets = [[p[1]]]
+            self.element.cond = [] 
+            self.element.body = None
+            p[0] = [self.element]
+        # restart element
+        self.element = ast.Element()
+
+    # copy from p_min_weighted_body, adding minus
+    def p_max_weighted_body_1(self, p):
+        """ max_weighted_body : min_weight min_tuple COLON bfvec_x
+                              | min_weight min_tuple COLON
+                              | min_weight min_tuple
+        """
+        if len(p) == 5:
+            p[0] = ast.WBody(["-"]+p[1]+p[2],p[4])
+        else:
+            p[0] = ast.WBody(["-"]+p[1]+p[2],[["ext_atom",["true",["#true"]]]])
 
 
     #
     # ERROR
     #
 
-    def p_error(self,p):
+    def p_error(self, p):
         return
 
