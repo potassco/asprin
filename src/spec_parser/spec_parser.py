@@ -417,6 +417,7 @@ class Parser(object):
         # error if not in base
         if self.program != BASE:
             self.__syntax_error(p,1,len(p)-1,ERROR_PREFERENCE)
+        # error if there is also a clingo statement
         self.__handle_clingo_statements(True, p, 1, len(p)-1)
 
 
@@ -913,6 +914,7 @@ class Parser(object):
         self.list.append((OPTIMIZE,s)) # appends to self.list
         if self.program != BASE: 
             self.__syntax_error(p,1,6,ERROR_OPTIMIZE)
+        # error if there is also a clingo statement
         self.__handle_clingo_statements(True, p, 1, len(p)-1)
 
 
@@ -991,6 +993,7 @@ class Parser(object):
         s.name     = MINIMIZE_NAME
         s.body     = None
         self.list.append((OPTIMIZE,s)) # appends to self.list
+        # error if there is also a preference specification
         self.__handle_clingo_statements(False, p, 1, len(p)-1)
 
     def p_min_elem_list(self, p):
@@ -1038,7 +1041,7 @@ class Parser(object):
         if len(p)==3:
             p[0] = p[1:]
 
-    # copy from p_min_elem_list
+    # copy from p_min_elem_list, replacing by max
     def p_max_elem_list(self, p):
         """ max_elem_list : max_elem_list SEM max_weighted_body
                           |                   max_weighted_body
