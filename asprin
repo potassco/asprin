@@ -36,6 +36,12 @@ ERROR_PARSING = "parsing failed"
 
 class MyArgumentParser(argparse.ArgumentParser):
 
+    def print_help(self, file=None):
+        if file is None:
+            file = sys.stdout
+        file.write("asprin version {}\n".format(VERSION))
+        argparse.ArgumentParser.print_help(self, file)
+       
     def error(self, message):
         raise argparse.ArgumentError(None,"In context <asprin>: " + message)
 
