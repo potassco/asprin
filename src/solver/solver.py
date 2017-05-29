@@ -4,7 +4,6 @@
 # IMPORTS
 #
 
-from __future__ import print_function
 import clingo
 import controller
 from src.utils import printer
@@ -128,6 +127,8 @@ class Solver:
         self.pre  = dict([(i, []) for i in l])
         self.post = dict([(i, []) for i in l])
         self.externals = dict()
+        # printer
+        self.printer = printer.Printer()
 
     #
     # AUXILIARY
@@ -188,14 +189,14 @@ class Solver:
     #TODO: move to program_parser when translation improved
     def check_errors(self):
         # get preference program errors
-        pr, control, u = printer.Printer(), self.control, self.underscores
+        pr, control, u = self.printer, self.control, self.underscores
         error = False 
         for atom in control.symbolic_atoms.by_signature(u+"_error", 3):
             string = "\nerror: " + self.__cat(atom.symbol.arguments[0])
             pr.print_spec_error(string)
             error = True
         if error:
-            print("")
+            pr.do_print("")
             raise Exception("parsing failed")
 
 
@@ -228,22 +229,22 @@ class Solver:
 
 
     def print_shown(self):
-        print(STR_ANSWER.format(self.state.models))
-        print(" ".join(map(self.__symbol2str, self.shown)))
+        self.printer.do_print(STR_ANSWER.format(self.state.models))
+        self.printer.do_print(" ".join(map(self.__symbol2str, self.shown)))
 
 
     def print_optimum_string(self):
-        print(STR_OPTIMUM_FOUND)
+        self.printer.do_print(STR_OPTIMUM_FOUND)
 
 
     def print_unsat(self):
-        print(STR_UNSATISFIABLE)
+        self.printer.do_print(STR_UNSATISFIABLE)
 
 
     def check_last_model(self):
         if self.state.old_holds  == self.holds and (
            self.state.old_nholds == self.nholds):
-                printer.Printer().do_print()
+                self.printer.do_print()
                 raise Exception(SAME_MODEL)
         self.state.old_holds  = self.holds
         self.state.old_nholds = self.nholds
@@ -280,7 +281,7 @@ class Solver:
             self.state.models     += 1
             self.state.opt_models += 1
             self.print_shown()
-            print(STR_OPTIMUM_FOUND_STAR)
+            self.printer.do_print(STR_OPTIMUM_FOUND_STAR)
 
 
     def enumerate(self):
@@ -318,7 +319,7 @@ class Solver:
 
 
     def end(self):
-        state, p = self.state, printer.Printer()
+        state, p = self.state, self.printer
         p.print_stats(self.control, state.models, state.more_models,
                       state.opt_models,state.stats)
         raise EndException
@@ -350,7 +351,7 @@ class Solver:
         try:
             # START
             general.start()
-            print("Solving...")
+            self.printer.do_print("Solving...")
             while True:
                 # START_LOOP
                 basic.start_loop()
@@ -374,7 +375,7 @@ class Solver:
                 # END_LOOP
                 general.end_loop()
         except RuntimeError as e: 
-            print("ERROR (clingo): {}".format(e))
+            self.printer.print_error("ERROR (clingo): {}".format(e))
         except EndException as e: 
             # END
             pass

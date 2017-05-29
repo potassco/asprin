@@ -157,7 +157,7 @@ class Parser(object):
     def __syntax_error(self, p, init, end, string):
         self.error = True
         location = self.__get_location(p, init, end)
-        self.printer.print_error(location, string)
+        self.printer.print_error_location(location, string)
 
 
     def __update_program(self, program, type, string, position=None):

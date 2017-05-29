@@ -89,6 +89,7 @@ CHECK_SPEC = """
 ##optimize(X) :- ##optimize(X).
 ##preference(X,Y) :- ##preference(X,Y).
 ##unsat(X,Y) :- ##unsat(X,Y).
+##false :- ##false.
 """
 
 # error printing

@@ -75,7 +75,7 @@ class Lexer(object):
         col_ini = lexpos-self.lexer.lexdata.rfind('\n', 0, lexpos)
         loc = utils.Location(self.__filename, self.lexer.lineno,
                              col_ini, self.lexer.lineno, col_ini+len(string))
-        printer.Printer().print_error(loc,ERROR_LEXER.format(string))
+        printer.Printer().print_error_location(loc,ERROR_LEXER.format(string))
 
 
     def __eof_error(self, t):

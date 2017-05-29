@@ -31,21 +31,27 @@ class Printer:
 
     def __print_warning(self, string, **kwargs):
         if not self.__last(string):
+            sys.stdout.flush()
             print(string, file=sys.stderr, **kwargs)
             self.__check_messages(1)
 
     def __print_error(self, string, **kwargs):
         if not self.__last(string):
+            sys.stdout.flush()
             print(string, file=sys.stderr, **kwargs)
             self.__check_messages(1)
 
     def print_error_string(self, string):
         if not self.__last(string):
+            sys.stdout.flush()
             print(string, file=sys.stderr, end = "")
             self.__check_messages(int(string.count("\n")/2))
 
-    def print_error(self, location, string):
+    def print_error_location(self, location, string):
         self.__print_error("{}error: {}".format(location,string))
+
+    def print_error(self, string):
+        self.__print_error(string)
 
     def print_spec_error(self,string):
         self.__print_error(string)
@@ -57,7 +63,7 @@ class Printer:
         self.__print_warning(warning.format(file))
 
     def error_included_file(self, file, loc):
-        self.print_error(loc, ERROR_INCLUDED_FILE.format(file))
+        self.print_error_location(loc, ERROR_INCLUDED_FILE.format(file))
 
     #
     # simply print
