@@ -333,7 +333,7 @@ class WBody:
         u = Statement.underscores
         if atom[0] == "true":
             out = ATOM + "(" + u + TRUE + ")"
-            return string, u + TRUE
+            return out, u + TRUE
         elif atom[0] == "false":
             out = ATOM + "(" + u + FALSE + ")"
             return out, u + FALSE
@@ -342,7 +342,7 @@ class WBody:
         elif atom[0] == "cmp":
             out  = CMP + "(\"" + atom[1][1] + "\"," + ast2str(atom[1][0]) + ","
             out += ast2str(atom[1][2]) + ")"
-            return out + ast2str(atom[1])
+            return out, ast2str(atom[1])
         else:
             raise utils.FatalException
 
@@ -478,7 +478,7 @@ class WBody:
         if termvec == None or len(termvec)==0: 
             return 0, False
         # move to ntermvec
-        ntermvec, arity, _has_vars = termvec[0], 1, False
+        ntermvec, arity, _has_vars = termvec, 1, False
         # iterate
         while len(ntermvec)==3:
             arity   += 1

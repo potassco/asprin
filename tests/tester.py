@@ -1,6 +1,8 @@
+#!/usr/bin/python
 from __future__ import print_function
 import os
 import utils
+import sys
 
 PATH = os.path.dirname(os.path.realpath(__file__))
 STR_TMP = "_tester.tmp"
@@ -25,5 +27,8 @@ class Tester:
                 result.compare(test)
 
 if __name__ == "__main__":
-    Tester().run(PATH)
+    if len(sys.argv) > 1:
+        Tester().run(sys.argv[1])
+    else:
+        Tester().run(PATH)
 

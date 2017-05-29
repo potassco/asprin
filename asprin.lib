@@ -1,8 +1,10 @@
 #program preference.
 :- not better(P),  optimize(P).
 required(P,better) :- optimize(P).
-required(A,B) :- required(A,B). % to avoid warnings
-
+           
+% to avoid warnings
+better(P)     :- better(P).     % to avoid warnings
+required(P,Q) :- required(P,Q). % to avoid warnings
            
 #program preference(and).
 

@@ -40,6 +40,13 @@ CHECK_SPEC = """
 % errors
 %
 
+% two types for one preference name
+##error((A,B,C,D)):- ##preference(P,T1), ##preference(P,T2), T1 != T2, 
+  A = "preference:", 
+  B = P, 
+  C = ": error: preference specification error, ", 
+  D = "preference name has more than one type".
+
 % naming non existent statement
 ##error((A,B,C,D,E)):- ##names(X,Y), not ##preference(Y,_), 
   A = "preference:", 
@@ -261,6 +268,7 @@ class Parser:
                           str(x[1]) + "."
                           for x in self.__control.symbolic_atoms.signatures if
                           not str(x[0]).startswith(self.__underscores)])
+        show += "#show."
         self.__add_and_ground(SHOW,[],show,[(SHOW,[])])
 
 
