@@ -192,7 +192,7 @@ class Solver:
         pr, control, u = self.printer, self.control, self.underscores
         error = False 
         for atom in control.symbolic_atoms.by_signature(u+"_error", 3):
-            string = "\nerror: " + self.__cat(atom.symbol.arguments[0])
+            string = "\n" + self.__cat(atom.symbol.arguments[0])
             pr.print_spec_error(string)
             error = True
         if error:

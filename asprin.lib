@@ -13,39 +13,39 @@ error(X) :- error(X).               % to avoid warnings
 error_type(X,Y) :- error_type(X,Y). % to avoid warnings
 
 %%% no formulas
-error((T,": In preference statement ",P,", only naming atoms are allowed.")) :- 
+error(("preference:",P,": error: preference specification error, type '",T,"' does not allow formulas.")) :-
              preference(P,T), error_type(T,no_formulas), 
              preference(P,_,_,for(X),_).
 
 %%% no weights
-error((T,": In preference statement ",P,", weights are not allowed.")) :- 
+error(("preference:",P,": error: preference specification error, type '",T,"' does not allow weights.")) :-
              preference(P,T), error_type(T,no_weights),
              preference(P,_,_,_,W), W != ().
 
 %%% no ordering
-error((T,": In preference element ",N," of preference statement ",P,", element '",X,"' is not allowed.")) :- 
+error(("preference:",P,": error: preference specification error, type '",T,"' does not allow using '>>'.")) :-
              preference(P,T), error_type(T,no_ordering),
-             preference(P,(N,_),R,for(X),_), R != 1.
+             preference(P,_,R,_,_), R > 1.
 
 %%% no sets
-error((T,": In preference element ",E," of preference statement ",P,", sets are not allowed.")) :- 
+error(("preference:",P,": error: preference specification error, type '",T,"' does not allow sets.")) :-
              preference(P,T), error_type(T,no_sets), 
              preference(P,E,S,X,_), preference(P,E,S,Y,_), X > Y.
 
 %%% no names
-error((T,": In preference element ",N," of preference statement ",P,", naming atom 'name(",X,")' is not allowed.")) :- 
-             preference(P,T),  error_type(T,no_naming),
-             preference(P,(N,_),_,name(X),_).
+error(("preference:",P,": error: preference specification error, type '",T,"' does not allow naming atoms.")) :-
+             preference(P,T), error_type(T,no_naming),
+             preference(P,_,_,name(X),_).
            
 %%% single 
-error((T,": In preference statement ",P,", only one ground preference element is allowed.")) :- 
+error(("preference:",P,": error: preference specification error, type '",T,"' does not allow more than one preference element.")) :-
              preference(P,T), error_type(T,single), 
              2 { preference(P,_,_,_,_) }.
            
 % no condition
-error((T,": In preference element ",N," of preference statement ",P,", condition '",X,"' is not allowed.")) :- 
+error(("preference:",P,": error: preference specification error, type '",T,"' does not allow using '||'.")) :-
              preference(P,poset), error_type(T,no_condition), 
-             preference(P,((N,_),_),0,for(X),_).
+             preference(P,_,0,_,_).
            
 #program preference(and).
 
@@ -76,9 +76,11 @@ required(P,worseeq)     :- preference(P,and), required(P,unc).
 unc(P) :- preference(P,and); required(P,unc); 
           not bettereq(P); not worseeq(P).
 
+% errors
 error_type(and,no_formulas).
 error_type(and,no_weights).
 error_type(and,no_ordering).
+error_type(and,no_condition).
 error_type(and,no_sets).
 
 
@@ -154,6 +156,7 @@ unc(P) :- preference(P,aso); required(P,unc);
           not bettereq(P); not worseeq(P).
 
 
+% errors
 error_type(aso,no_naming).
 error_type(aso,no_weights).
 error_type(aso,no_sets).
@@ -184,8 +187,10 @@ worse(P) :- preference(P,less(cardinality)), required(P,worse),
                     1,X : holds'(X), preference(P,_,_,for(X),_)}-1.
 
 
+% errors
 error_type(less(cardinality),no_naming).
 error_type(less(cardinality),no_ordering).
+error_type(less(cardinality),no_condition).
 error_type(less(cardinality),no_weights).
 error_type(less(cardinality),no_sets).
 
@@ -212,8 +217,10 @@ worse(P) :- preference(P,less(weight)), required(P,worse),
             #sum { -W,T : holds(X),  preference(P,_,_,for(X),T), W = @head(T); 
                     W,T : holds'(X), preference(P,_,_,for(X),T), W = @head(T)}-1.
 
+% errors
 error_type(less(weight),no_naming).
 error_type(less(weight),no_ordering).
+error_type(less(weight),no_condition).
 error_type(less(weight),no_sets).
 
 #program preference(lexico).
@@ -249,8 +256,10 @@ required(P,worseeq)     :- preference(P,lexico), required(P,unc).
 unc(P) :- preference(P,lexico); required(P,unc); 
           not bettereq(P); not worseeq(P).
 
+% errors
 error_type(lexico,no_formulas).
 error_type(lexico,no_ordering).
+error_type(lexico,no_condition).
 error_type(lexico,no_sets).
 
 #program preference(more(cardinality)).
@@ -278,8 +287,10 @@ worse(P) :- preference(P,more(cardinality)), required(P,worse),
                       1,X : holds'(X), preference(P,_,_,for(X),_)}.
 
 
+% errors
 error_type(more(cardinality),no_naming).
 error_type(more(cardinality),no_ordering).
+error_type(more(cardinality),no_condition).
 error_type(more(cardinality),no_weights).
 error_type(more(cardinality),no_sets).
 
@@ -305,8 +316,10 @@ worse(P) :- preference(P,more(weight)), required(P,worse),
             1 #sum { -W,T : holds(X),  preference(P,_,_,for(X),T), W = @head(T); 
                       W,T : holds'(X), preference(P,_,_,for(X),T), W = @head(T)}.
                      
+% errors
 error_type(more(weight),no_naming).
 error_type(more(weight),no_ordering).
+error_type(more(weight),no_condition).
 error_type(more(weight),no_sets).
 
 
@@ -339,9 +352,11 @@ required(P,worseeq)     :- preference(P,neg), required(P,unc).
 unc(P) :- preference(P,neg); required(P,unc); 
           not bettereq(P); not worseeq(P).
       
+% errors
 error_type(neg,no_formulas).
 error_type(neg,no_weights).
 error_type(neg,no_ordering).
+error_type(neg,no_condition).
 error_type(neg,no_sets).
 error_type(neg,single).
 
@@ -377,9 +392,11 @@ required(P,worseeq)     :- preference(P,pareto), required(P,unc).
 unc(P) :- preference(P,pareto); required(P,unc); 
           not bettereq(P); not worseeq(P).
 
+% errors
 error_type(pareto,no_formulas).
 error_type(pareto,no_weights).
 error_type(pareto,no_ordering).
+error_type(pareto,no_condition).
 error_type(pareto,no_sets).
 
 #program preference(poset).
@@ -449,13 +466,11 @@ required(P,worseeq)  :- preference(P,poset), required(P,unc).
 unc(P) :- preference(P,poset), required(P,unc),
           not bettereq(P), not worseeq(P).
 
+% errors
 error_type(poset,no_naming).
 error_type(poset,no_weights).
 error_type(poset,no_sets).
 error_type(poset,no_condition).
-
-
-
 
 #program preference(subset).
 
@@ -483,8 +498,10 @@ required(P,worseeq)     :- preference(P,subset); required(P,unc).
 unc(P) :- preference(P,subset); required(P,unc); 
           not bettereq(P); not worseeq(P).
 
+% errors
 error_type(subset,no_naming).
 error_type(subset,no_ordering).
+error_type(subset,no_condition).
 error_type(subset,no_weights).
 error_type(subset,no_sets).
 
@@ -515,8 +532,10 @@ required(P,worseeq)     :- preference(P,superset); required(P,unc).
 unc(P) :- preference(P,superset); required(P,unc); 
           not bettereq(P); not worseeq(P).
 
+% errors
 error_type(superset,no_naming).
 error_type(superset,no_ordering).
+error_type(superset,no_condition).
 error_type(superset,no_weights).
 error_type(superset,no_sets).
 
@@ -561,11 +580,9 @@ worse(P,L) :- preference(P,clingo_minimize), required(P,better), level(P,L),
   #sum { -W,T : holds(X),  preference(P,_,_,for(X),T), W = @head(T), L=@second(T); 
           W,T : holds'(X), preference(P,_,_,for(X),T), W = @head(T), L=@second(T)}-1.
 
-error(("clingo_minimize: In preference element ",N," of preference statement ",P,", naming atom 'name(",X,")' is not allowed.")) :- 
-             preference(P,clingo_minimize), 
-             preference(P,(N,_),_,name(X),_).
-
-error(("clingo_minimize: In preference element ",N," of preference statement ",P,", element '",X,"' is not allowed.")) :- 
-             preference(P,clingo_minimize), 
-             preference(P,(N,_),R,for(X),_), R != 1.
+% errors
+error_type(clingo_minimize,no_naming).
+error_type(clingo_minimize,no_ordering).
+error_type(clingo_minimize,no_condition).
+error_type(clingo_minimize,no_sets).
 
