@@ -13,43 +13,115 @@ By default, asprin loads its library `asprin.lib`. This may be disabled with opt
 
 ## Example
 ```
-$ cat examples/example1.lp 
-
+$ cat examples/example1.lp
+dom(1..3).
 1 { a(X) : dom(X) }.
-dom(1..5).
 #show a/1.
 
-#preference(p1,subset) { 
-  a(X) : dom(X)
+#preference(p,subset) { 
+  a(X)
 }.
-#optimize(p1).
+#optimize(p).
 
-$ asprin 0 examples/example1.lp
+
+$ asprin examples/example1.lp 0
 asprin version 3.0.0
-Reading from examples/example1.lp ...
+Reading from examples/example1.lp
 Solving...
 Answer: 1
 a(3)
 OPTIMUM FOUND
 Answer: 2
-a(5)
-OPTIMUM FOUND
-Answer: 3
-a(1) a(2)
-Answer: 4
-a(1)
-OPTIMUM FOUND
-Answer: 5
 a(2)
 OPTIMUM FOUND
-Answer: 6
-a(4)
+Answer: 3
+a(1)
 OPTIMUM FOUND
 
-Models		: 6
-  Optimum	: yes
-  Optimal	: 5
+Models       : 3
+  Optimum    : yes
+  Optimal    : 3
+Calls        : 10
+Time         : 0.054s (Solving: 0.00s 1st Model: 0.00s Unsat: 0.00s)
+CPU Time     : 0.052s
 
+
+$ cat examples/example2.lp
+%
+% base program
+%
+
+dom(1..3).
+1 { a(X) : dom(X) } 2.
+1 { b(X) : dom(X) } 2.
+#show a/1.
+#show b/1.
+
+%
+% basic preference statements
+%
+
+#preference(p(1),subset){
+  a(X)
+}.
+
+#preference(p(2),less(weight)){
+  X :: b(X)
+}.
+
+#preference(p(3),aso){
+  a(X) >> not a(X) || b(X)
+}.
+
+#preference(p(4),poset){
+  a(X);
+  b(X);
+  a(X) >> b(X)
+}.
+
+%
+% composite preference statements
+%
+
+#const composite=pareto.
+
+#preference(q,pareto){
+  **p(X)
+} : composite=pareto.
+
+#preference(q,lexico){
+  X :: **p(X)
+} : composite=lexico.
+
+#preference(q,and){
+  **q(X)
+} : composite=and.
+
+#preference(r,neg){
+  **q
+}.
+
+%
+% optimize statement
+%
+
+#const opt=r.
+#optimize(opt).
+
+
+$ asprin examples/example2.lp
+asprin version 3.0.0
+Reading from examples/example2.lp
+Solving...
+Answer: 1
+a(3) b(1)
+OPTIMUM FOUND
+
+Models       : 1+
+  Optimum    : yes
+Calls        : 2
+Time         : 0.091s (Solving: 0.00s 1st Model: 0.00s Unsat: 0.00s)
+CPU Time     : 0.088s
 ```
 
 ## Contributors

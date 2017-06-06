@@ -1,8 +1,8 @@
+dom(1..3).
 1 { a(X) : dom(X) }.
-dom(1..5).
 #show a/1.
 
-#preference(p1,subset) { 
-  a(X) : dom(X)
+#preference(p,subset) { 
+  a(X)
 }.
-#optimize(p1).
+#optimize(p).
