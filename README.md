@@ -11,7 +11,7 @@ By default, asprin loads its library `asprin.lib`. This may be disabled with opt
 `asprin` requires Python (version 2.7 is tested), and the [python module of clingo](https://github.com/potassco/clingo). For installation instructions of the latter, please read [here](https://github.com/potassco/clingo/blob/master/INSTALL) the section on Building the Python Module.
 
 
-## Example
+## Examples
 ```
 $ cat examples/example1.lp
 dom(1..3).
