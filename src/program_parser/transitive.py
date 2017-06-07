@@ -11,15 +11,15 @@ class Node:
         self.item = item
         self.next = set()
         self.prev = set()
-        self.not_next = set()
-        self.not_prev = set()
+        self.neg_next = set()
+        self.neg_prev = set()
     
     def __str__(self):
         out = []
         if self.next:
             out += [(i.item,"+") for i in self.next]
-        if self.not_next:
-            out += [(i.item,"-") for i in self.not_next]
+        if self.neg_next:
+            out += [(i.item,"-") for i in self.neg_next]
         if out == []:
             return "({})".format(self.item)
         else:
@@ -58,21 +58,21 @@ class TransitiveClosure:
             node_a.next.update(next)
             for i in node_a.prev:
                 i.next.update(next)
-            for i in node_a.not_prev:
-                self.__update(next, i.not_next, i.next)
+            for i in node_a.neg_prev:
+                self.__update(next, i.neg_next, i.next)
         
-        # not_next
+        # neg_next
         if sign:
-            not_next = node_b.not_next
+            neg_next = node_b.neg_next
         else:
-            not_next = node_b.not_next.union(node_b.next)
-            not_next.add(node_b)
-        if not_next:
-            self.__update(not_next, node_a.not_next, node_a.next)
+            neg_next = node_b.neg_next.union(node_b.next)
+            neg_next.add(node_b)
+        if neg_next:
+            self.__update(neg_next, node_a.neg_next, node_a.next)
             for i in node_a.prev:
-                self.__update(not_next, i.not_next, i.next)
-            for i in node_a.not_prev:
-                self.__update(not_next, i.not_next, i.next)
+                self.__update(neg_next, i.neg_next, i.next)
+            for i in node_a.neg_prev:
+                self.__update(neg_next, i.neg_next, i.next)
         
         # prev
         if sign:
@@ -81,21 +81,21 @@ class TransitiveClosure:
             node_b.prev.update(prev)
             for i in node_b.next:
                 i.prev.update(prev)
-            for i in node_b.not_next:
-                self.__update(prev, i.not_prev, i.prev)
+            for i in node_b.neg_next:
+                self.__update(prev, i.neg_prev, i.prev)
         
-        # not_prev
+        # neg_prev
         if sign:
-            not_prev = node_a.not_prev
+            neg_prev = node_a.neg_prev
         else:
-            not_prev = node_a.not_prev.union(node_a.prev)
-            not_prev.add(node_a)
-        if not_prev:
-            self.__update(not_prev, node_b.not_prev, node_b.prev)
+            neg_prev = node_a.neg_prev.union(node_a.prev)
+            neg_prev.add(node_a)
+        if neg_prev:
+            self.__update(neg_prev, node_b.neg_prev, node_b.prev)
             for i in node_b.next:
-                self.__update(not_prev, i.not_prev, i.prev)
-            for i in node_a.not_next:
-                self.__update(not_prev, i.not_prev, i.prev)
+                self.__update(neg_prev, i.neg_prev, i.prev)
+            for i in node_a.neg_next:
+                self.__update(neg_prev, i.neg_prev, i.prev)
 
     def __str__(self):
         out = ""
@@ -105,9 +105,15 @@ class TransitiveClosure:
 
 
 if __name__ == "__main__":
-    graph = [(1,2,True), (2,3,True), (3,4,False), (4,5,True), (5,5,True), (2,1,False), (5,1,True)]
+    graph = [(1,2,True), (2,3,True), (3,4,False), (4,5,True), (5,5,True),
+             (7,8,False), (8,7,False), (2,1,False), (5,1,True)]
+    tmp = []
+    for i in range(1,100):
+        for j in graph:
+            tmp.append((j[0]*i,j[1]*i,j[2]))
+    graph = tmp
     tc = TransitiveClosure()
     for i in graph:
         tc.add(Info(i[0],i[0]),Info(i[1],i[1]),i[2])
-    print tc
+    #print tc
 
