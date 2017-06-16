@@ -1,0 +1,11 @@
+1 { a(X,Y,Z) : dom(X), dom(Y), dom(Z) }.
+dom(1..2).
+#show a/3.
+
+#preference(p(1),superset){
+  a(A,B,C)
+}.
+#preference(q,neg){
+  **p(X)
+}.
+#optimize(q).

@@ -30,6 +30,10 @@ UNSAT      = "unsat"
 # translation tokens
 HASH_SEM = "#sem"
 
+#
+# global variables
+#
+underscores = ""
 
 #
 # classes

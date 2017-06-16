@@ -17,39 +17,48 @@ class Node:
     def __str__(self):
         out = []
         if self.next:
-            out += [(i.item,"+") for i in self.next]
+            out += [(i.key, "+") for i in self.next]
         if self.neg_next:
-            out += [(i.item,"-") for i in self.neg_next]
-        if out == []:
-            return "({})".format(self.item)
-        else:
-            out = ["({},{},{})".format(self.item,i[0],i[1]) for i in out]
-            return "\n".join(out)
+            out += [(i.key, "-") for i in self.neg_next]
+        ret = "#{}\n:{}\n".format(self.key, str(self.item))
+        list = ["({},{},{})".format(self.key,i[0],i[1]) for i in out]
+        return ret + "\n".join(list)
         
 
 class TransitiveClosure:
 
     def __init__(self):
-        self.__nodes = {}
+        self.nodes = {}
 
     # add set_1 to set_2, and delete set_1 from set_3
     def __update(self, set_1, set_2, set_3):
         set_2.update(set_1)
         set_3.difference_update(set_1)
-    
-    def add(self, a, b, sign):
+  
+    def map_items(self, f):
+        for key, node in self.nodes.items():
+            for i in node.item:
+                if i:
+                    f(i)
+
+    # update graph with (Info) a
+    def add_node(self, a):
+        node = self.nodes.get(a.key)
+        if not node:
+            node = Node(a.key, [a.item])
+            self.nodes[a.key] = node
+        else:
+            node.item.append(a.item)
+        return node
+
+    # add edge of type sign from (Info) a to (Info) b
+    def add_edge(self, a, b, sign):
         
-        # node_a
-        node_a = self.__nodes.get(a.key)
-        if not node_a:
-            node_a = Node(a.key, a.item)
-            self.__nodes[a.key] = node_a
-        
-        # node_b
-        node_b = self.__nodes.get(b.key)
-        if not node_b:
-            node_b = Node(b.key, b.item)
-            self.__nodes[b.key] = node_b
+        # add nodes
+        node_a = self.nodes[a.key]
+        node_b = self.nodes[b.key]
+        #node_a = self.add_node(a)
+        #node_b = self.add_node(b)
         
         # next
         if sign:
@@ -99,21 +108,24 @@ class TransitiveClosure:
 
     def __str__(self):
         out = ""
-        for key, item in self.__nodes.items():
+        for key, item in self.nodes.items():
             out += str(item) + "\n"
         return out
+
+    def get_next(self, key):
+        return [i.key for i in self.nodes[key].next]
 
 
 if __name__ == "__main__":
     graph = [(1,2,True), (2,3,True), (3,4,False), (4,5,True), (5,5,True),
-             (7,8,False), (8,7,False), (2,1,False), (5,1,True)]
+             (7,8,False), (8,7,False), (2,1,False)]#, (5,1,True)]
     tmp = []
-    for i in range(1,100):
+    for i in range(1,2):
         for j in graph:
             tmp.append((j[0]*i,j[1]*i,j[2]))
     graph = tmp
     tc = TransitiveClosure()
     for i in graph:
-        tc.add(Info(i[0],i[0]),Info(i[1],i[1]),i[2])
-    #print tc
+        tc.add_edge(Info(i[0],i[0]),Info(i[1],i[1]),i[2])
+    print tc
 

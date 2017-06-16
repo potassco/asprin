@@ -5,6 +5,8 @@ import clingo.ast
 from collections import namedtuple
 from src.utils import utils
 from src.utils import printer
+import src.program_parser.transitive as transitive
+
 
 #
 # DEFINES
@@ -22,6 +24,12 @@ PREFERENCE = utils.PREFERENCE
 OPTIMIZE   = utils.OPTIMIZE
 UNSAT      = utils.UNSAT
 
+# graph
+HOLDS_KEY  = (HOLDS,  1)
+HOLDSP_KEY = (HOLDSP, 1)
+OPEN_NAME  = "open"
+NULL       = 0
+
 # others
 MODEL    = utils.MODEL
 M1       = "m1"
@@ -29,8 +37,6 @@ M2       = "m2"
 M1_M2    = "m1_m2"
 SHOW     = "show"
 EDGE     = "edge"
-
-### CONTINUE HERE!!!!
 
 ERROR_PROJECT = """\
 error: syntax error, unexpected #project statement in {} program
@@ -48,7 +54,7 @@ error: syntax error, unexpected csp literal in {} program
 #
 # NAMED TUPLE
 #
-PredicateInfo = namedtuple('PredicateInfo','name domain underscores ems arity')
+PredicateInfo = namedtuple('PredicateInfo','name underscores ems arity')
 
 
 #
@@ -63,11 +69,11 @@ class Transformer:
     unsat, show, edge                    = None, None, None # public
 
 
-    def __init__(self,underscores=""):
+    def __init__(self):
         if self.__underscores is not None:
             return
         # private
-        Transformer.__underscores = underscores
+        Transformer.__underscores = utils.underscores
         term = "{}({})".format(self.underscore(MODEL),self.underscore(M1))
         Transformer.__m1 = clingo.parse_term(term)
         term = "{}({})".format(self.underscore(MODEL),self.underscore(M2))
@@ -129,16 +135,23 @@ class Transformer:
 class TermTransformer(Transformer):
 
 
-    def __init__(self,underscores=""):
-        Transformer.__init__(self,underscores)
+    def __init__(self, graph):
+        Transformer.__init__(self)
         self.predicate_infos = dict([
-            ((HOLDS,1),      PredicateInfo(None,False,0,M1,1)),
-            ((HOLDSP,1),     PredicateInfo(HOLDS,False,0,M2,1)),
-            ((OPTIMIZE,1),   PredicateInfo(None,True,0,None,0)),
-            ((PREFERENCE,2), PredicateInfo(None,True,0,None,0)),
-            ((PREFERENCE,5), PredicateInfo(None,True,0,None,0))])
-        self.default = PredicateInfo(None,False,1,M1_M2,2)
+            ((HOLDS,1),      PredicateInfo(None,0,M1,1)),
+            ((HOLDSP,1),     PredicateInfo(HOLDS,0,M2,1)),
+            ((OPTIMIZE,1),   PredicateInfo(None,0,None,0)),
+            ((PREFERENCE,2), PredicateInfo(None,0,None,0)),
+            ((PREFERENCE,5), PredicateInfo(None,0,None,0))])
+        self.default = PredicateInfo(None,1,None,0)
+        self.graph = graph
 
+    def update_predicates(self, list):
+        info = PredicateInfo(None,1,M1_M2,2)
+        for i in list:
+            self.predicate_infos[i] = info
+        self.predicate_infos[(HOLDS,1)]  = PredicateInfo(None,0,M1,1)
+        self.predicate_infos[(HOLDSP,1)] = PredicateInfo(HOLDS,0,M2,1)
 
     def __get_predicate_info(self, name, arity):
         predicate_info = self.predicate_infos.get((name, arity))
@@ -147,7 +160,13 @@ class TermTransformer(Transformer):
         return self.default
 
 
-    def visit_Function(self, term):
+    #def visit_Function(self, term):
+    #    # update graph
+    #    self.graph.add(term)
+    #    return term
+        
+        
+    def transform_Function(self, term):
         # get info, change name, add underscores, and update arguments
         predicate_info = self.__get_predicate_info(term.name, 
                                                    len(term.arguments))
@@ -156,12 +175,12 @@ class TermTransformer(Transformer):
         term.name = self.underscore(term.name)
         term.name = "_"*predicate_info.underscores + term.name
         term.arguments += self.get_ems(term.location, predicate_info.ems)
-        #return
-        return term
+        # return
+        #return term
 
 
-    def visit_Symbol(self, term):
-        raise utils.FatalException
+    #def visit_Symbol(self, term):
+    #    raise utils.FatalException
 
 
     def transform_signature(self, sig):
@@ -182,6 +201,92 @@ class TermTransformer(Transformer):
         return clingo.ast.Function(term.location, name, args, False)
 
 
+class Graph:
+
+    NONE, HEAD, BODY = 0, 1, 2
+
+    def __init__(self):
+        self.graph = transitive.TransitiveClosure()
+        u = utils.underscores
+        open   = transitive.Info((u+OPEN_NAME, 0), 0)
+        holds  = transitive.Info(HOLDS_KEY,  0)
+        holdsp = transitive.Info(HOLDSP_KEY, 0)
+        self.graph.add_node(open)
+        self.graph.add_node(holds)
+        self.graph.add_node(holdsp)
+        self.graph.add_edge(open, holds, True)
+        self.graph.add_edge(open, holdsp, True)
+        self.heads, self.bodies = [], []
+        self.state = self.NONE
+        self.rules = []
+
+    def __str__(self):
+        #return str(self.graph.get_next((utils.underscores+OPEN_NAME, 0)))
+        out = str(self.graph)
+        out += "\n" + str(self.graph.get_next((utils.underscores+OPEN_NAME, 0)))
+        return out
+
+    def in_head(self):
+        self.state = self.HEAD
+
+    def in_body(self):
+        self.state = self.BODY
+        self.rules.append((0,0,[]))
+
+    def __add_list(self, l):
+        info_l = [transitive.Info((i.name, len(i.arguments)), i) for i in l]
+        map(self.graph.add_node, info_l)
+
+    def end_body(self):
+        info = transitive.Info
+        i_heads  = [info((i.name, len(i.arguments)), i) for i in self.heads]
+        i_bodies = [info((i.name, len(i.arguments)), i) for i in self.bodies]
+        map(self.graph.add_node, i_heads)
+        map(self.graph.add_node, i_bodies)
+        for i in i_heads:
+            for j in i_bodies:
+                self.graph.add_edge(j, i, True)
+        self.state = self.NONE
+        self.heads, self.bodies = [], []
+
+    def add(self, term):
+        if self.state == self.HEAD:
+            self.heads.append(term)
+        elif self.state == self.BODY:
+            self.bodies.append(term)
+            self.rules[-1][2].append((term.name, len(term.arguments)))
+        else:
+            raise utils.FatalException() 
+
+    def map_items(self, function):
+        self.graph.map_items(function)
+
+
+class BodyList:
+    
+    def __init__(self, transformer):
+        self.__list = []
+        self.inside = False
+        self.transformer = transformer
+
+    def in_(self, body, location):
+        self.inside = True
+        self.__list.append((body, location, []))
+
+    def out(self):
+        self.inside = False
+
+    def add(self, term):
+        if not self.inside:
+            return
+        self.__list[-1][2].append((term.name, len(term.arguments)))
+    
+    def update_volatile(self, open_list):
+        for i in self.__list:
+            for j in i[2]:
+                if j in open_list:
+                    i[0].append(self.transformer.get_volatile_atom(i[1]))
+                    break
 #
 # CLASS PREFERENCE PROGRAM TRANSFORMER
 #
@@ -193,20 +298,33 @@ class PreferenceProgramTransformer(Transformer):
     # init
     #
 
-    def __init__(self, underscores=""):
-        Transformer.__init__(self, underscores)
-        self.term_transformer = TermTransformer(underscores)
+    def __init__(self):
+        Transformer.__init__(self)
         self.type = PPROGRAM
-
+        self.graph = Graph()
+        self.term_transformer = TermTransformer(self.graph)
+        self.body_list = BodyList(self) 
 
     def __visit_body_literal_list(self, body, location):
+        self.body_list.in_(body, location)
         self.visit(body)
-        body.append(self.get_volatile_atom(location))
+        self.body_list.out()
 
     #TODO: collect many messages, and output them together
     def __raise_exception(self, string):
         printer.Printer().do_print(string)
         raise Exception("parsing failed")
+
+    #
+    # after visiting all, finish()
+    # 
+
+    def finish(self):
+        u    = utils.underscores
+        open_list = self.graph.graph.get_next((u+OPEN_NAME, 0))
+        self.term_transformer.update_predicates(open_list)
+        self.graph.map_items(self.term_transformer.transform_Function)
+        self.body_list.update_volatile(open_list)
 
     #
     # Statements
@@ -219,21 +337,23 @@ class PreferenceProgramTransformer(Transformer):
 
 
     def visit_Rule(self, rule):
+        #print(rule)
         if self.__head_is_det(rule): return rule
+        self.graph.in_head()
         # if empty head
         if (str(rule.head.type) == "Literal"
             and str(rule.head.atom.type) == "BooleanConstant"
             and str(rule.head.atom.value == False)):
-                # add unsat head
-                ems = self.get_ems(rule.location, M1_M2)
-                fun = clingo.ast.Function(rule.location, self.unsat, ems,
-                                          False)
-                atom = clingo.ast.SymbolicAtom(fun)
-                rule.head = clingo.ast.Literal(rule.location,
-                                               clingo.ast.Sign.NoSign,
-                                               atom)
+            # add unsat head
+            ems = self.get_ems(rule.location, M1_M2)
+            fun = clingo.ast.Function(rule.location, self.unsat, ems, False)
+            atom = clingo.ast.SymbolicAtom(fun)
+            rule.head = clingo.ast.Literal(rule.location,
+                                           clingo.ast.Sign.NoSign, atom)
         else: self.visit(rule.head)
+        self.graph.in_body()
         self.__visit_body_literal_list(rule.body,rule.location)
+        self.graph.end_body()
         return rule
 
 
@@ -322,15 +442,15 @@ class PreferenceProgramTransformer(Transformer):
     #
 
     def visit_SymbolicAtom(self, atom):
-        atom.term = self.term_transformer.visit(atom.term)
+        if str(atom.term.type) == "Function":
+            self.graph.add(atom.term)
+            self.body_list.add(atom.term)
         return atom
-
 
     def visit_ConditionalLiteral(self,c):
         self.visit_children(c)
         c.condition.append(self.get_volatile_atom(c.location))
         return c
-
 
     def visit_BodyAggregate(self,b):
         self.visit_children(b)

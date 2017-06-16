@@ -113,9 +113,9 @@ class ProgramsPrinter:
                         p.do_print("#program {}{}.".format(name,params))
                         p.do_print(program.get_string())
 
-    def run(self,control,programs,underscores,types):
+    def run(self,control,programs,types):
         self.print_programs(programs,types)
-        l, t = [], transformer.PreferenceProgramTransformer(underscores)
+        l, t = [], transformer.PreferenceProgramTransformer()
         for name, programs in programs.items():
             if name == PPROGRAM:
                 for type, program in programs.items():
@@ -129,14 +129,14 @@ class ProgramsPrinter:
 class Parser:
 
 
-    def __init__(self,control,programs,options,underscores):
+    def __init__(self, control, programs, options):
         self.__control = control
         self.__programs = programs
         self.__options = options
-        self.__underscores = underscores
+        self.__underscores = utils.underscores
 
 
-    def __add_and_ground(self,name,params,string,list):
+    def __add_and_ground(self, name, params, string, list):
         capturer = utils.Capturer(sys.stderr)
         try:
             self.__control.add(name,params,string)
@@ -166,12 +166,12 @@ class Parser:
 
 
     def get_domains(self):
-        out, control, underscores = "", self.__control, self.__underscores
-        for atom in control.symbolic_atoms.by_signature(underscores+GEN_DOM,2):
+        out, control, u = "", self.__control, self.__underscores
+        for atom in control.symbolic_atoms.by_signature(u+GEN_DOM,2):
             args = atom.symbol.arguments
             for atom2 in control.symbolic_atoms.by_signature(str(args[0]),
                                                              int(str(args[1]))):
-                out += underscores + DOM + "(" + str(atom2.symbol) + ").\n"
+                out += u + DOM + "(" + str(atom2.symbol) + ").\n"
         return out
 
 
@@ -205,27 +205,27 @@ class Parser:
     def do_spec(self):
 
         control, programs = self.__control, self.__programs
-        underscores, options = self.__underscores, self.__options
+        u, options = self.__underscores, self.__options
 
         # specification
         constants = options['constants'].items()
         old = [ key                      for key, value in constants ]
         new = [ clingo.parse_term(value) for key, value in constants ]
         string  = programs[SPEC][""].get_string() 
-        string += CHECK_SPEC.replace("##",underscores)
+        string += CHECK_SPEC.replace("##",u)
         self.__add_and_ground(SPEC,old,string,[(SPEC,new)])
 
         # get specification errors
         errors = False
         pr = printer.Printer()
-        for atom in control.symbolic_atoms.by_signature(underscores+ERROR, 1):
+        for atom in control.symbolic_atoms.by_signature(u+ERROR, 1):
             string = self.__cat(atom.symbol.arguments[0]) + "\n"
             pr.print_spec_error(string)
             errors = True
 
         # get non domain errors
         for i in [(PREFERENCE,2),(PREFERENCE,5),(OPTIMIZE,1)]:
-            ui0 = underscores + i[0]
+            ui0 = u + i[0]
             for atom in control.symbolic_atoms.by_signature(ui0, i[1]):
                 if not atom.is_fact:
                     pr.print_spec_error(self.__non_domain_message(atom, i))
@@ -233,7 +233,7 @@ class Parser:
 
         # get preference types, and test for a corresponding preference program
         out = set()
-        upreference = underscores + PREFERENCE
+        upreference = u + PREFERENCE
         for atom in control.symbolic_atoms.by_signature(upreference,2):
             out.add(str(atom.symbol.arguments[1]))
             if str(atom.symbol.arguments[1]) not in programs[PREFERENCE]:
@@ -274,15 +274,23 @@ class Parser:
 
 
     def add_programs(self,types):
-        t = transformer.PreferenceProgramTransformer(self.__underscores)
+        t = transformer.PreferenceProgramTransformer()
         with self.__control.builder() as b:
-            for name, programs in self.__programs.items():
-                if name == PPROGRAM:
-                    for type, program in programs.items():
-                        if type in types:
-                            s = "#program "+name+".\n"+program.get_string()
-                            clingo.parse_program(s,
-                                                 lambda x: b.add(t.visit(x)))
+            #for name, programs in self.__programs.items():
+            translate_programs = [PPROGRAM]
+            for name in translate_programs:
+                list = []
+                for type, program in self.__programs[name].items():
+                    if type in types:
+                        s = "#program "+name+".\n"+program.get_string()
+                        #clingo.parse_program(s, lambda x: b.add(t.visit(x)))
+                        clingo.parse_program(s, 
+                                             lambda x: list.append(t.visit(x)))
+            t.finish()
+            map(b.add, list)
+            #map(print, list)
+        #raise utils.SilentException() 
+        #print(t.graph)
 
     def check_programs_errors(self):
         pass
@@ -305,8 +313,7 @@ class Parser:
 
         # print programs?
         if self.__options['print-programs']:
-            ProgramsPrinter().run(self.__control, self.__programs, 
-                                  self.__underscores, types)
+            ProgramsPrinter().run(self.__control, self.__programs, types)
             raise utils.SilentException()
 
         # translate and add the rest of the programs

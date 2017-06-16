@@ -225,15 +225,15 @@ class Asprin:
 
         # specification parsing
         sp = spec_parser.Parser(underscores)
-        programs, underscores, base_constants, options['show'] = \
-                                           sp.parse_files(options)
-        self.__update_constants(options,base_constants)
-
+        programs, utils.underscores, base_constants, options['show'] = \
+                                                 sp.parse_files(options)
+        self.__update_constants(options, base_constants)
+        
         # preference programs parsing
-        program_parser.Parser(control,programs,options,underscores).parse()
+        program_parser.Parser(control, programs, options).parse()
 
         # solving
-        _solver = solver.Solver(control,underscores)
+        _solver = solver.Solver(control)
         _solver.set_options(options)
         _solver.run()
 

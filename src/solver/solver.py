@@ -104,15 +104,15 @@ class State:
 
 class Solver:
 
-    def __init__(self, control, underscores):
+    def __init__(self, control):
         # parameters
         self.control           = control
-        self.underscores       = underscores
+        self.underscores       = utils.underscores
         # strings
-        self.volatile_str      = underscores + VOLATILE
-        self.model_str         = underscores + MODEL
-        self.holds_at_zero_str = underscores + HOLDS_AT_ZERO
-        self.holds_str         = underscores + HOLDS
+        self.volatile_str      = self.underscores + VOLATILE
+        self.model_str         = self.underscores + MODEL
+        self.holds_at_zero_str = self.underscores + HOLDS_AT_ZERO
+        self.holds_str         = self.underscores + HOLDS
         # holds
         self.holds             = []
         self.nholds            = []
@@ -173,7 +173,7 @@ class Solver:
 
     def load_encodings(self):
         for i in programs:
-            self.control.add(i[0],i[1],i[2].replace(token,self.underscores))
+            self.control.add(i[0],i[1],i[2].replace(token, self.underscores))
         self.control.ground([(DO_HOLDS_AT_ZERO,[])],self)
 
 
@@ -191,7 +191,7 @@ class Solver:
         # get preference program errors
         pr, control, u = self.printer, self.control, self.underscores
         error = False 
-        for atom in control.symbolic_atoms.by_signature(u+"_error", 3):
+        for atom in control.symbolic_atoms.by_signature(u+"_error", 1):
             string = "\n" + self.__cat(atom.symbol.arguments[0])
             pr.print_spec_error(string)
             error = True
