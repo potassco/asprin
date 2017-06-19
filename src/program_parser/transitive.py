@@ -36,29 +36,33 @@ class TransitiveClosure:
         set_3.difference_update(set_1)
   
     def map_items(self, f):
-        for key, node in self.nodes.items():
+        for node in self.nodes.values():
             for i in node.item:
-                if i:
-                    f(i)
+                f(i)
 
     # update graph with (Info) a
+    # do not add item if it is None
     def add_node(self, a):
         node = self.nodes.get(a.key)
         if not node:
-            node = Node(a.key, [a.item])
+            item = [a.item] if a.item is not None else []
+            node = Node(a.key, item)
             self.nodes[a.key] = node
-        else:
+        elif a.item is not None:
             node.item.append(a.item)
         return node
 
     # add edge of type sign from (Info) a to (Info) b
-    def add_edge(self, a, b, sign):
+    # if not add_node, then a and b must be in the graph
+    def add_edge(self, a, b, sign, add_node=False):
         
-        # add nodes
-        node_a = self.nodes[a.key]
-        node_b = self.nodes[b.key]
-        #node_a = self.add_node(a)
-        #node_b = self.add_node(b)
+        # nodes
+        if add_node:
+            node_a = self.add_node(a)
+            node_b = self.add_node(b)
+        else:
+            node_a = self.nodes[a.key]
+            node_b = self.nodes[b.key]
         
         # next
         if sign:
@@ -112,6 +116,7 @@ class TransitiveClosure:
             out += str(item) + "\n"
         return out
 
+    # pre: key must be in the graph
     def get_next(self, key):
         return [i.key for i in self.nodes[key].next]
 
@@ -126,6 +131,6 @@ if __name__ == "__main__":
     graph = tmp
     tc = TransitiveClosure()
     for i in graph:
-        tc.add_edge(Info(i[0],i[0]),Info(i[1],i[1]),i[2])
+        tc.add_edge(Info(i[0],i[0]), Info(i[1],i[1]), i[2], True)
     print tc
 

@@ -290,7 +290,6 @@ class Parser:
             map(b.add, list)
             #map(print, list)
         #raise utils.SilentException() 
-        #print(t.graph)
 
     def check_programs_errors(self):
         pass

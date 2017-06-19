@@ -50,6 +50,9 @@ error: syntax error, unexpected disjoint atom in {} program
 ERROR_CSPLITERAL = """\
 error: syntax error, unexpected csp literal in {} program
   {}\n"""
+ERROR_KEYWORD = """\
+error: syntax error, special predicate depends on non domain atoms in {} program
+  {}/{}\n"""
 
 #
 # NAMED TUPLE
@@ -86,6 +89,12 @@ class Transformer:
         Transformer.unsat = self.underscore(UNSAT)
         Transformer.show = self.underscore(SHOW)
         Transformer.edge = self.underscore(EDGE)
+
+
+    #TODO: collect many messages, and output them together
+    def raise_exception(self, string):
+        printer.Printer().print_error(string)
+        raise Exception("parsing failed")
 
 
     def underscore(self,x):
@@ -134,55 +143,46 @@ class Transformer:
 
 class TermTransformer(Transformer):
 
-
-    def __init__(self, graph):
+    def __init__(self, type):
         Transformer.__init__(self)
-        self.predicate_infos = dict([
-            ((HOLDS,1),      PredicateInfo(None,0,M1,1)),
-            ((HOLDSP,1),     PredicateInfo(HOLDS,0,M2,1)),
-            ((OPTIMIZE,1),   PredicateInfo(None,0,None,0)),
-            ((PREFERENCE,2), PredicateInfo(None,0,None,0)),
-            ((PREFERENCE,5), PredicateInfo(None,0,None,0))])
-        self.default = PredicateInfo(None,1,None,0)
-        self.graph = graph
+        self.predicates_info = dict()
+        self.default = None
+        self.type = type
 
-    def update_predicates(self, list):
-        info = PredicateInfo(None,1,M1_M2,2)
-        for i in list:
-            self.predicate_infos[i] = info
-        self.predicate_infos[(HOLDS,1)]  = PredicateInfo(None,0,M1,1)
-        self.predicate_infos[(HOLDSP,1)] = PredicateInfo(HOLDS,0,M2,1)
+    def set_predicates_info(self, open):
+        info = PredicateInfo(None, 1, M1_M2, 2)
+        for i in open:
+            self.predicates_info[i] = info
+        # HOLDS and HOLDS' appear always in open, and should be always overriden
+        self.predicates_info[(HOLDS, 1)]  = PredicateInfo(None, 0, M1, 1)
+        self.predicates_info[(HOLDSP, 1)] = PredicateInfo(HOLDS, 0, M2, 1)
+        info = PredicateInfo(None, 0, None, 0)
+        for i in [(OPTIMIZE, 1), (PREFERENCE, 2), (PREFERENCE, 5)]:
+            if i in self.predicates_info:
+                string = ERROR_KEYWORD.format(self.type, i[0], i[1])
+                self.raise_exception(string)
+            else:
+                self.predicates_info[i] = info
+        self.default = PredicateInfo(None, 1, None, 0)
 
     def __get_predicate_info(self, name, arity):
-        predicate_info = self.predicate_infos.get((name, arity))
+        predicate_info = self.predicates_info.get((name, arity))
         if predicate_info is not None:
             return predicate_info
         return self.default
 
-
-    #def visit_Function(self, term):
-    #    # update graph
-    #    self.graph.add(term)
-    #    return term
-        
-        
-    def transform_Function(self, term):
+    # call after set_predicates_info()
+    def transform_function(self, term):
         # get info, change name, add underscores, and update arguments
-        predicate_info = self.__get_predicate_info(term.name, 
+        predicate_info = self.__get_predicate_info(term.name,
                                                    len(term.arguments))
-        if predicate_info.name: 
+        if predicate_info.name:
             term.name = predicate_info.name
         term.name = self.underscore(term.name)
         term.name = "_"*predicate_info.underscores + term.name
         term.arguments += self.get_ems(term.location, predicate_info.ems)
-        # return
-        #return term
 
-
-    #def visit_Symbol(self, term):
-    #    raise utils.FatalException
-
-
+    # call after set_predicates_info()
     def transform_signature(self, sig):
         # get info, change name, add underscores, and update arity
         predicate_info = self.__get_predicate_info(sig.name, sig.arity)
@@ -194,7 +194,7 @@ class TermTransformer(Transformer):
         # return
         return sig
 
-
+    # call after set_predicates_info()
     def transform_term_reify(self, term, name):
         # always adds M1_M2
         args = [term] + self.get_ems(term.location, M1_M2)
@@ -207,35 +207,32 @@ class Graph:
 
     def __init__(self):
         self.graph = transitive.TransitiveClosure()
-        u = utils.underscores
-        open   = transitive.Info((u+OPEN_NAME, 0), 0)
-        holds  = transitive.Info(HOLDS_KEY,  0)
-        holdsp = transitive.Info(HOLDSP_KEY, 0)
+        self.open_key = (utils.underscores+OPEN_NAME, 0)
+        open   = transitive.Info(self.open_key, None)
+        holds  = transitive.Info(HOLDS_KEY,  None)
+        holdsp = transitive.Info(HOLDSP_KEY, None)
         self.graph.add_node(open)
         self.graph.add_node(holds)
         self.graph.add_node(holdsp)
         self.graph.add_edge(open, holds, True)
         self.graph.add_edge(open, holdsp, True)
-        self.heads, self.bodies = [], []
-        self.state = self.NONE
-        self.rules = []
+        self.heads, self.bodies, self.state = [], [], self.NONE
 
     def __str__(self):
-        #return str(self.graph.get_next((utils.underscores+OPEN_NAME, 0)))
         out = str(self.graph)
         out += "\n" + str(self.graph.get_next((utils.underscores+OPEN_NAME, 0)))
         return out
+
+    #
+    # parsing a rule:
+    #   in_head() add()* in_body() add()* end_body()
+    #
 
     def in_head(self):
         self.state = self.HEAD
 
     def in_body(self):
         self.state = self.BODY
-        self.rules.append((0,0,[]))
-
-    def __add_list(self, l):
-        info_l = [transitive.Info((i.name, len(i.arguments)), i) for i in l]
-        map(self.graph.add_node, info_l)
 
     def end_body(self):
         info = transitive.Info
@@ -246,47 +243,55 @@ class Graph:
         for i in i_heads:
             for j in i_bodies:
                 self.graph.add_edge(j, i, True)
-        self.state = self.NONE
-        self.heads, self.bodies = [], []
+        self.heads, self.bodies, self.state = [], [], self.NONE
 
     def add(self, term):
         if self.state == self.HEAD:
             self.heads.append(term)
         elif self.state == self.BODY:
             self.bodies.append(term)
-            self.rules[-1][2].append((term.name, len(term.arguments)))
         else:
-            raise utils.FatalException() 
+            raise utils.FatalException()
+
+    #
+    # after parsing all rules
+    #
+
+    def get_open(self):
+        return self.graph.get_next(self.open_key)
 
     def map_items(self, function):
         self.graph.map_items(function)
 
 
 class BodyList:
-    
-    def __init__(self, transformer):
-        self.__list = []
-        self.inside = False
-        self.transformer = transformer
+
+    def __init__(self, get_volatile_atom):
+        self.__bodies = []
+        self.__inside = False
+        self.__get_volatile_atom = get_volatile_atom
 
     def in_(self, body, location):
-        self.inside = True
-        self.__list.append((body, location, []))
+        self.__inside = True
+        self.__bodies.append((body, location, []))
 
     def out(self):
-        self.inside = False
+        self.__inside = False
 
     def add(self, term):
-        if not self.inside:
+        if not self.__inside:
             return
-        self.__list[-1][2].append((term.name, len(term.arguments)))
-    
+        self.__bodies[-1][2].append((term.name, len(term.arguments)))
+
     def update_volatile(self, open_list):
-        for i in self.__list:
+        for i in self.__bodies:
+            # for every predicate in the body
             for j in i[2]:
+                # if open: append volatile and break
                 if j in open_list:
-                    i[0].append(self.transformer.get_volatile_atom(i[1]))
+                    i[0].append(self.__get_volatile_atom(i[1]))
                     break
+
 #
 # CLASS PREFERENCE PROGRAM TRANSFORMER
 #
@@ -302,28 +307,26 @@ class PreferenceProgramTransformer(Transformer):
         Transformer.__init__(self)
         self.type = PPROGRAM
         self.graph = Graph()
-        self.term_transformer = TermTransformer(self.graph)
-        self.body_list = BodyList(self) 
+        self.body_list = BodyList(self.get_volatile_atom) 
+        self.term_transformer = TermTransformer(self.type)
 
     def __visit_body_literal_list(self, body, location):
         self.body_list.in_(body, location)
         self.visit(body)
         self.body_list.out()
 
-    #TODO: collect many messages, and output them together
-    def __raise_exception(self, string):
-        printer.Printer().do_print(string)
-        raise Exception("parsing failed")
-
     #
     # after visiting all, finish()
     # 
 
     def finish(self):
-        u    = utils.underscores
-        open_list = self.graph.graph.get_next((u+OPEN_NAME, 0))
-        self.term_transformer.update_predicates(open_list)
-        self.graph.map_items(self.term_transformer.transform_Function)
+        # get open predicates from the graph
+        open_list = self.graph.get_open()
+        # set predicates_info in term_transformer
+        self.term_transformer.set_predicates_info(open_list)
+        # tranform items stored in the graph
+        self.graph.map_items(self.term_transformer.transform_function) 
+        # update bodies with volatile atom
         self.body_list.update_volatile(open_list)
 
     #
@@ -331,14 +334,7 @@ class PreferenceProgramTransformer(Transformer):
     #
 
 
-    # TODO(EFF): implement
-    def __head_is_det(self, rule):
-        return False
-
-
     def visit_Rule(self, rule):
-        #print(rule)
-        if self.__head_is_det(rule): return rule
         self.graph.in_head()
         # if empty head
         if (str(rule.head.type) == "Literal"
@@ -352,30 +348,17 @@ class PreferenceProgramTransformer(Transformer):
                                            clingo.ast.Sign.NoSign, atom)
         else: self.visit(rule.head)
         self.graph.in_body()
-        self.__visit_body_literal_list(rule.body,rule.location)
+        self.__visit_body_literal_list(rule.body, rule.location)
         self.graph.end_body()
         return rule
 
-
     def visit_Definition(self, d):
         return d
-
-
-    # TODO(EFF): implement
-    def __sig_is_det(self, sig):
-        return False
-
 
     def visit_ShowSignature(self, sig):
         if self.__sig_is_det(sig): 
             return sig
         return self.term_transformer.transform_signature(sig)
-
-
-    # TODO(EFF): implement
-    def __body_is_det(self, body):
-        return False
-
 
     def visit_ShowTerm(self, show):
         if self.__body_is_det(show.body): 
@@ -385,15 +368,12 @@ class PreferenceProgramTransformer(Transformer):
         self.__visit_body_literal_list(show.body,show.location)
         return show
 
-
     def visit_Minimize(self, min):
         string = ERROR_MINIMIZE.format(self.type, str(min))
-        self.__raise_exception(string)
-
+        self.raise_exception(string)
 
     def visit_Script(self, script):
         return script
-
 
     def visit_Program(self, prg):
         if prg.name == BASE: return prg
@@ -403,12 +383,10 @@ class PreferenceProgramTransformer(Transformer):
         prg.parameters = [id1, id2]
         return prg
 
-
     def visit_External(self, ext):
         self.visit(ext.atom)
         self.__visit_body_literal_list(ext.body, ext.location)
         return ext
-
 
     # TODO(EFF):do not translate if *all* edge statements are deterministic
     # TODO: Warn if computing many models
@@ -419,22 +397,19 @@ class PreferenceProgramTransformer(Transformer):
         self.__visit_body_literal_list(edge.body, edge.location)
         return edge
 
-
     # TODO(EFF): do not add if head is deterministic
     def visit_Heuristic(self,heur):
         heur.atom = self.term_transformer.visit(heur.atom)
         self.__visit_body_literal_list(heur.body, heur.location)
         return heur
 
-
     def visit_ProjectAtom(self,atom):
         string = ERROR_PROJECT.format(self.type, str(atom))
-        self.__raise_exception(string)
-
+        self.raise_exception(string)
 
     def visit_ProjectSignature(self, sig):
         string = ERROR_PROJECT.format(self.type, str(sig))
-        self.__raise_exception(string)
+        self.raise_exception(string)
 
 
     #
@@ -461,7 +436,7 @@ class PreferenceProgramTransformer(Transformer):
     # disjoint atoms are not accepted
     def visit_Disjoint(self,d):
         string = ERROR_DISJOINT.format(self.type, str(d))
-        self.__raise_exception(string)
+        self.raise_exception(string)
         #self.visit_children(d)
         #for i in d.elements:
         #    i.condition.append(self.get_volatile_atom(i.location))
@@ -470,7 +445,7 @@ class PreferenceProgramTransformer(Transformer):
     # csp literals are not accepted
     def visit_CSPLiteral(self,csp):
         string = ERROR_CSPLITERAL.format(self.type, str(csp))
-        self.__raise_exception(string)
+        self.raise_exception(string)
     
     def visit_TheoryAtom(self,th):
         self.visit_children(th)
