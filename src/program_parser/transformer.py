@@ -73,6 +73,9 @@ class Transformer:
 
 
     def __init__(self):
+        for i in dir(self):
+            if i.startswith("visit_"):
+                setattr(self, "in_"+i[6:], False)
         if self.__underscores is not None:
             return
         # private
@@ -126,7 +129,10 @@ class Transformer:
         if isinstance(x, clingo.ast.AST):
             attr = "visit_" + str(x.type)
             if hasattr(self, attr):
-                return getattr(self, attr)(x, *args, **kwargs)
+                setattr(x,"in_"+attr,True)
+                tmp = getattr(self, attr)(x, *args, **kwargs)
+                setattr(x,"in_"+attr,False)
+                return tmp
             else:
                 return self.visit_children(x, *args, **kwargs)
         elif isinstance(x, list):
@@ -203,20 +209,17 @@ class TermTransformer(Transformer):
 
 class Graph:
 
-    NONE, HEAD, BODY = 0, 1, 2
-
     def __init__(self):
         self.graph = transitive.TransitiveClosure()
-        self.open_key = (utils.underscores+OPEN_NAME, 0)
-        open   = transitive.Info(self.open_key, None)
+        self.open = transitive.Info((utils.underscores+OPEN_NAME, 0), None)
         holds  = transitive.Info(HOLDS_KEY,  None)
         holdsp = transitive.Info(HOLDSP_KEY, None)
-        self.graph.add_node(open)
+        self.graph.add_node(self.open)
         self.graph.add_node(holds)
         self.graph.add_node(holdsp)
-        self.graph.add_edge(open, holds, True)
-        self.graph.add_edge(open, holdsp, True)
-        self.heads, self.bodies, self.state = [], [], self.NONE
+        self.graph.add_edge(self.open, holds, True)
+        self.graph.add_edge(self.open, holdsp, True)
+        self.heads, self.bodies = [], []
 
     def __str__(self):
         out = str(self.graph)
@@ -224,41 +227,44 @@ class Graph:
         return out
 
     #
-    # parsing a rule:
-    #   in_head() add()* in_body() add()* end_body()
+    # parsing a rule: 
+    #   add_atom()* process_rule()
     #
 
-    def in_head(self):
-        self.state = self.HEAD
-
-    def in_body(self):
-        self.state = self.BODY
-
-    def end_body(self):
-        info = transitive.Info
-        i_heads  = [info((i.name, len(i.arguments)), i) for i in self.heads]
-        i_bodies = [info((i.name, len(i.arguments)), i) for i in self.bodies]
-        map(self.graph.add_node, i_heads)
-        map(self.graph.add_node, i_bodies)
-        for i in i_heads:
-            for j in i_bodies:
-                self.graph.add_edge(j, i, True)
-        self.heads, self.bodies, self.state = [], [], self.NONE
-
-    def add(self, term):
-        if self.state == self.HEAD:
-            self.heads.append(term)
-        elif self.state == self.BODY:
-            self.bodies.append(term)
+    def add_atom(self, term, in_head, in_body, flag=False):
+        if in_head:
+            self.heads.append((term, flag))
+        elif in_body:
+            self.bodies.append((term, flag))
         else:
             raise utils.FatalException()
+
+    def __get_info(self, term):
+        return transitive.Info((term.name, len(term.arguments)), term)
+
+    def process_rule(self):
+        info = transitive.Info
+        i_heads  = [(self.__get_info(i[0]), i[1]) for i in self.heads]
+        i_bodies = [(self.__get_info(i[0]), i[1]) for i in self.bodies]
+        for i in i_heads:
+            self.graph.add_node(i[0])
+            if i[1]:
+                self.graph.add_edge(self.open, i[0], False) 
+        for i in i_bodies:
+            self.graph.add_node(i[0])
+        for i in i_heads:
+            for j in i_bodies:
+                self.graph.add_edge(j[0], i[0], j[1])
+        self.heads, self.bodies = [], []
 
     #
     # after parsing all rules
     #
 
     def get_open(self):
-        return self.graph.get_next(self.open_key)
+        for i in self.graph.get_cycles():
+            self.graph.add_edge(self.open, i, False)
+        return self.graph.get_next(self.open.key)
 
     def map_items(self, function):
         self.graph.map_items(function)
@@ -309,6 +315,9 @@ class PreferenceProgramTransformer(Transformer):
         self.graph = Graph()
         self.body_list = BodyList(self.get_volatile_atom) 
         self.term_transformer = TermTransformer(self.type)
+        # tracing position
+        self.in_Head, self.in_Body = False, False
+        self.in_Literal_ConditionalLiteral = False
 
     def __visit_body_literal_list(self, body, location):
         self.body_list.in_(body, location)
@@ -335,7 +344,8 @@ class PreferenceProgramTransformer(Transformer):
 
 
     def visit_Rule(self, rule):
-        self.graph.in_head()
+        # head
+        self.in_Head = True
         # if empty head
         if (str(rule.head.type) == "Literal"
             and str(rule.head.atom.type) == "BooleanConstant"
@@ -347,9 +357,13 @@ class PreferenceProgramTransformer(Transformer):
             rule.head = clingo.ast.Literal(rule.location,
                                            clingo.ast.Sign.NoSign, atom)
         else: self.visit(rule.head)
-        self.graph.in_body()
+        self.in_Head = False
+        # body
+        self.in_Body = True
         self.__visit_body_literal_list(rule.body, rule.location)
-        self.graph.end_body()
+        self.graph.process_rule()
+        self.in_Body = False
+        # return
         return rule
 
     def visit_Definition(self, d):
@@ -416,16 +430,45 @@ class PreferenceProgramTransformer(Transformer):
     # Elements
     #
 
-    def visit_SymbolicAtom(self, atom):
-        if str(atom.term.type) == "Function":
-            self.graph.add(atom.term)
-            self.body_list.add(atom.term)
-        return atom
+    def visit_Literal(self, lit):
+        if str(lit.atom.type) == "SymbolicAtom" and \
+           str(lit.atom.term.type) == "Function":
+            flag = False
+            if (self.in_Head and self.in_Literal_ConditionalLiteral) or \
+               (self.in_Body and (
+                lit.sign != clingo.ast.Sign.NoSign          or \
+                self.in_Aggregate                           or \
+                self.in_TheoryAtom or self.in_BodyAggregate or \
+                (self.in_ConditionalLiteral and 
+                 not self.in_Literal_ConditionalLiteral))):
+                flag = True
+            self.graph.add_atom(lit.atom.term, self.in_Head, self.in_Body, flag)
+            self.body_list.add(lit.atom.term)
+        self.visit_children(lit)
+        return lit
+
+    # csp literals are not accepted
+    def visit_CSPLiteral(self,csp):
+        string = ERROR_CSPLITERAL.format(self.type, str(csp))
+        self.raise_exception(string)
 
     def visit_ConditionalLiteral(self,c):
-        self.visit_children(c)
+        self.in_Literal_ConditionalLiteral = True
+        self.visit(c.literal)
+        self.in_Literal_ConditionalLiteral = False
+        self.visit(c.condition)
         c.condition.append(self.get_volatile_atom(c.location))
         return c
+
+    def visit_Aggregate(self,a):
+        self.visit_children(a)
+        return a
+    
+    def visit_TheoryAtom(self,th):
+        self.visit_children(th)
+        for i in th.elements:
+            i.condition.append(self.get_volatile_atom(th.location))
+        return th
 
     def visit_BodyAggregate(self,b):
         self.visit_children(b)
@@ -437,19 +480,12 @@ class PreferenceProgramTransformer(Transformer):
     def visit_Disjoint(self,d):
         string = ERROR_DISJOINT.format(self.type, str(d))
         self.raise_exception(string)
-        #self.visit_children(d)
-        #for i in d.elements:
-        #    i.condition.append(self.get_volatile_atom(i.location))
-        #return d
 
-    # csp literals are not accepted
-    def visit_CSPLiteral(self,csp):
-        string = ERROR_CSPLITERAL.format(self.type, str(csp))
-        self.raise_exception(string)
+    def visit_HeadAggregate(self,h):
+        self.visit_children(h)
+        return h
     
-    def visit_TheoryAtom(self,th):
-        self.visit_children(th)
-        for i in th.elements:
-            i.condition.append(self.get_volatile_atom(th.location))
-        return b
-
+    def visit_Disjunction(self,d):
+        self.visit_children(d)
+        return d
+    

@@ -35,11 +35,6 @@ class TransitiveClosure:
         set_2.update(set_1)
         set_3.difference_update(set_1)
   
-    def map_items(self, f):
-        for node in self.nodes.values():
-            for i in node.item:
-                f(i)
-
     # update graph with (Info) a
     # do not add item if it is None
     def add_node(self, a):
@@ -52,9 +47,10 @@ class TransitiveClosure:
             node.item.append(a.item)
         return node
 
-    # add edge of type sign from (Info) a to (Info) b
+    # add edge from (Info) a to (Info) b 
+    # if flag, then the edge has negative sign
     # if not add_node, then a and b must be in the graph
-    def add_edge(self, a, b, sign, add_node=False):
+    def add_edge(self, a, b, flag, add_node=False):
         
         # nodes
         if add_node:
@@ -65,7 +61,7 @@ class TransitiveClosure:
             node_b = self.nodes[b.key]
         
         # next
-        if sign:
+        if not flag: # positive sign
             next = node_b.next.copy()
             next.add(node_b)
             node_a.next.update(next)
@@ -75,7 +71,7 @@ class TransitiveClosure:
                 self.__update(next, i.neg_next, i.next)
         
         # neg_next
-        if sign:
+        if not flag: # positive sign
             neg_next = node_b.neg_next
         else:
             neg_next = node_b.neg_next.union(node_b.next)
@@ -88,7 +84,7 @@ class TransitiveClosure:
                 self.__update(neg_next, i.neg_next, i.next)
         
         # prev
-        if sign:
+        if not flag: # positive sign
             prev = node_a.prev.copy()
             prev.add(node_a)
             node_b.prev.update(prev)
@@ -98,7 +94,7 @@ class TransitiveClosure:
                 self.__update(prev, i.neg_prev, i.prev)
         
         # neg_prev
-        if sign:
+        if not flag: # positive sign
             neg_prev = node_a.neg_prev
         else:
             neg_prev = node_a.neg_prev.union(node_a.prev)
@@ -118,7 +114,21 @@ class TransitiveClosure:
 
     # pre: key must be in the graph
     def get_next(self, key):
-        return [i.key for i in self.nodes[key].next]
+        out = self.nodes[key].next.union(self.nodes[key].neg_next)
+        return [i.key for i in out]
+
+    
+    def get_cycles(self):
+        out = []
+        for key, value in self.nodes.items():
+            if value in value.neg_next:
+                out.append(Info(key, None))
+        return out
+
+    def map_items(self, f):
+        for node in self.nodes.values():
+            for i in node.item:
+                f(i)
 
 
 if __name__ == "__main__":
