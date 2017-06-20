@@ -1,9 +1,9 @@
 import clingo.ast
 from src.utils import utils
-from src.program_parser.transitive_closure import NodeInfo, TransitiveClosure 
+from src.program_parser.transitive_closure import NodeInfo, TransitiveClosure
 from src.program_parser.visitor import PredicateInfo, Helper, \
                                        Visitor, TermTransformer, \
-                                       M1, M2, M1_M2, SHOW, EDGE
+                                       EMPTY, M1, M2, M1_M2, SHOW, EDGE
 
 #
 # DEFINES
@@ -131,18 +131,19 @@ class Graph:
 class BodyList:
 
     def __init__(self, helper):
-        self.__bodies = []
+        self.__bodies = [] # pointed by __show_terms and __edges in PPVisitor
         self.__inside = False
         self.__helper = helper
 
     def in_(self, body, location):
         self.__inside = True
-        self.__bodies.append((body, location, []))
+        # [body, location, predicates, nondet]
+        self.__bodies.append([body, location, [], False])
 
     def out(self):
         self.__inside = False
 
-    def add(self, term):
+    def add_atom(self, term):
         if not self.__inside:
             return
         self.__bodies[-1][2].append((term.name, len(term.arguments)))
@@ -151,10 +152,17 @@ class BodyList:
         for i in self.__bodies:
             # for every predicate in the body
             for j in i[2]:
-                # if open: append volatile and break
+                # if open: append volatile, mark as nondet, and break
                 if j in open_list:
                     i[0].append(self.__helper.get_volatile_atom(i[1]))
+                    i[3] = True
                     break
+
+    def get_index(self):
+        return len(self.__bodies) - 1
+
+    def is_nondet(self, index):
+        return self.__bodies[index][3]
 
 
 class PreferenceProgramVisitor(Visitor):
@@ -166,15 +174,20 @@ class PreferenceProgramVisitor(Visitor):
         self.__helper = Helper()
         self.__body_list = BodyList(self.__helper)
         self.__term_transformer = PreferenceTermTransformer(self.__type)
+        self.__show_signatures = [] # list of signatures
+        self.__show_terms = []      # list of (terms, body_list indexes)
+        self.__edges = []           # list of (edge, edge, body_list indexes)
         # tracing position
         self.in_Head, self.in_Body = False, False
         self.in_Literal_ConditionalLiteral = False
 
     # auxiliary
     def __visit_body_literal_list(self, body, location):
+        self.in_Body = True
         self.__body_list.in_(body, location)
         self.visit(body)
         self.__body_list.out()
+        self.in_Body = False
 
     # after visiting all, finish()
     def finish(self):
@@ -186,6 +199,17 @@ class PreferenceProgramVisitor(Visitor):
         self.__graph.map_items(self.__term_transformer.transform_function)
         # update bodies with volatile atom
         self.__body_list.update_volatile(open_list)
+        # update show signatures
+        map(self.__term_transformer.transform_signature, self.__show_signatures)
+        # update show terms
+        for i in self.__show_terms:
+            if self.__body_list.is_nondet(i[1]):
+                self.__term_transformer.extend_function(i[0], M1_M2)
+        # update edges
+        for i in self.__edges:
+            if self.__body_list.is_nondet(i[2]):
+                self.__term_transformer.extend_function(i[0], M1_M2)
+                self.__term_transformer.extend_function(i[1], M1_M2)
 
     #
     # Statements
@@ -209,33 +233,27 @@ class PreferenceProgramVisitor(Visitor):
             self.visit(rule.head)
         self.in_Head = False
         # body
-        self.in_Body = True
         self.__visit_body_literal_list(rule.body, rule.location)
         self.__graph.process_rule()
-        self.in_Body = False
         # return
         return rule
 
     def visit_Definition(self, d):
         return d
 
-    def __sig_is_det(self, sig):
-        return False
-
     def visit_ShowSignature(self, sig):
-        if self.__sig_is_det(sig):
-            return sig
-        return self.__term_transformer.transform_signature(sig)
-
-    def __body_is_det(self, body):
-        return False
+        self.__show_signatures.append(sig)
+        return sig
 
     def visit_ShowTerm(self, show):
-        if self.__body_is_det(show.body):
-            return show
-        reify = self.__term_transformer.transform_term_reify
-        show.term = reify(show.term, self.__helper.show)
+        tt = self.__term_transformer
+        # reify head term
+        show.term = tt.reify_term(show.term, self.__helper.show)
+        # process body
         self.__visit_body_literal_list(show.body, show.location)
+        # update __show_terms
+        self.__show_terms.append((show.term, self.__body_list.get_index()))
+        # return
         return show
 
     def visit_Minimize(self, min):
@@ -254,18 +272,21 @@ class PreferenceProgramVisitor(Visitor):
         prg.parameters = [id1, id2]
         return prg
 
+    # return it: it will be simply ignored
     def visit_External(self, ext):
-        self.visit(ext.atom)
-        self.__visit_body_literal_list(ext.body, ext.location)
         return ext
 
-    # TODO(EFF):do not translate if *all* edge statements are deterministic
     # TODO: Warn if computing many models
     def visit_Edge(self, edge):
-        e = self.edge
-        edge.u = self.__term_transformer.transform_term_reify(edge.u, e)
-        edge.v = self.__term_transformer.transform_term_reify(edge.v, e)
+        tt = self.__term_transformer
+        # reify edges
+        edge.u = tt.reify_term(edge.u, self.__helper.edge)
+        edge.v = tt.reify_term(edge.v, self.__helper.edge)
+        # process body
         self.__visit_body_literal_list(edge.body, edge.location)
+        # update __edges
+        self.__edges.append((edge.u, edge.v, self.__body_list.get_index()))
+        # return
         return edge
 
     # TODO(EFF): do not add if head is deterministic
@@ -302,7 +323,7 @@ class PreferenceProgramVisitor(Visitor):
                 flag = True
             self.__graph.add_atom(lit.atom.term, self.in_Head,
                                   self.in_Body, flag)
-            self.__body_list.add(lit.atom.term)
+            self.__body_list.add_atom(lit.atom.term)
         self.visit_children(lit)
         return lit
 

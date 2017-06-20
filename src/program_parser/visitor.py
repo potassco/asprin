@@ -20,6 +20,7 @@ UNSAT      = utils.UNSAT
 
 # others
 MODEL    = utils.MODEL
+EMPTY    = ""
 M1       = "m1"
 M2       = "m2"
 M1_M2    = "m1_m2"
@@ -121,7 +122,7 @@ class TermTransformer: # ABSTRACT CLASS
         self.default = None
         self.helper = Helper()
 
-    # TO BE REDEFINED BY SUBCLASSES
+    # TO BE DEFINED BY SUBCLASSES
     def set_predicates_info(self, open):
         pass
 
@@ -151,14 +152,12 @@ class TermTransformer: # ABSTRACT CLASS
         sig.name = self.helper.underscore(sig.name)
         sig.name = "_"*predicate_info.underscores + sig.name
         sig.arity += predicate_info.arity
-        # return
-        return sig
 
-    # pre: set_predicates_info() was called before
-    def transform_term_reify(self, term, name):
-        # always adds M1_M2
-        args = [term] + self.helper.get_ems(term.location, M1_M2)
-        return clingo.ast.Function(term.location, name, args, False)
+    # returns a Function reifying term with name
+    def reify_term(self, term, name):
+        return clingo.ast.Function(term.location, name, [term], False)
 
-
+    # extends a Function with ems
+    def extend_function(self, func, ems):
+        func.arguments += self.helper.get_ems(func.location, ems)
 

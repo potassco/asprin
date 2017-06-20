@@ -291,7 +291,8 @@ class Solver:
         if self.state.max_models == 0: 
             control.configuration.solve.models = 0
         else:
-            control.configuration.solve.models = (self.state.max_models -                                                         self.state.opt_models)
+            control.configuration.solve.models = (self.state.max_models -
+                                                  self.state.opt_models)
         # assumptions
         h = self.holds_str
         ass  = [ (clingo.Function(h, [x,0]), True)  for x in self.holds ]
