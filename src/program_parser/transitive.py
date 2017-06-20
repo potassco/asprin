@@ -30,6 +30,10 @@ class TransitiveClosure:
     def __init__(self):
         self.nodes = {}
 
+    #
+    # CREATE THE GRAPH
+    #
+
     # add set_1 to set_2, and delete set_1 from set_3
     def __update(self, set_1, set_2, set_3):
         set_2.update(set_1)
@@ -111,6 +115,10 @@ class TransitiveClosure:
         for key, item in self.nodes.items():
             out += str(item) + "\n"
         return out
+
+    #
+    # USE THE GRAPH
+    #
 
     # pre: key must be in the graph
     def get_next(self, key):

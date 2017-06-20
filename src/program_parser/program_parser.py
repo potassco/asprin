@@ -101,6 +101,7 @@ ERROR_OPT_NON_DOMAIN   = "optimize:{}: "             + ERROR_NON_DOMAIN
 ERROR_NO_PREF_PROGRAM  = "preference:{}: " + ERROR_SPEC + """\
 preference type {} has no preference program\n"""
 
+
 class ProgramsPrinter:
 
     def print_programs(self,programs,types):
@@ -115,7 +116,7 @@ class ProgramsPrinter:
 
     def run(self,control,programs,types):
         self.print_programs(programs,types)
-        l, t = [], transformer.PreferenceProgramTransformer()
+        l, t = [], transformer.PreferenceProgramVisitor()
         for name, programs in programs.items():
             if name == PPROGRAM:
                 for type, program in programs.items():
@@ -274,7 +275,7 @@ class Parser:
 
 
     def add_programs(self,types):
-        t = transformer.PreferenceProgramTransformer()
+        t = transformer.PreferenceProgramVisitor()
         with self.__control.builder() as b:
             #for name, programs in self.__programs.items():
             translate_programs = [PPROGRAM]
