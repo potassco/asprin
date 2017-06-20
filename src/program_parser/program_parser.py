@@ -2,7 +2,7 @@
 
 from __future__ import print_function
 import clingo
-import transformer
+import preference
 import sys
 import argparse
 from src.utils import utils
@@ -116,7 +116,7 @@ class ProgramsPrinter:
 
     def run(self,control,programs,types):
         self.print_programs(programs,types)
-        l, t = [], transformer.PreferenceProgramVisitor()
+        l, t = [], preference.PreferenceProgramVisitor()
         for name, programs in programs.items():
             if name == PPROGRAM:
                 for type, program in programs.items():
@@ -275,7 +275,7 @@ class Parser:
 
 
     def add_programs(self,types):
-        t = transformer.PreferenceProgramVisitor()
+        t = preference.PreferenceProgramVisitor()
         with self.__control.builder() as b:
             #for name, programs in self.__programs.items():
             translate_programs = [PPROGRAM]

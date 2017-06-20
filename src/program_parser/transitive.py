@@ -1,7 +1,7 @@
 from collections import namedtuple
 
 
-Info = namedtuple('Info','key item')
+NodeInfo = namedtuple('NodeInfo','key item')
 
 
 class Node:
@@ -13,7 +13,7 @@ class Node:
         self.prev = set()
         self.neg_next = set()
         self.neg_prev = set()
-    
+
     def __str__(self):
         out = []
         if self.next:
@@ -21,9 +21,9 @@ class Node:
         if self.neg_next:
             out += [(i.key, "-") for i in self.neg_next]
         ret = "#{}\n:{}\n".format(self.key, str(self.item))
-        list = ["({},{},{})".format(self.key,i[0],i[1]) for i in out]
-        return ret + "\n".join(list)
-        
+        list_ = ["({},{},{})".format(self.key, i[0], i[1]) for i in out]
+        return ret + "\n".join(list_)
+
 
 class TransitiveClosure:
 
@@ -39,7 +39,7 @@ class TransitiveClosure:
         set_2.update(set_1)
         set_3.difference_update(set_1)
   
-    # update graph with (Info) a
+    # update graph with (NodeInfo) a
     # do not add item if it is None
     def add_node(self, a):
         node = self.nodes.get(a.key)
@@ -51,7 +51,7 @@ class TransitiveClosure:
             node.item.append(a.item)
         return node
 
-    # add edge from (Info) a to (Info) b 
+    # add edge from (NodeInfo) a to (NodeInfo) b 
     # if flag, then the edge has negative sign
     # if not add_node, then a and b must be in the graph
     def add_edge(self, a, b, flag, add_node=False):
@@ -130,7 +130,7 @@ class TransitiveClosure:
         out = []
         for key, value in self.nodes.items():
             if value in value.neg_next:
-                out.append(Info(key, None))
+                out.append(NodeInfo(key, None))
         return out
 
     def map_items(self, f):
@@ -149,6 +149,6 @@ if __name__ == "__main__":
     graph = tmp
     tc = TransitiveClosure()
     for i in graph:
-        tc.add_edge(Info(i[0],i[0]), Info(i[1],i[1]), i[2], True)
+        tc.add_edge(NodeInfo(i[0],i[0]), NodeInfo(i[1],i[1]), i[2], True)
     print tc
 
