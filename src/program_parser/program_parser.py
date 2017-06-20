@@ -2,11 +2,10 @@
 
 from __future__ import print_function
 import clingo
-import preference
 import sys
-import argparse
 from src.utils import utils
 from src.utils import printer
+import preference
 
 #
 # DEFINES
