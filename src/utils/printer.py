@@ -21,7 +21,7 @@ class Printer:
     def __check_messages(self, n):
         Printer.messages += n
         if Printer.messages >= MESSAGE_LIMIT:
-            raise Exception(TOO_MANY) 
+            pass #raise Exception(TOO_MANY) 
 
     def __last(self, string):
         if Printer.last == string:

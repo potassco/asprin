@@ -6,6 +6,7 @@ import sys
 from src.utils import utils
 from src.utils import printer
 import preference
+import approximation
 
 #
 # DEFINES
@@ -17,6 +18,8 @@ BASE       = utils.BASE
 SPEC       = utils.SPEC
 GENERATE   = utils.GENERATE
 PPROGRAM   = utils.PPROGRAM
+APPROX     = utils.APPROX
+
 # predicate names
 DOM        = utils.DOM
 GEN_DOM    = utils.GEN_DOM
@@ -273,22 +276,19 @@ class Parser:
         self.__add_and_ground(SHOW,[],show,[(SHOW,[])])
 
 
-    def add_programs(self,types):
-        t = preference.PreferenceProgramVisitor()
-        with self.__control.builder() as b:
-            #for name, programs in self.__programs.items():
-            translate_programs = [PPROGRAM]
-            for name in translate_programs:
+    def add_programs(self, types):
+        visitors  = [(PPROGRAM, preference.PreferenceProgramVisitor())]
+        visitors += [(APPROX, approximation.ApproximationProgramVisitor())]
+        with self.__control.builder() as builder:
+            for name, visitor in visitors:
                 list = []
                 for type, program in self.__programs[name].items():
                     if type in types:
-                        s = "#program "+name+".\n"+program.get_string()
-                        #clingo.parse_program(s, lambda x: b.add(t.visit(x)))
-                        clingo.parse_program(s, 
-                                             lambda x: list.append(t.visit(x)))
-            t.finish()
-            map(b.add, list)
-            #map(print, list)
+                        s = "#program " + name + ".\n" + program.get_string()
+                        clingo.parse_program(s, lambda x: visitor.visit(x))
+                visitor.finish(builder)
+                #map(b.add, list)
+                #map(print, list)
         #raise utils.SilentException() 
 
     def check_programs_errors(self):

@@ -1,27 +1,33 @@
 class GeneralController:
 
     def __init__(self, solver, state):
-        self.solver            = solver
-        self.state             = state
-        self.state.step        = 1
-        self.state.start_step  = 1
-        self.state.last_unsat  = True
-        self.state.opt_models  = 0
-        self.state.models      = 0
-        self.state.more_models = True
-        self.state.old_holds   = None
-        self.state.old_nholds  = None
+        self.solver             = solver
+        self.state              = state
+        self.state.step         = 1
+        self.state.start_step   = 1
+        self.state.last_unsat   = True
+        self.state.opt_models   = 0
+        self.state.models       = 0
+        self.state.more_models  = True
+        self.state.old_holds    = None
+        self.state.old_nholds   = None
+        self.state.normal_solve = True
 
     def start(self):
         self.solver.load_encodings()
 
+    def start_loop(self):
+        if not self.state.last_unsat:
+            self.solver.ground_holds()
+
     def solve(self):
-        self.solver.solve()
+        if self.state.normal_solve:
+            self.solver.solve()
 
     def sat(self):
         self.state.models    += 1
         self.state.last_unsat = False
-        self.solver.check_last_model() 
+        self.solver.check_last_model()
         self.solver.print_shown()
 
     def unsat(self):
@@ -62,13 +68,39 @@ class BasicMethodController:
     def __init__(self, solver, state):
         self.solver = solver
         self.state  = state
+        self.state.basic_method_controller_on = True
 
     def start_loop(self):
-        if self.state.step > self.state.start_step: 
+        if not self.state.basic_method_controller_on:
+            return
+        if self.state.step > self.state.start_step:
             self.solver.ground_preference_program()
 
     def unsat(self):
+        if not self.state.basic_method_controller_on:
+            return
         self.solver.relax_previous_models()
+
+
+class ApproxMethodController:
+
+    def __init__(self, solver, state):
+        self.solver = solver
+        self.state  = state
+        self.state.normal_solve = False
+        self.state.basic_method_controller_on = False
+
+    def start(self):
+        self.solver.load_approximation()
+
+    def solve(self):
+        opt_mode = self.solver.control.configuration.solve.opt_mode
+        self.solver.control.configuration.solve.opt_mode == "opt"
+        if self.state.last_unsat:
+            self.solver.solve()
+        else:
+            self.solver.solve_unsat()
+        self.solver.control.configuration.solve.opt_mode == opt_mode
 
 
 class EnumerationController:

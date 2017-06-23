@@ -41,6 +41,7 @@ DELETE_MODEL     = "delete_model"
 UNSAT_PRG        = "unsat"
 NOT_UNSAT_PRG    = "not_unsat"
 PPROGRAM         = utils.PPROGRAM
+APPROX           = utils.APPROX
 
 # predicate and term names
 VOLATILE      = utils.VOLATILE
@@ -96,7 +97,9 @@ class EndException(Exception):
 class State:
     pass
 
-
+def call(object, method):
+    if object:
+        getattr(object, method)()
 
 #
 # Solver
@@ -123,10 +126,11 @@ class Solver:
         self.state.old_nholds  = None
         self.shown             = []
         self.solving_result    = None
-        l = [START, START_LOOP, SOLVE, SAT, UNSAT, UNKNOWN, END_LOOP, END]
-        self.pre  = dict([(i, []) for i in l])
-        self.post = dict([(i, []) for i in l])
+        #l = [START, START_LOOP, SOLVE, SAT, UNSAT, UNKNOWN, END_LOOP, END]
+        # self.pre  = dict([(i, []) for i in l])
+        # self.post = dict([(i, []) for i in l])
         self.externals = dict()
+        self.improving = []
         # printer
         self.printer = printer.Printer()
 
@@ -173,24 +177,34 @@ class Solver:
 
     def load_encodings(self):
         for i in programs:
-            self.control.add(i[0],i[1],i[2].replace(token, self.underscores))
-        self.control.ground([(DO_HOLDS_AT_ZERO,[])],self)
+            self.control.add(i[0], i[1], i[2].replace(token, self.underscores))
+        self.control.ground([(DO_HOLDS_AT_ZERO, [])], self)
+
+
+    def load_approximation(self):
+        self.control.ground([(APPROX, [])], self)
+
+
+    def ground_holds(self):
+        control, prev_step = self.control, self.state.step-1
+        control.ground([(DO_HOLDS, [prev_step])], self)
 
 
     def ground_preference_program(self):
         state, control, prev_step = self.state, self.control, self.state.step-1
-        control.ground([(DO_HOLDS,       [prev_step]),
-                        (PPROGRAM,     [0,prev_step]),
-                        (NOT_UNSAT_PRG,  [0,prev_step]),
-                        (VOLATILE_EXT,   [0,prev_step])],self)
+        #control.ground([(DO_HOLDS,       [prev_step]),
+        control.ground([(PPROGRAM,      [0,prev_step]),
+                        (NOT_UNSAT_PRG, [0,prev_step]),
+                        (VOLATILE_EXT,  [0,prev_step])],self)
         control.assign_external(self.get_external(0,prev_step),True)
+        self.improving.append(prev_step)
 
 
     #TODO: move to program_parser when translation improved
     def check_errors(self):
         # get preference program errors
         pr, control, u = self.printer, self.control, self.underscores
-        error = False 
+        error = False
         for atom in control.symbolic_atoms.by_signature(u+"_error", 1):
             string = "\n" + self.__cat(atom.symbol.arguments[0])
             pr.print_spec_error(string)
@@ -221,6 +235,8 @@ class Solver:
         elif result.unsatisfiable:
             self.solving_result = UNSATISFIABLE
 
+    def solve_unsat(self):
+        self.solving_result = UNSATISFIABLE
 
     def __symbol2str(self,symbol):
         if symbol.name == CSP:
@@ -306,8 +322,10 @@ class Solver:
 
     def relax_previous_models(self):
         state, control = self.state, self.control
-        for i in range(state.start_step,state.step):
-            control.release_external(self.get_external(0,i))
+        #for i in range(state.start_step,state.step):
+        for i in self.improving:
+            control.release_external(self.get_external(0, i))
+        self.improving = []
 
 
     def handle_optimal_models(self):
@@ -339,12 +357,17 @@ class Solver:
     # RUN()
     #
 
+
     def run(self):
 
         # controllers
         general = controller.GeneralController(self, self.state)
         optimal = controller.GeneralControllerHandleOptimal(self, self.state)
         basic = controller.BasicMethodController(self, self.state)
+        if self.state.solving_mode == "approx":
+            approx = controller.ApproxMethodController(self, self.state)
+        else:
+            approx = None
         enumeration = controller.EnumerationController(self, self.state)
         checker = controller.CheckerController(self, self.state)
 
@@ -352,12 +375,15 @@ class Solver:
         try:
             # START
             general.start()
+            call(approx, "start")
             self.printer.do_print("Solving...")
             while True:
                 # START_LOOP
+                general.start_loop()
                 basic.start_loop()
                 checker.start_loop()
                 # SOLVE
+                call(approx, "solve")
                 general.solve()
                 if self.solving_result == SATISFIABLE:
                     # SAT

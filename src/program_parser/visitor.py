@@ -19,14 +19,14 @@ OPTIMIZE   = utils.OPTIMIZE
 UNSAT      = utils.UNSAT
 
 # others
-MODEL    = utils.MODEL
-EMPTY    = ""
-M1       = "m1"
-M2       = "m2"
-M1_M2    = "m1_m2"
-SHOW     = "show"
-EDGE     = "edge"
-
+MODEL = utils.MODEL
+EMPTY = ""
+M1    = "m1"
+M2    = "m2"
+M1_M2 = "m1_m2"
+SHOW  = "show"
+EDGE  = "edge"
+ZERO  = "zero"
 
 #
 # CLASSES
@@ -41,6 +41,7 @@ class Helper:
     underscores, m1, m2            = None, None, None
     simple_m1, simple_m2, volatile = None, None, None
     unsat, show, edge              = None, None, None
+    zero                           = None
 
     def __init__(self):
         if self.underscores is not None:
@@ -54,6 +55,7 @@ class Helper:
         Helper.simple_m1 = clingo.parse_term(term)
         term = "{}".format(self.underscore(M2)) # for holds
         Helper.simple_m2 = clingo.parse_term(term)
+        Helper.zero = clingo.parse_term("0")
         Helper.volatile = self.underscore(VOLATILE)
         Helper.unsat = self.underscore(UNSAT)
         Helper.show = self.underscore(SHOW)
@@ -75,6 +77,8 @@ class Helper:
         elif ems == M1_M2:
             return [clingo.ast.Symbol(loc, self.m1),
                     clingo.ast.Symbol(loc, self.m2)]
+        elif ems == ZERO:
+            return [clingo.ast.Symbol(loc, self.zero)]
         else:
             return []
 
@@ -123,7 +127,7 @@ class TermTransformer: # ABSTRACT CLASS
         self.helper = Helper()
 
     # TO BE DEFINED BY SUBCLASSES
-    def set_predicates_info(self, open):
+    def set_predicates_info(self):
         pass
 
     def __get_predicate_info(self, name, arity):
