@@ -297,7 +297,6 @@ class PreferenceProgramVisitor(Visitor):
         string = ERROR_PROJECT.format(self.__type, str(sig))
         self.__helper.raise_exception(string)
 
-
     #
     # Elements
     #
@@ -327,7 +326,6 @@ class PreferenceProgramVisitor(Visitor):
         # if list is a special Literal, visit the children
         if atom_type not in ["Comparison", "BooleanConstant", "SymbolicAtom"]:
             self.visit_children(lit)
-        return lit
 
     # csp literals are not accepted
     def visit_CSPLiteral(self, csp):
@@ -339,21 +337,17 @@ class PreferenceProgramVisitor(Visitor):
         self.visit(c.literal)
         self.in_Literal_ConditionalLiteral = False
         self.__visit_condition(c.condition, c.location)
-        return c
 
     def visit_Aggregate(self, a):
         self.visit_children(a)
-        return a
 
     def visit_TheoryAtom(self, th):
         for i in th.elements:
             self.__visit_condition(i.condition, th.location)
-        return th
 
     def visit_BodyAggregate(self, b):
         for i in b.elements:
             self.__visit_condition(i.condition, b.location)
-        return b
 
     # disjoint atoms are not accepted
     def visit_Disjoint(self, d):
@@ -362,8 +356,6 @@ class PreferenceProgramVisitor(Visitor):
 
     def visit_HeadAggregate(self, h):
         self.visit_children(h)
-        return h
 
     def visit_Disjunction(self, d):
         self.visit_children(d)
-        return d

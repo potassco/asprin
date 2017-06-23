@@ -98,7 +98,7 @@ class Visitor:
 
     def visit_children(self, x, *args, **kwargs):
         for key in x.child_keys:
-            setattr(x, key, self.visit(getattr(x, key), *args, **kwargs))
+            self.visit(getattr(x, key), *args, **kwargs)
         return x
 
     def visit(self, x, *args, **kwargs):
@@ -106,15 +106,15 @@ class Visitor:
             attr = "visit_" + str(x.type)
             if hasattr(self, attr):
                 setattr(x, "in_"+attr, True)  # added
-                tmp = getattr(self, attr)(x, *args, **kwargs)
+                getattr(self, attr)(x, *args, **kwargs)
                 setattr(x, "in_"+attr, False) # added
-                return tmp
             else:
-                return self.visit_children(x, *args, **kwargs)
+                self.visit_children(x, *args, **kwargs)
         elif isinstance(x, list):
-            return [self.visit(y, *args, **kwargs) for y in x]
+            for y in x:
+                self.visit(y, *args, **kwargs)
         elif x is None:
-            return x
+            pass
         else:
             raise TypeError("unexpected type")
 
