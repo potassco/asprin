@@ -93,7 +93,7 @@ class Graph:
 
     #
     # parsing a rule:
-    #   add_atom()* process()
+    #   add_atom()* update()
     #
 
     def __get_info(self, term):

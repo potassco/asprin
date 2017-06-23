@@ -9,7 +9,6 @@ from src.utils import printer
 # DEFINES
 #
 
-
 # predicate names
 VOLATILE   = utils.VOLATILE
 HOLDS      = utils.HOLDS

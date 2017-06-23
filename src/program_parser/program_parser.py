@@ -131,13 +131,11 @@ class ProgramsPrinter:
 
 class Parser:
 
-
     def __init__(self, control, programs, options):
         self.__control = control
         self.__programs = programs
         self.__options = options
         self.__underscores = utils.underscores
-
 
     def __add_and_ground(self, name, params, string, list):
         capturer = utils.Capturer(sys.stderr)
@@ -150,23 +148,18 @@ class Parser:
             if s != "":
                 printer.Printer().print_error_string(s)
 
-
     def do_base(self):
-
         options, control = self.__options, self.__control
         programs = self.__programs
-
         # constants
         constants = options['constants'].items()
         old = [ key                      for key, value in constants ]
         new = [ clingo.parse_term(value) for key, value in constants ]
-
         # add and ground
         string =  programs[BASE][""].get_string()
         self.__add_and_ground(BASE,old,string,[(BASE,new)])
         string =  programs[GENERATE][""].get_string()
         self.__add_and_ground(GENERATE,[],string,[(GENERATE,[])])
-
 
     def get_domains(self):
         out, control, u = "", self.__control, self.__underscores
@@ -177,13 +170,11 @@ class Parser:
                 out += u + DOM + "(" + str(atom2.symbol) + ").\n"
         return out
 
-
     def __cat(self, tuple):
         if tuple.arguments:
             return "".join([str(i) for i in tuple.arguments]).replace('"',"")
         else:
             return str(tuple)
-
 
     def __non_domain_message(self, atom, predicate):
         # preference statement
@@ -203,7 +194,6 @@ class Parser:
         else:
             arg1 = str(atom.symbol.arguments[0])
             return ERROR_OPT_NON_DOMAIN.format(arg1)
-
 
     def do_spec(self):
 
@@ -252,7 +242,6 @@ class Parser:
 
         return out
 
-
     def add_show(self,types):
 
         # decide if adding #shows to the base, and set 'show_underscores'
@@ -275,7 +264,6 @@ class Parser:
         show += "#show."
         self.__add_and_ground(SHOW,[],show,[(SHOW,[])])
 
-
     def add_programs(self, types):
         visitors  = [(PPROGRAM, preference.PreferenceProgramVisitor())]
         visitors += [(APPROX, approximation.ApproximationProgramVisitor())]
@@ -287,13 +275,6 @@ class Parser:
                         s = "#program " + name + ".\n" + program.get_string()
                         clingo.parse_program(s, lambda x: visitor.visit(x))
                 visitor.finish(builder)
-                #map(b.add, list)
-                #map(print, list)
-        #raise utils.SilentException() 
-
-    def check_programs_errors(self):
-        pass
-
 
     def parse(self):
 
