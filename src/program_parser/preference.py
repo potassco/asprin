@@ -1,20 +1,32 @@
 import clingo.ast
-from src.utils.utils import BASE, PPROGRAM, PBASE, \
-                            HOLDS, HOLDSP, PREFERENCE, OPTIMIZE
-from src.program_parser.transitive_closure import NodeInfo, TransitiveClosure
-from src.program_parser.visitor import PredicateInfo, Helper, \
-                                       Visitor, TermTransformer, \
-                                       EMPTY, M1, M2, M1_M2, SHOW, EDGE
+from src.utils import utils
+from src.program_parser import transitive_closure
+from src.program_parser import visitor
+
 
 #
 # DEFINES
 #
 
+# programs
+PPROGRAM = utils.PPROGRAM
+PBASE    = utils.PBASE
+
+# predicates
+HOLDS      = utils.HOLDS
+HOLDSP     = utils.HOLDSP
+PREFERENCE = utils.PREFERENCE
+OPTIMIZE   = utils.OPTIMIZE
 
 # graph
 HOLDS_KEY  = (HOLDS,  1)
 HOLDSP_KEY = (HOLDSP, 1)
 OPEN_NAME  = "open"
+
+# ems
+M1 = visitor.M1
+M2 = visitor.M2
+M1_M2 = visitor.M1_M2
 
 # errors
 ERROR_PROJECT = """\
@@ -34,14 +46,15 @@ error: syntax error, special predicate depends on non domain atoms in {} program
   {}/{}\n"""
 
 
-class PreferenceTermTransformer(TermTransformer):
+class PreferenceTermTransformer(visitor.TermTransformer):
 
     def __init__(self, type):
-        TermTransformer.__init__(self)
+        visitor.TermTransformer.__init__(self)
         self.__type = type
 
     def set_predicates_info(self, open):
         self.predicates_info = dict()
+        PredicateInfo = visitor.PredicateInfo
         info = PredicateInfo(None, 1, M1_M2, 2)
         for i in open:
             self.predicates_info[i] = info
@@ -52,7 +65,7 @@ class PreferenceTermTransformer(TermTransformer):
         for i in [(OPTIMIZE, 1), (PREFERENCE, 2), (PREFERENCE, 5)]:
             if i in self.predicates_info:
                 string = ERROR_KEYWORD.format(self.__type, i[0], i[1])
-                Helper().raise_exception(string)
+                visitor.Helper().raise_exception(string)
             else:
                 self.predicates_info[i] = info
         self.default = PredicateInfo(None, 1, None, 0)
@@ -61,8 +74,9 @@ class PreferenceTermTransformer(TermTransformer):
 class Graph:
 
     def __init__(self):
-        self.__tc = TransitiveClosure()
-        self.__open = NodeInfo((Helper().underscore(OPEN_NAME), 0), None)
+        self.__tc = transitive_closure.TransitiveClosure()
+        NodeInfo = transitive_closure.NodeInfo
+        self.__open = NodeInfo((visitor.Helper().underscore(OPEN_NAME),0), None)
         holds  = NodeInfo(HOLDS_KEY,  None)
         holdsp = NodeInfo(HOLDSP_KEY, None)
         self.__tc.add_node(self.__open)
@@ -83,7 +97,8 @@ class Graph:
     #
 
     def __get_info(self, term):
-        return NodeInfo((term.name, len(term.arguments)), term)
+        return transitive_closure.NodeInfo((term.name, len(term.arguments)),
+                                           term)
 
     def add_atom(self, term, in_head, in_body, flag):
         info = self.__get_info(term)
@@ -128,15 +143,15 @@ class Condition:
         self.preds = []
 
 
-class PreferenceProgramVisitor(Visitor):
+class PreferenceProgramVisitor(visitor.Visitor):
 
     def __init__(self):
-        Visitor.__init__(self)
+        visitor.Visitor.__init__(self)
         self.__type       = PPROGRAM
         self.__statements = []
         self.__conditions = []
         self.__graph      = Graph()
-        self.__helper     = Helper()
+        self.__helper     = visitor.Helper()
         self.__term_transformer = PreferenceTermTransformer(self.__type)
         # tracing position
         self.in_Head, self.in_Body, self.in_Condition = False, False, False

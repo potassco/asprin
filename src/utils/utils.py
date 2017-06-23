@@ -28,6 +28,7 @@ PREFERENCE = "preference"
 OPTIMIZE   = "optimize"
 UNSAT      = "unsat"
 ERROR      = "error"
+SHOW       = "show"
 
 # translation tokens
 HASH_SEM = "#sem"

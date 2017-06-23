@@ -300,8 +300,8 @@ class Lexer(object):
 
     # push INITIAL state, reset lexer lexpos, and return CODE
     def t_normal_DIRECTIVE(self, t):
-        r'(\#preference)|(\#optimize)|(\#program)|(\#const)|(\#include)'
-        #r'(\#preference)|(\#optimize)|(\#program)|(\#const)|(\#include)|(\#minimize)|(\#maximize)'
+        r'(\#preference)|(\#optimize)|(\#program)|(\#const)|(\#include)|(\#minimize)|(\#maximize)'
+        #r'(\#preference)|(\#optimize)|(\#program)|(\#const)|(\#include)'
         t.lexer.push_state('INITIAL')
         t.value = t.lexer.lexdata[self.__code_start:t.lexpos]
         t.type = 'CODE'

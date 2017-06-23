@@ -140,7 +140,8 @@ There is NO WARRANTY, to the extent permitted by law."""
                              help=': Enable projective solution enumeration',
                              action='store_true')
         solving.add_argument('--solving-mode', dest='solving_mode', metavar="<arg>",
-                             help=': Run {normal|approx} solving mode',
+                             #help=': Run {normal|approx} solving mode',
+                             help=argparse.SUPPRESS,
                              default="normal", choices=["normal", "approx"])
 
         options, unknown = cmd_parser.parse_known_args()

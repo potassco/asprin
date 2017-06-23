@@ -25,8 +25,8 @@ DOM        = utils.DOM
 GEN_DOM    = utils.GEN_DOM
 PREFERENCE = utils.PREFERENCE
 # more
-SHOW       = "show"
-OPTIMIZE   = "optimize"
+SHOW       = utils.SHOW
+OPTIMIZE   = utils.OPTIMIZE
 ERROR      = utils.ERROR
 
 # error checking
@@ -73,8 +73,8 @@ CHECK_SPEC = """
 
 % no optimize statements
 ##error((A,B,C)):- { ##optimize(Y) } 0, 
-  A = "optimize",  
-  B = ": error: preference specification error, ", 
+  A = "optimize",
+  B = ": error: preference specification error, ",
   C = "no optimize statement".
 
 % many optimize statements
