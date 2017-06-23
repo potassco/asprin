@@ -1,5 +1,6 @@
 import clingo.ast
-from src.utils.utils import BASE, PPROGRAM, HOLDS, HOLDSP, PREFERENCE, OPTIMIZE
+from src.utils.utils import BASE, PPROGRAM, PBASE, \
+                            HOLDS, HOLDSP, PREFERENCE, OPTIMIZE
 from src.program_parser.transitive_closure import NodeInfo, TransitiveClosure
 from src.program_parser.visitor import PredicateInfo, Helper, \
                                        Visitor, TermTransformer, \
@@ -141,6 +142,10 @@ class PreferenceProgramVisitor(Visitor):
         self.in_Head, self.in_Body, self.in_Condition = False, False, False
         self.in_Literal_ConditionalLiteral = False
 
+    #
+    # AUXILIARY FUNCTIONS
+    #
+    
     def __visit_body(self, body):
         self.in_Body = True
         self.visit(body)
@@ -162,7 +167,20 @@ class PreferenceProgramVisitor(Visitor):
     def __add_volatile(self, body, location):
         body.append(self.__helper.get_volatile_atom(location))
 
-    # after visiting all, finish()
+    def __get_params(self, location):
+        id1 = clingo.ast.Id(location, self.__helper.underscore(M1))
+        id2 = clingo.ast.Id(location, self.__helper.underscore(M2))
+        return [id1, id2]
+
+    def __get_program(self, nondet, loc):
+        if not nondet:
+            return clingo.ast.Program(loc, PBASE,[])
+        return clingo.ast.Program(loc, PPROGRAM, self.__get_params(loc))
+
+    #
+    # finish() after visiting all
+    #
+
     def finish(self, builder):
         # get open predicates from the graph
         open_list = self.__graph.get_open()
@@ -170,14 +188,19 @@ class PreferenceProgramVisitor(Visitor):
         self.__term_transformer.set_predicates_info(open_list)
         # tranform items stored in the graph
         self.__graph.map_items(self.__term_transformer.transform_function)
-        # iterate over statements
-        for st in self.__statements:
-            getattr(self,"finish_"+st.type, lambda: None)(st, open_list)
-            builder.add(st.statement)
         # iterate over conditions
         for c in self.__conditions:
             if self.__is_nondet(c, open_list):
                 self.__add_volatile(c.condition, c.location)
+        # iterate over statements
+        in_nondet = None
+        for st in self.__statements:
+            method = "finish_" + st.type
+            nondet = getattr(self, method, lambda x, y: False)(st, open_list)
+            if nondet != in_nondet:
+                builder.add(self.__get_program(nondet, st.statement.location))
+                in_nondet = nondet
+            builder.add(st.statement)
 
     #
     # Statements
@@ -197,6 +220,7 @@ class PreferenceProgramVisitor(Visitor):
                    self.__helper.get_ems(rule.location, M1_M2), False))
             rule.head = clingo.ast.Literal(rule.location,
                                            clingo.ast.Sign.NoSign, atom)
+            self.__statements[-1].preds.append(HOLDS_KEY) # make it nondet
         else:
             self.visit(rule.head)
         self.in_Head = False
@@ -209,6 +233,7 @@ class PreferenceProgramVisitor(Visitor):
         rule = statement.statement
         if self.__is_nondet(statement, open_list):
             self.__add_volatile(rule.body, rule.location)
+            return True
 
     def visit_Definition(self, d):
         self.__statements.append(Statement("Definition", d))
@@ -230,6 +255,7 @@ class PreferenceProgramVisitor(Visitor):
         if self.__is_nondet(statement, open_list):
             self.__add_volatile(show.body, show.location)
             tt.extend_function(show.term, M1_M2)
+            return True
 
     def visit_Minimize(self, min):
         string = ERROR_MINIMIZE.format(self.__type, str(min))
@@ -239,17 +265,8 @@ class PreferenceProgramVisitor(Visitor):
         self.__statements.append(Statement("Script", script))
 
     def visit_Program(self, prg):
-        self.__statements.append(Statement("Program", prg))
+        pass # ignore
 
-    def finish_Program(self, statement, open_list):
-        prg = statement.statement
-        if prg.name != BASE:
-            assert(prg.name == self.__type)
-            underscore = self.__helper.underscore
-            id1 = clingo.ast.Id(prg.location, underscore(M1))
-            id2 = clingo.ast.Id(prg.location, underscore(M2))
-            prg.parameters = [id1, id2]
-           
     def visit_External(self, ext):
         pass # ignore
 
@@ -267,7 +284,8 @@ class PreferenceProgramVisitor(Visitor):
         edge.v = tt.extend_function(edge.v, M1_M2)
         # could be done only if *some* edge is nondet
         self.__add_volatile(edge.body, edge.location)
-        
+        return True
+
     def visit_Heuristic(self, heur):
         self.__statements.append(Statement("Heuristic", heur))
         self.__visit_body(heur.body)
@@ -283,6 +301,7 @@ class PreferenceProgramVisitor(Visitor):
         heur = statement.statement
         if self.__is_nondet(statement, open_list):
             self.__add_volatile(heur.body, heur.location)
+            return True
 
     def visit_ProjectAtom(self,atom):
         string = ERROR_PROJECT.format(self.__type, str(atom))

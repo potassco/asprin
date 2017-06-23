@@ -14,7 +14,8 @@ class GeneralController:
         self.state.normal_solve = True
 
     def start(self):
-        self.solver.load_encodings()
+        self.solver.add_encodings()
+        self.solver.ground_preference_base()
 
     def start_loop(self):
         if not self.state.last_unsat:
@@ -91,7 +92,7 @@ class ApproxMethodController:
         self.state.basic_method_controller_on = False
 
     def start(self):
-        self.solver.load_approximation()
+        self.solver.ground_approximation()
 
     def solve(self):
         opt_mode = self.solver.control.configuration.solve.opt_mode

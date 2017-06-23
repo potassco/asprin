@@ -41,6 +41,7 @@ DELETE_MODEL     = "delete_model"
 UNSAT_PRG        = "unsat"
 NOT_UNSAT_PRG    = "not_unsat"
 PPROGRAM         = utils.PPROGRAM
+PBASE            = utils.PBASE
 APPROX           = utils.APPROX
 
 # predicate and term names
@@ -175,14 +176,18 @@ class Solver:
     #
 
 
-    def load_encodings(self):
+    def add_encodings(self):
         for i in programs:
             self.control.add(i[0], i[1], i[2].replace(token, self.underscores))
         self.control.ground([(DO_HOLDS_AT_ZERO, [])], self)
 
 
-    def load_approximation(self):
+    def ground_approximation(self):
         self.control.ground([(APPROX, [])], self)
+
+
+    def ground_preference_base(self):
+        self.control.ground([(PBASE, [])], self)
 
 
     def ground_holds(self):
