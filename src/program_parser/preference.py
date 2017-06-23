@@ -164,63 +164,20 @@ class PreferenceProgramVisitor(Visitor):
 
     # after visiting all, finish()
     def finish(self, builder):
-
         # get open predicates from the graph
         open_list = self.__graph.get_open()
-
         # set predicates_info in term_transformer
         self.__term_transformer.set_predicates_info(open_list)
-
         # tranform items stored in the graph
         self.__graph.map_items(self.__term_transformer.transform_function)
-
         # iterate over statements
-        tt = self.__term_transformer
         for st in self.__statements:
-            if st.type == "Rule":
-                rule = st.statement
-                if self.__is_nondet(st, open_list):
-                    self.__add_volatile(rule.body, rule.location)
-            elif st.type == "ShowSignature":
-                tt.transform_signature(st.statement.sig)
-            elif st.type == "ShowTerm":
-                show = st.statement
-                show.term = tt.reify_term(show.term, self.__helper.show)
-                if self.__is_nondet(st, open_list):
-                    self.__add_volatile(show.body, show.location)
-                    tt.extend_function(show.term, M1_M2)
-            elif st.type == "Program":
-                prg = st.statement
-                if prg.name != BASE:
-                    assert(prg.name == self.__type)
-                    underscore = self.__helper.underscore
-                    id1 = clingo.ast.Id(prg.location, underscore(M1))
-                    id2 = clingo.ast.Id(prg.location, underscore(M2))
-                    prg.parameters = [id1, id2]
-            elif st.type == "Edge":
-                edge = st.statement
-                edge.u = tt.reify_term(edge.u, self.__helper.edge)
-                edge.u = tt.extend_function(edge.u, M1_M2)
-                edge.v = tt.reify_term(edge.v, self.__helper.edge)
-                edge.v = tt.extend_function(edge.v, M1_M2)
-                # could be done only if *some* edge is nondet
-                self.__add_volatile(edge.body, edge.location)
-            elif st.type == "Heuristic":
-                heur = st.statement
-                if self.__is_nondet(st, open_list):
-                    self.__add_volatile(heur.body, heur.location)
-
-            # add to builder
+            getattr(self,"finish_"+st.type, lambda: None)(st, open_list)
             builder.add(st.statement)
-
         # iterate over conditions
         for c in self.__conditions:
             if self.__is_nondet(c, open_list):
                 self.__add_volatile(c.condition, c.location)
-
-    #end finish(self, builder)
-
-    # DELETE returns in visitors?
 
     #
     # Statements
@@ -248,16 +205,31 @@ class PreferenceProgramVisitor(Visitor):
         # graph
         self.__graph.update()
 
+    def finish_Rule(self, statement, open_list):
+        rule = statement.statement
+        if self.__is_nondet(statement, open_list):
+            self.__add_volatile(rule.body, rule.location)
+
     def visit_Definition(self, d):
         self.__statements.append(Statement("Definition", d))
 
     def visit_ShowSignature(self, sig):
         self.__statements.append(Statement("ShowSignature", sig))
 
+    def finish_ShowSignature(self, statement, open_list):
+        self.__term_transformer.transform_signature(statement.statement.sig)
+
     def visit_ShowTerm(self, show):
         self.__statements.append(Statement("ShowTerm", show))
         self.__visit_body(show.body)
         self.__graph.update()
+
+    def finish_ShowTerm(self, statement, open_list):
+        show, tt = statement.statement, self.__term_transformer
+        show.term = tt.reify_term(show.term, self.__helper.show)
+        if self.__is_nondet(statement, open_list):
+            self.__add_volatile(show.body, show.location)
+            tt.extend_function(show.term, M1_M2)
 
     def visit_Minimize(self, min):
         string = ERROR_MINIMIZE.format(self.__type, str(min))
@@ -269,6 +241,15 @@ class PreferenceProgramVisitor(Visitor):
     def visit_Program(self, prg):
         self.__statements.append(Statement("Program", prg))
 
+    def finish_Program(self, statement, open_list):
+        prg = statement.statement
+        if prg.name != BASE:
+            assert(prg.name == self.__type)
+            underscore = self.__helper.underscore
+            id1 = clingo.ast.Id(prg.location, underscore(M1))
+            id2 = clingo.ast.Id(prg.location, underscore(M2))
+            prg.parameters = [id1, id2]
+           
     def visit_External(self, ext):
         pass # ignore
 
@@ -278,6 +259,15 @@ class PreferenceProgramVisitor(Visitor):
         self.__visit_body(edge.body)
         self.__graph.update()
 
+    def finish_Edge(self, statement, open_list):
+        edge, tt = statement.statement, self.__term_transformer
+        edge.u = tt.reify_term(edge.u, self.__helper.edge)
+        edge.u = tt.extend_function(edge.u, M1_M2)
+        edge.v = tt.reify_term(edge.v, self.__helper.edge)
+        edge.v = tt.extend_function(edge.v, M1_M2)
+        # could be done only if *some* edge is nondet
+        self.__add_volatile(edge.body, edge.location)
+        
     def visit_Heuristic(self, heur):
         self.__statements.append(Statement("Heuristic", heur))
         self.__visit_body(heur.body)
@@ -288,6 +278,11 @@ class PreferenceProgramVisitor(Visitor):
             self.__statements[-1].preds.append((term.name, len(term.arguments)))
         # update graph
         self.__graph.update()
+
+    def finish_Heuristic(self, statement, open_list):
+        heur = statement.statement
+        if self.__is_nondet(statement, open_list):
+            self.__add_volatile(heur.body, heur.location)
 
     def visit_ProjectAtom(self,atom):
         string = ERROR_PROJECT.format(self.__type, str(atom))
