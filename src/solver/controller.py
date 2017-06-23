@@ -125,9 +125,7 @@ class CheckerController:
 
     def __init__(self, solver, state):
         self.solver = solver
-        self.state  = state
 
-    def start_loop(self):
-        if self.state.step == 2:
-            self.solver.check_errors()
+    def start(self):
+        self.solver.check_errors()
 

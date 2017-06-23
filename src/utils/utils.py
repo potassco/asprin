@@ -27,6 +27,7 @@ HOLDSP     = "holds'"
 PREFERENCE = "preference"
 OPTIMIZE   = "optimize"
 UNSAT      = "unsat"
+ERROR      = "error"
 
 # translation tokens
 HASH_SEM = "#sem"

@@ -27,7 +27,7 @@ PREFERENCE = utils.PREFERENCE
 # more
 SHOW       = "show"
 OPTIMIZE   = "optimize"
-ERROR      = "error"
+ERROR      = utils.ERROR
 
 # error checking
 CHECK_SPEC = """

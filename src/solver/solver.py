@@ -175,25 +175,20 @@ class Solver:
     # CLINGO PROXY
     #
 
-
     def add_encodings(self):
         for i in programs:
             self.control.add(i[0], i[1], i[2].replace(token, self.underscores))
         self.control.ground([(DO_HOLDS_AT_ZERO, [])], self)
 
-
     def ground_approximation(self):
         self.control.ground([(APPROX, [])], self)
-
 
     def ground_preference_base(self):
         self.control.ground([(PBASE, [])], self)
 
-
     def ground_holds(self):
         control, prev_step = self.control, self.state.step-1
         control.ground([(DO_HOLDS, [prev_step])], self)
-
 
     def ground_preference_program(self):
         state, control, prev_step = self.state, self.control, self.state.step-1
@@ -204,20 +199,16 @@ class Solver:
         control.assign_external(self.get_external(0,prev_step),True)
         self.improving.append(prev_step)
 
-
-    #TODO: move to program_parser when translation improved
     def check_errors(self):
-        # get preference program errors
         pr, control, u = self.printer, self.control, self.underscores
         error = False
-        for atom in control.symbolic_atoms.by_signature(u+"_error", 1):
+        for atom in control.symbolic_atoms.by_signature(u+"_"+utils.ERROR, 1):
             string = "\n" + self.__cat(atom.symbol.arguments[0])
             pr.print_spec_error(string)
             error = True
         if error:
             pr.do_print("")
             raise Exception("parsing failed")
-
 
     def on_model(self, model):
         self.holds, self.nholds, self.shown = [], [], []
@@ -230,7 +221,6 @@ class Solver:
         for a in model.symbols(terms=True, complement=True):
             if a.name == self.holds_at_zero_str:
                 self.nholds.append(a.arguments[0])
-
 
     def solve(self):
         result = self.control.solve(on_model=self.on_model)
@@ -248,19 +238,15 @@ class Solver:
             return str(symbol.arguments[0]) + "=" + str(symbol.arguments[1])
         return str(symbol)
 
-
     def print_shown(self):
         self.printer.do_print(STR_ANSWER.format(self.state.models))
         self.printer.do_print(" ".join(map(self.__symbol2str, self.shown)))
 
-
     def print_optimum_string(self):
         self.printer.do_print(STR_OPTIMUM_FOUND)
 
-
     def print_unsat(self):
         self.printer.do_print(STR_UNSATISFIABLE)
-
 
     def check_last_model(self):
         if self.state.old_holds  == self.holds and (
@@ -270,18 +256,15 @@ class Solver:
         self.state.old_holds  = self.holds
         self.state.old_nholds = self.nholds
 
-
     def relax_previous_model(self):
         state, control = self.state, self.control
         control.release_external(self.get_external(0,state.step-1))
-
 
     def same_shown(self):
         if set(self.old_shown) == set(self.shown):
             self.enumerate_flag = True
             return True
         return False
-
 
     def same_shown_underscores(self):
         u = self.underscores
@@ -291,7 +274,6 @@ class Solver:
             self.enumerate_flag = True
             return True
         return False
-
 
     def on_model_enumerate(self,model):
         true = model.symbols(shown=True)
@@ -303,7 +285,6 @@ class Solver:
             self.state.opt_models += 1
             self.print_shown()
             self.printer.do_print(STR_OPTIMUM_FOUND_STAR)
-
 
     def enumerate(self):
         # models
@@ -324,14 +305,12 @@ class Solver:
         self.shown = self.old_shown
         control.configuration.solve.models = old_models
 
-
     def relax_previous_models(self):
         state, control = self.state, self.control
         #for i in range(state.start_step,state.step):
         for i in self.improving:
             control.release_external(self.get_external(0, i))
         self.improving = []
-
 
     def handle_optimal_models(self):
         state, control, prev_step = self.state, self.control, self.state.step-1
@@ -341,13 +320,11 @@ class Solver:
         volatile     = [(VOLATILE_FACT, [prev_step,0])]
         control.ground(preference + unsat + delete_model + volatile,self)
 
-
     def end(self):
         state, p = self.state, self.printer
         p.print_stats(self.control, state.models, state.more_models,
                       state.opt_models,state.stats)
         raise EndException
-
 
     #
     # OPTIONS
@@ -357,11 +334,9 @@ class Solver:
         for key,value in options.items():
             setattr(self.state,key,value)
 
-
     #
     # RUN()
     #
-
 
     def run(self):
 
@@ -380,13 +355,13 @@ class Solver:
         try:
             # START
             general.start()
+            checker.start()
             call(approx, "start")
             self.printer.do_print("Solving...")
             while True:
                 # START_LOOP
                 general.start_loop()
                 basic.start_loop()
-                checker.start_loop()
                 # SOLVE
                 call(approx, "solve")
                 general.solve()
