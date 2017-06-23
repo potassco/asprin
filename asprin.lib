@@ -3,14 +3,14 @@
 required(P,better) :- optimize(P).
            
 % to avoid warnings
-better(P)     :- better(P).     % to avoid warnings
-required(P,Q) :- required(P,Q). % to avoid warnings
+better(P)     :- #false, better(P).     % to avoid warnings
+required(P,Q) :- #false, required(P,Q). % to avoid warnings
 
 %
 % errors
 %
-error(X) :- error(X).               % to avoid warnings
-error_type(X,Y) :- error_type(X,Y). % to avoid warnings
+error(X) :- #false, error(X).               % to avoid warnings
+error_type(X,Y) :- #false, error_type(X,Y). % to avoid warnings
 
 %%% no formulas
 error(("preference:",P,": error: preference specification error, type '",T,"' does not allow formulas.")) :-
@@ -586,3 +586,11 @@ error_type(clingo_minimize,no_ordering).
 error_type(clingo_minimize,no_condition).
 error_type(clingo_minimize,no_sets).
 
+
+#program preference. % to avoid warnings
+
+better(P)     :- #false, better(P).
+required(P,Q) :- #false, required(P,Q).
+
+error(X) :- #false, error(X).
+error_type(X,Y) :- #false, error_type(X,Y).

@@ -257,7 +257,7 @@ class PreferenceProgramVisitor(visitor.Visitor):
         self.__statements.append(Statement("ShowSignature", sig))
 
     def finish_ShowSignature(self, statement, open_list):
-        self.__term_transformer.transform_signature(statement.statement.sig)
+        self.__term_transformer.transform_signature(statement.statement)
 
     def visit_ShowTerm(self, show):
         self.__statements.append(Statement("ShowTerm", show))
@@ -294,9 +294,9 @@ class PreferenceProgramVisitor(visitor.Visitor):
     def finish_Edge(self, statement, open_list):
         edge, tt = statement.statement, self.__term_transformer
         edge.u = tt.reify_term(edge.u, self.__helper.edge)
-        edge.u = tt.extend_function(edge.u, M1_M2)
+        tt.extend_function(edge.u, M1_M2)
         edge.v = tt.reify_term(edge.v, self.__helper.edge)
-        edge.v = tt.extend_function(edge.v, M1_M2)
+        tt.extend_function(edge.v, M1_M2)
         # could be done only if *some* edge is nondet
         self.__add_volatile(edge.body, edge.location)
         return True

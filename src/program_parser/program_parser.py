@@ -85,13 +85,14 @@ CHECK_SPEC = """
   D = "many optimize statements".
 
 #program """ + utils.WARNINGS + """.
+
 % avoid warnings
-##preference(A,B,C, for(D),E) :- ##preference(A,B,C, for(D),E).
-##preference(A,B,C,name(D),E) :- ##preference(A,B,C,name(D),E).
-##optimize(X) :- ##optimize(X).
-##preference(X,Y) :- ##preference(X,Y).
-##unsat(X,Y) :- ##unsat(X,Y).
-##false :- ##false.
+##preference(A,B,C, for(D),E) :- #false, ##preference(A,B,C, for(D),E).
+##preference(A,B,C,name(D),E) :- #false, ##preference(A,B,C,name(D),E).
+##optimize(X) :- #false, ##optimize(X).
+##preference(X,Y) :- #false, ##preference(X,Y).
+##unsat(X,Y) :- #false, ##unsat(X,Y).
+##false :- #false, ##false.
 """
 
 # error printing
@@ -266,7 +267,7 @@ class Parser:
 
     def add_programs(self, types):
         visitors  = [(PPROGRAM, preference.PreferenceProgramVisitor())]
-        visitors += [(APPROX, approximation.ApproximationProgramVisitor())]
+        #visitors += [(APPROX, approximation.ApproximationProgramVisitor())]
         with self.__control.builder() as builder:
             for name, visitor in visitors:
                 list = []
@@ -298,7 +299,4 @@ class Parser:
 
         # translate and add the rest of the programs
         self.add_programs(types)
-
-        #TODO(after improving translation): check for error/1 predicates
-        self.check_programs_errors()
 
