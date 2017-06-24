@@ -96,6 +96,9 @@ class Visitor:
             if i.startswith("visit_"):
                 setattr(self, "in_"+i[6:], False)
 
+    def finish(self):
+        pass
+
     def visit_children(self, x, *args, **kwargs):
         for key in x.child_keys:
             self.visit(getattr(x, key), *args, **kwargs)

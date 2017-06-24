@@ -15,13 +15,13 @@ import ast
 #
 
 # programs
-EMPTY      = utils.EMPTY
-BASE       = utils.BASE
-SPEC       = utils.SPEC
-GENERATE   = utils.GENERATE
-PPROGRAM   = utils.PPROGRAM
-HEURISTIC  = utils.HEURISTIC
-APPROX     = utils.APPROX
+EMPTY     = utils.EMPTY
+BASE      = utils.BASE
+SPEC      = utils.SPEC
+GENERATE  = utils.GENERATE
+PREFP     = utils.PREFP
+HEURISTIC = utils.HEURISTIC
+APPROX    = utils.APPROX
 
 # predicate names
 DOM        = utils.DOM
@@ -97,7 +97,7 @@ class Parser(object):
 
         # programs[name][type] is a Program
         self.p_statements, self.list = 0, []
-        l = [BASE, GENERATE, SPEC, PPROGRAM, HEURISTIC, APPROX]
+        l = [BASE, GENERATE, SPEC, PREFP, HEURISTIC, APPROX]
         self.programs = dict([(i,dict()) for i in l])
 
         # base
@@ -933,7 +933,7 @@ class Parser(object):
         self.program = s.name
         self.lexer.set_program((s.name,s.type))
         #TODO: Check if there are variables in ntermvec
-        if len(p)==7 and p[2]==PPROGRAM and len(p[4])!=1:
+        if len(p)==7 and p[2]==PREFP and len(p[4])!=1:
             self.__syntax_error(p,3,5,ERROR_PREFERENCE_NAME)
 
 

@@ -9,8 +9,8 @@ from src.program_parser import visitor
 #
 
 # programs
-PPROGRAM = utils.PPROGRAM
-PBASE    = utils.PBASE
+PREFP = utils.PREFP
+PBASE = utils.PBASE
 
 # predicates
 HOLDS      = utils.HOLDS
@@ -145,9 +145,10 @@ class Condition:
 
 class PreferenceProgramVisitor(visitor.Visitor):
 
-    def __init__(self):
+    def __init__(self, builder):
         visitor.Visitor.__init__(self)
-        self.__type       = PPROGRAM
+        self.__builder    = builder
+        self.__type       = PREFP
         self.__statements = []
         self.__conditions = []
         self.__graph      = Graph()
@@ -190,13 +191,13 @@ class PreferenceProgramVisitor(visitor.Visitor):
     def __get_program(self, nondet, loc):
         if not nondet:
             return clingo.ast.Program(loc, PBASE,[])
-        return clingo.ast.Program(loc, PPROGRAM, self.__get_params(loc))
+        return clingo.ast.Program(loc, PREFP, self.__get_params(loc))
 
     #
     # finish() after visiting all
     #
 
-    def finish(self, builder):
+    def finish(self):
         # get open predicates from the graph
         open_list = self.__graph.get_open()
         # set predicates_info in term_transformer
@@ -208,14 +209,14 @@ class PreferenceProgramVisitor(visitor.Visitor):
             if self.__is_nondet(c, open_list):
                 self.__add_volatile(c.condition, c.location)
         # iterate over statements
-        in_nondet = None
+        in_nondet, add = None, self.__builder.add
         for st in self.__statements:
             method = "finish_" + st.type
             nondet = getattr(self, method, lambda x, y: False)(st, open_list)
             if nondet != in_nondet:
-                builder.add(self.__get_program(nondet, st.statement.location))
+                add(self.__get_program(nondet, st.statement.location))
                 in_nondet = nondet
-            builder.add(st.statement)
+            add(st.statement)
 
     #
     # Statements
@@ -383,8 +384,3 @@ class PreferenceProgramVisitor(visitor.Visitor):
         string = ERROR_DISJOINT.format(self.__type, str(d))
         self.__helper.raise_exception(string)
 
-    def visit_HeadAggregate(self, h):
-        self.visit_children(h)
-
-    def visit_Disjunction(self, d):
-        self.visit_children(d)

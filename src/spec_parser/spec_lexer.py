@@ -302,6 +302,10 @@ class Lexer(object):
     def t_normal_DIRECTIVE(self, t):
         r'(\#preference)|(\#optimize)|(\#program)|(\#const)|(\#include)|(\#minimize)|(\#maximize)'
         #r'(\#preference)|(\#optimize)|(\#program)|(\#const)|(\#include)'
+        if ((t.value == "#maximize" or t.value == "#minimize") and
+            (self.__program != (BASE, EMPTY))):
+            t.lexer.lexpos = t.lexpos + 1
+            return
         t.lexer.push_state('INITIAL')
         t.value = t.lexer.lexdata[self.__code_start:t.lexpos]
         t.type = 'CODE'

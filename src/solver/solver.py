@@ -40,7 +40,7 @@ VOLATILE_EXT     = "volatile_external"
 DELETE_MODEL     = "delete_model"
 UNSAT_PRG        = "unsat"
 NOT_UNSAT_PRG    = "not_unsat"
-PPROGRAM         = utils.PPROGRAM
+PREFP            = utils.PREFP
 PBASE            = utils.PBASE
 APPROX           = utils.APPROX
 
@@ -193,7 +193,7 @@ class Solver:
     def ground_preference_program(self):
         state, control, prev_step = self.state, self.control, self.state.step-1
         #control.ground([(DO_HOLDS,       [prev_step]),
-        control.ground([(PPROGRAM,      [0,prev_step]),
+        control.ground([(PREFP,         [0,prev_step]),
                         (NOT_UNSAT_PRG, [0,prev_step]),
                         (VOLATILE_EXT,  [0,prev_step])],self)
         control.assign_external(self.get_external(0,prev_step),True)
@@ -314,7 +314,7 @@ class Solver:
 
     def handle_optimal_models(self):
         state, control, prev_step = self.state, self.control, self.state.step-1
-        preference   = [(PPROGRAM,      [prev_step,0])]
+        preference   = [(PREFP,         [prev_step,0])]
         unsat        = [(UNSAT_PRG,     [prev_step,0])]
         delete_model = [(DELETE_MODEL,             [])]
         volatile     = [(VOLATILE_FACT, [prev_step,0])]

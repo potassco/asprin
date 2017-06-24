@@ -6,25 +6,26 @@ import sys
 from src.utils import utils
 from src.utils import printer
 import preference
-import approximation
+import basic
 
 #
 # DEFINES
 #
 
 EMPTY      = utils.EMPTY
+
 # programs
-BASE       = utils.BASE
-SPEC       = utils.SPEC
-GENERATE   = utils.GENERATE
-PPROGRAM   = utils.PPROGRAM
-APPROX     = utils.APPROX
+BASE      = utils.BASE
+SPEC      = utils.SPEC
+GENERATE  = utils.GENERATE
+PREFP     = utils.PREFP
+APPROX    = utils.APPROX
+HEURISTIC = utils.HEURISTIC
 
 # predicate names
 DOM        = utils.DOM
 GEN_DOM    = utils.GEN_DOM
 PREFERENCE = utils.PREFERENCE
-# more
 SHOW       = utils.SHOW
 OPTIMIZE   = utils.OPTIMIZE
 ERROR      = utils.ERROR
@@ -105,29 +106,15 @@ ERROR_NO_PREF_PROGRAM  = "preference:{}: " + ERROR_SPEC + """\
 preference type {} has no preference program\n"""
 
 
-class ProgramsPrinter:
+class BuilderProxy:
 
-    def print_programs(self,programs,types):
-        for name, programs in programs.items():
-            if name in { BASE, GENERATE, SPEC }:
-                for type, program in programs.items():
-                    if type in types:
-                        params = "({})".format(type) if type != "" else ""
-                        p = printer.Printer()
-                        p.do_print("#program {}{}.".format(name,params))
-                        p.do_print(program.get_string())
+    def __init__(self, builder):
+        self.builder = builder
+        self.printer = printer.Printer()
 
-    def run(self,control,programs,types):
-        self.print_programs(programs,types)
-        l, t = [], preference.PreferenceProgramVisitor()
-        for name, programs in programs.items():
-            if name == PPROGRAM:
-                for type, program in programs.items():
-                    if type in types:
-                        s = "#program " + name + ".\n" + program.get_string()
-                        clingo.parse_program(s,lambda x: l.append(t.visit(x)))
-        for i in l:
-            printer.Printer().do_print(i)
+    def add(self, statement):
+        self.printer.do_print(statement)
+        self.builder.add(statement)
 
 
 class Parser:
@@ -148,6 +135,15 @@ class Parser:
             capturer.close()
             if s != "":
                 printer.Printer().print_error_string(s)
+
+    def print_basic_programs(self, types):
+        for name in [BASE, GENERATE, SPEC]:
+            for type, program in self.__programs[name].items():
+                if type in types:
+                    params = "({})".format(type) if type != "" else ""
+                    p = printer.Printer()
+                    p.do_print("#program {}{}.".format(name,params))
+                    p.do_print(program.get_string())
 
     def do_base(self):
         options, control = self.__options, self.__control
@@ -265,17 +261,18 @@ class Parser:
         show += "#show."
         self.__add_and_ground(SHOW,[],show,[(SHOW,[])])
 
-    def add_programs(self, types):
-        visitors  = [(PPROGRAM, preference.PreferenceProgramVisitor())]
-        #visitors += [(APPROX, approximation.ApproximationProgramVisitor())]
-        with self.__control.builder() as builder:
-            for name, visitor in visitors:
-                list = []
-                for type, program in self.__programs[name].items():
-                    if type in types:
-                        s = "#program " + name + ".\n" + program.get_string()
-                        clingo.parse_program(s, lambda x: visitor.visit(x))
-                visitor.finish(builder)
+    def add_programs(self, types, builder):
+        preference_v = preference.PreferenceProgramVisitor(builder)
+        approx_v     = basic.BasicProgramVisitor(builder, APPROX, 2)
+        heuristic_v  = basic.BasicProgramVisitor(builder, HEURISTIC, 3)
+        visitors     = [(PREFP, preference_v), (APPROX, approx_v),
+                        (HEURISTIC, heuristic_v)]
+        for name, visitor in visitors:
+            for type_, program in self.__programs[name].items():
+                if type_ in types:
+                    s = "#program " + name + ".\n" + program.get_string()
+                    clingo.parse_program(s, lambda x: visitor.visit(x))
+            visitor.finish()
 
     def parse(self):
 
@@ -292,11 +289,15 @@ class Parser:
         # add #show statements if needed (CSP variables are not shown)
         self.add_show(types)
 
-        # print programs?
+        # option --print-programs
         if self.__options['print-programs']:
-            ProgramsPrinter().run(self.__control, self.__programs, types)
-            raise utils.SilentException()
+            self.print_basic_programs(types)
+            with self.__control.builder() as _builder:
+                builder = BuilderProxy(_builder)
+                self.add_programs(types, builder)
+            raise utils.SilentException() # end
 
         # translate and add the rest of the programs
-        self.add_programs(types)
+        with self.__control.builder() as builder:
+            self.add_programs(types, builder)
 

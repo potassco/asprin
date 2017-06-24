@@ -7,15 +7,15 @@ import re
 #
 
 # programs
-EMPTY      = ""
-BASE       = "base"
-SPEC       = "specification"
-GENERATE   = "generate"
-PPROGRAM   = "preference"
-PBASE      = "preference_base"
-HEURISTIC  = "heuristic"
-APPROX     = "approximation"
-WARNINGS   = "warnings"
+EMPTY     = ""
+BASE      = "base"
+SPEC      = "specification"
+GENERATE  = "generate"
+PREFP     = "preference"
+PBASE     = "preference_base"
+HEURISTIC = "heuristic"
+APPROX    = "approximation"
+WARNINGS  = "warnings"
 
 # predicate names
 DOM        = "dom" 
