@@ -21,25 +21,17 @@ M1_M2 = visitor.M1_M2
 ZERO  = visitor.ZERO
 
 # errors
-ERROR_PROJECT = """\
-error: syntax error, unexpected #project statement in {} program
-  {}\n"""
-ERROR_DISJOINT = """\
-error: syntax error, unexpected disjoint atom in {} program
-  {}\n"""
-ERROR_CSPLITERAL = """\
-error: syntax error, unexpected csp literal in {} program
-  {}\n"""
-ERROR_HOLDSP = """\
-error: syntax error, unexpected holds'/1 predicate in {} program
-  {}\n"""
+ERROR_PROJECT    = utils.ERROR_PROJECT
+ERROR_MINIMIZE   = utils.ERROR_MINIMIZE
+ERROR_DISJOINT   = utils.ERROR_DISJOINT
+ERROR_CSPLITERAL = utils.ERROR_CSPLITERAL
+ERROR_HOLDSP     = utils.ERROR_HOLDSP
 
 
 class BasicTermTransformer(visitor.TermTransformer):
 
-    def __init__(self, type, underscores):
+    def __init__(self, underscores):
         visitor.TermTransformer.__init__(self)
-        self.__type = type
         self.__underscores = underscores
 
     def set_predicates_info(self):
@@ -56,17 +48,17 @@ class BasicProgramVisitor(visitor.Visitor):
 
     def __init__(self, builder, type, underscores):
         visitor.Visitor.__init__(self)
+        self.type = type
+        self.helper = visitor.Helper()
         self.__builder = builder
-        self.__type = type
         self.__underscores = underscores
         self.__in_program = False
-        self.__helper = visitor.Helper()
-        self.__term_transformer = BasicTermTransformer(self.__type, underscores)
+        self.__term_transformer = BasicTermTransformer(underscores)
         self.__term_transformer.set_predicates_info()
 
     def __add(self, statement):
         if not self.__in_program:
-            prg = clingo.ast.Program(st.location, self.__type, [])
+            prg = clingo.ast.Program(st.location, self.type, [])
             self.__builder.add(prg)
             self.__in_program = True
         self.__builder.add(statement)
@@ -89,7 +81,7 @@ class BasicProgramVisitor(visitor.Visitor):
     def visit_ShowTerm(self, show):
         self.visit_children(show)
         show.term = self.__term_transformer.reify_term(show.term,
-                                                       self.__helper.show)
+                                                       self.helper.show)
         self.__add(show)
 
     def visit_Minimize(self, min):
@@ -108,8 +100,8 @@ class BasicProgramVisitor(visitor.Visitor):
     def visit_Edge(self, edge):
         self.visit_children(edge)
         tt = self.__term_transformer
-        edge.u = tt.reify_term(edge.u, self.__helper.edge + "_" + self.__type)
-        edge.v = tt.reify_term(edge.v, self.__helper.edge + "_" + self.__type)
+        edge.u = tt.reify_term(edge.u, self.helper.edge + "_" + self.type)
+        edge.v = tt.reify_term(edge.v, self.helper.edge + "_" + self.type)
         self.__add(edge)
 
     def visit_Heuristic(self, heur):
@@ -117,12 +109,12 @@ class BasicProgramVisitor(visitor.Visitor):
         self.__add(heur)
 
     def visit_ProjectAtom(self,atom):
-        string = ERROR_PROJECT.format(self.__type, str(atom))
-        self.__helper.raise_exception(string)
+        string = ERROR_PROJECT.format(self.type, str(atom))
+        self.helper.raise_exception(string)
 
     def visit_ProjectSignature(self, sig):
-        string = ERROR_PROJECT.format(self.__type, str(sig))
-        self.__helper.raise_exception(string)
+        string = ERROR_PROJECT.format(self.type, str(sig))
+        self.helper.raise_exception(string)
 
 
     #
@@ -132,17 +124,27 @@ class BasicProgramVisitor(visitor.Visitor):
     def visit_SymbolicAtom(self, atom):
         if str(atom.term.type) == "Function":
             if atom.term.name == HOLDSP and len(atom.term.arguments)==1:
-                string = ERROR_HOLDSP.format(self.__type, str(atom))
-                self.__helper.raise_exception(string)
+                string = ERROR_HOLDSP.format(self.type, str(atom))
+                self.helper.raise_exception(string)
             self.__term_transformer.transform_function(atom.term)
 
     # csp literals are not accepted
     def visit_CSPLiteral(self,csp):
-        string = ERROR_CSPLITERAL.format(self.__type, str(csp))
-        self.__helper.raise_exception(string)
+        string = ERROR_CSPLITERAL.format(self.type, str(csp))
+        self.helper.raise_exception(string)
 
     # disjoint atoms are not accepted
     def visit_Disjoint(self,d):
-        string = ERROR_DISJOINT.format(self.__type, str(d))
-        self.__helper.raise_exception(string)
+        string = ERROR_DISJOINT.format(self.type, str(d))
+        self.helper.raise_exception(string)
+
+
+class HeuristicProgramVisitor(BasicProgramVisitor):
+
+    def __init__(self, builder, type, underscores):
+        BasicProgramVisitor.__init__(self, builder, type, underscores)
+
+    def visit_Minimize(self, min):
+        string = ERROR_MINIMIZE.format(self.type, str(min))
+        self.helper.raise_exception(string)
 

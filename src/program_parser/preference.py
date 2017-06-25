@@ -29,21 +29,11 @@ M2 = visitor.M2
 M1_M2 = visitor.M1_M2
 
 # errors
-ERROR_PROJECT = """\
-error: syntax error, unexpected #project statement in {} program
-  {}\n"""
-ERROR_MINIMIZE = """\
-error: syntax error, unexpected clingo optimization statement in {} program
-  {}\n"""
-ERROR_DISJOINT = """\
-error: syntax error, unexpected disjoint atom in {} program
-  {}\n"""
-ERROR_CSPLITERAL = """\
-error: syntax error, unexpected csp literal in {} program
-  {}\n"""
-ERROR_KEYWORD = """\
-error: syntax error, special predicate depends on non domain atoms in {} program
-  {}/{}\n"""
+ERROR_PROJECT    = utils.ERROR_PROJECT
+ERROR_MINIMIZE   = utils.ERROR_MINIMIZE
+ERROR_DISJOINT   = utils.ERROR_DISJOINT
+ERROR_CSPLITERAL = utils.ERROR_CSPLITERAL
+ERROR_KEYWORD    = utils.ERROR_KEYWORD
 
 
 class PreferenceTermTransformer(visitor.TermTransformer):
@@ -313,6 +303,7 @@ class PreferenceProgramVisitor(visitor.Visitor):
         # update graph
         self.__graph.update()
 
+    #TODO: holds(X) in head ok
     def finish_Heuristic(self, statement, open_list):
         heur = statement.statement
         if self.__is_nondet(statement, open_list):

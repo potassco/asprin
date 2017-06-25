@@ -264,7 +264,7 @@ class Parser:
     def add_programs(self, types, builder):
         preference_v = preference.PreferenceProgramVisitor(builder)
         approx_v     = basic.BasicProgramVisitor(builder, APPROX, 2)
-        heuristic_v  = basic.BasicProgramVisitor(builder, HEURISTIC, 3)
+        heuristic_v  = basic.HeuristicProgramVisitor(builder, HEURISTIC, 3)
         visitors     = [(PREFP, preference_v), (APPROX, approx_v),
                         (HEURISTIC, heuristic_v)]
         for name, visitor in visitors:

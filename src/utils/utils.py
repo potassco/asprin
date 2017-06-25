@@ -33,6 +33,28 @@ SHOW       = "show"
 # translation tokens
 HASH_SEM = "#sem"
 
+# messages
+
+# errors
+ERROR_PROJECT = """\
+error: syntax error, unexpected #project statement in {} program
+  {}\n"""
+ERROR_MINIMIZE = """\
+error: syntax error, unexpected clingo optimization statement in {} program
+  {}\n"""
+ERROR_DISJOINT = """\
+error: syntax error, unexpected disjoint atom in {} program
+  {}\n"""
+ERROR_CSPLITERAL = """\
+error: syntax error, unexpected csp literal in {} program
+  {}\n"""
+ERROR_KEYWORD = """\
+error: syntax error, special predicate depends on non domain atoms in {} program
+  {}/{}\n"""
+ERROR_HOLDSP = """\
+error: syntax error, unexpected holds'/1 predicate in {} program
+  {}\n"""
+
 #
 # global variables
 #
