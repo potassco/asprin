@@ -104,6 +104,25 @@ class ApproxMethodController:
         self.solver.control.configuration.solve.opt_mode == opt_mode
 
 
+class HeurMethodController:
+
+    def __init__(self, solver, state):
+        self.solver = solver
+        self.state  = state
+        self.state.normal_solve = False
+        self.state.basic_method_controller_on = False
+        self.solver.control.configuration.solver.heuristic="Domain"
+
+    def start(self):
+        self.solver.ground_heuristic()
+
+    def solve(self):
+        if self.state.last_unsat:
+            self.solver.solve()
+        else:
+            self.solver.solve_unsat()
+
+
 class EnumerationController:
 
     def __init__(self, solver, state):

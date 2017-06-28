@@ -43,6 +43,7 @@ NOT_UNSAT_PRG    = "not_unsat"
 PREFP            = utils.PREFP
 PBASE            = utils.PBASE
 APPROX           = utils.APPROX
+HEURISTIC        = utils.HEURISTIC
 
 # predicate and term names
 VOLATILE      = utils.VOLATILE
@@ -182,6 +183,9 @@ class Solver:
 
     def ground_approximation(self):
         self.control.ground([(APPROX, [])], self)
+
+    def ground_heuristic(self):
+        self.control.ground([(HEURISTIC, [])], self)
 
     def ground_preference_base(self):
         self.control.ground([(PBASE, [])], self)
@@ -344,10 +348,11 @@ class Solver:
         general = controller.GeneralController(self, self.state)
         optimal = controller.GeneralControllerHandleOptimal(self, self.state)
         basic = controller.BasicMethodController(self, self.state)
+        approx, heur = None, None
         if self.state.solving_mode == "approx":
             approx = controller.ApproxMethodController(self, self.state)
-        else:
-            approx = None
+        elif self.state.solving_mode == "heuristic":
+            heur = controller.HeurMethodController(self, self.state)
         enumeration = controller.EnumerationController(self, self.state)
         checker = controller.CheckerController(self, self.state)
 
@@ -357,6 +362,7 @@ class Solver:
             general.start()
             checker.start()
             call(approx, "start")
+            call(heur, "start")
             self.printer.do_print("Solving...")
             while True:
                 # START_LOOP
@@ -364,6 +370,7 @@ class Solver:
                 basic.start_loop()
                 # SOLVE
                 call(approx, "solve")
+                call(heur, "solve")
                 general.solve()
                 if self.solving_result == SATISFIABLE:
                     # SAT

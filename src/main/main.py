@@ -139,10 +139,13 @@ There is NO WARRANTY, to the extent permitted by law."""
         solving.add_argument('--project', dest='project',
                              help=': Enable projective solution enumeration',
                              action='store_true')
-        solving.add_argument('--solving-mode', dest='solving_mode', metavar="<arg>",
-                             #help=': Run {normal|approx} solving mode',
-                             help=argparse.SUPPRESS,
-                             default="normal", choices=["normal", "approx"])
+        solving.add_argument('--solving-mode', dest='solving_mode', 
+                             metavar="<arg>",
+                             help=""": Run {normal|approx|heuristic} \
+                                       solving mode""",
+                             #help=argparse.SUPPRESS,
+                             default="normal", 
+                             choices=["normal", "approx", "heuristic"])
 
         options, unknown = cmd_parser.parse_known_args()
         options = vars(options)

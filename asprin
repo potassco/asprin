@@ -2,4 +2,5 @@
 
 from src.main.main import Asprin
 
-Asprin().run()
+Asprin().run_wild()
+#Asprin().run()

@@ -58,7 +58,7 @@ class BasicProgramVisitor(visitor.Visitor):
 
     def __add(self, statement):
         if not self.__in_program:
-            prg = clingo.ast.Program(st.location, self.type, [])
+            prg = clingo.ast.Program(statement.location, self.type, [])
             self.__builder.add(prg)
             self.__in_program = True
         self.__builder.add(statement)
