@@ -31,6 +31,7 @@ M1_M2 = visitor.M1_M2
 # errors
 ERROR_PROJECT    = utils.ERROR_PROJECT
 ERROR_MINIMIZE   = utils.ERROR_MINIMIZE
+ERROR_HEURISTIC  = utils.ERROR_HEURISTIC
 ERROR_DISJOINT   = utils.ERROR_DISJOINT
 ERROR_CSPLITERAL = utils.ERROR_CSPLITERAL
 ERROR_KEYWORD    = utils.ERROR_KEYWORD
@@ -292,7 +293,10 @@ class PreferenceProgramVisitor(visitor.Visitor):
         self.__add_volatile(edge.body, edge.location)
         return True
 
+    #TODO: holds(X) in head ok
     def visit_Heuristic(self, heur):
+        string = ERROR_HEURISTIC.format(self.__type, str(heur))
+        self.__helper.raise_exception(string)
         self.__statements.append(Statement("Heuristic", heur))
         self.__visit_body(heur.body)
         # head

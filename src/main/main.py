@@ -141,9 +141,9 @@ There is NO WARRANTY, to the extent permitted by law."""
                              action='store_true')
         solving.add_argument('--solving-mode', dest='solving_mode', 
                              metavar="<arg>",
-                             help=""": Run {normal|approx|heuristic} \
-                                       solving mode""",
-                             #help=argparse.SUPPRESS,
+                             #help=""": Run {normal|approx|heuristic} \
+                             #          solving mode""",
+                             help=argparse.SUPPRESS,
                              default="normal", 
                              choices=["normal", "approx", "heuristic"])
 

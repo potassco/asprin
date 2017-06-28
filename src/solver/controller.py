@@ -111,7 +111,8 @@ class HeurMethodController:
         self.state  = state
         self.state.normal_solve = False
         self.state.basic_method_controller_on = False
-        self.solver.control.configuration.solver.heuristic="Domain"
+        for _solver in self.solver.control.configuration.solver:
+            _solver.heuristic="Domain"
 
     def start(self):
         self.solver.ground_heuristic()

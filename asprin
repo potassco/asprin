@@ -2,5 +2,5 @@
 
 from src.main.main import Asprin
 
-Asprin().run_wild()
-#Asprin().run()
+Asprin().run_wild(); import sys; sys.exit()
+Asprin().run()

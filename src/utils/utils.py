@@ -42,6 +42,9 @@ error: syntax error, unexpected #project statement in {} program
 ERROR_MINIMIZE = """\
 error: syntax error, unexpected clingo optimization statement in {} program
   {}\n"""
+ERROR_HEURISTIC = """\
+error: syntax error, unexpected clingo heuristic directive in {} program
+  {}\n"""
 ERROR_DISJOINT = """\
 error: syntax error, unexpected disjoint atom in {} program
   {}\n"""
