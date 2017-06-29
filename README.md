@@ -7,6 +7,8 @@ $ asprin [number_of_models] [options] [files]
 ```
 By default, asprin loads its library `asprin.lib`. This may be disabled with option `--no-asprin-lib`.
 
+Type `--help` for help.
+
 ## Building
 `asprin` requires Python (version 2.7 is tested), and the [python module of clingo](https://github.com/potassco/clingo). 
 
