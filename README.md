@@ -8,7 +8,7 @@ $ asprin [number_of_models] [options] [files]
 By default, asprin loads its library `asprin.lib`. This may be disabled with option `--no-asprin-lib`.
 
 ## Building
-`asprin` requires Python (version 2.7 is tested), and the [python module of clingo](https://github.com/potassco/clingo). For installation instructions of the latter, please read [here](https://github.com/potassco/clingo/blob/master/INSTALL) the section on Building the Python Module.
+`asprin` requires Python (version 2.7 is tested), and the [python module of clingo](https://github.com/potassco/clingo). 
 
 
 ## Examples
@@ -44,7 +44,6 @@ Models       : 3
 Calls        : 10
 Time         : 0.054s (Solving: 0.00s 1st Model: 0.00s Unsat: 0.00s)
 CPU Time     : 0.052s
-
 
 $ cat examples/example2.lp
 %
@@ -83,19 +82,9 @@ dom(1..3).
 % composite preference statements
 %
 
-#const composite=pareto.
-
 #preference(q,pareto){
   **p(X)
-} : composite=pareto.
-
-#preference(q,lexico){
-  X :: **p(X)
-} : composite=lexico.
-
-#preference(q,and){
-  **q(X)
-} : composite=and.
+}.
 
 #preference(r,neg){
   **q
@@ -105,11 +94,9 @@ dom(1..3).
 % optimize statement
 %
 
-#const opt=r.
-#optimize(opt).
+#optimize(r).
 
-
-$ asprin examples/example2.lp
+$ asprin examples/example2.lp 
 asprin version 3.0.0
 Reading from examples/example2.lp
 Solving...
@@ -119,9 +106,9 @@ OPTIMUM FOUND
 
 Models       : 1+
   Optimum    : yes
-Calls        : 2
-Time         : 0.091s (Solving: 0.00s 1st Model: 0.00s Unsat: 0.00s)
-CPU Time     : 0.088s
+  Calls        : 2
+  Time         : 0.109s (Solving: 0.00s 1st Model: 0.00s Unsat: 0.00s)
+  CPU Time     : 0.104s
 ```
 
 ## Contributors

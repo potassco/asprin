@@ -34,9 +34,19 @@ dom(1..3).
 % composite preference statements
 %
 
+#const composite=pareto.
+
 #preference(q,pareto){
   **p(X)
-}.
+} : composite=pareto.
+
+#preference(q,lexico){
+  X :: **p(X)
+} : composite=lexico.
+
+#preference(q,and){
+  **q(X)
+} : composite=and.
 
 #preference(r,neg){
   **q
@@ -46,5 +56,6 @@ dom(1..3).
 % optimize statement
 %
 
-#optimize(r).
+#const opt=r.
+#optimize(opt).
 
