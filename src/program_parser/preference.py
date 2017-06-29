@@ -36,6 +36,8 @@ ERROR_DISJOINT   = utils.ERROR_DISJOINT
 ERROR_CSPLITERAL = utils.ERROR_CSPLITERAL
 ERROR_KEYWORD    = utils.ERROR_KEYWORD
 
+# no sign
+NO_SIGN = utils.NO_SIGN
 
 class PreferenceTermTransformer(visitor.TermTransformer):
 
@@ -225,8 +227,7 @@ class PreferenceProgramVisitor(visitor.Visitor):
             atom = clingo.ast.SymbolicAtom(clingo.ast.Function(rule.location,
                    self.__helper.unsat,
                    self.__helper.get_ems(rule.location, M1_M2), False))
-            rule.head = clingo.ast.Literal(rule.location,
-                                           clingo.ast.Sign.NoSign, atom)
+            rule.head = clingo.ast.Literal(rule.location, NO_SIGN, atom)
             self.__statements[-1].preds.append(HOLDS_KEY) # make it nondet
         else:
             self.visit(rule.head)
@@ -335,7 +336,7 @@ class PreferenceProgramVisitor(visitor.Visitor):
             flag = False
             if (self.in_Head and self.in_Literal_ConditionalLiteral) or \
                (self.in_Body and (
-                lit.sign != clingo.ast.Sign.NoSign          or \
+                lit.sign != NO_SIGN                         or \
                 self.in_Aggregate                           or \
                 self.in_TheoryAtom or self.in_BodyAggregate or \
                 (self.in_ConditionalLiteral and 

@@ -1,6 +1,7 @@
 import os
 import tempfile
 import re
+import clingo
 
 #
 # defines
@@ -33,7 +34,8 @@ SHOW       = "show"
 # translation tokens
 HASH_SEM = "#sem"
 
-# messages
+# ast
+NO_SIGN = clingo.ast.Sign.None
 
 # errors
 ERROR_PROJECT = """\

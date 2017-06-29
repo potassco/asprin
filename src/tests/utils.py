@@ -2,7 +2,7 @@ from __future__ import print_function
 import os
 import re
 
-ASPRIN = str(os.path.dirname(os.path.realpath(__file__))) + "/../asprin"
+ASPRIN = str(os.path.dirname(os.path.realpath(__file__))) + "/../../asprin"
 
 class Test:
 

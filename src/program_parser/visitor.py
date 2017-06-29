@@ -27,6 +27,7 @@ SHOW  = "show"
 EDGE  = "edge"
 ZERO  = "zero"
 
+NO_SIGN = utils.NO_SIGN
 
 #
 # CLASSES
@@ -83,10 +84,9 @@ class Helper:
             return []
 
     def get_volatile_atom(self, loc):
-        no_sign = clingo.ast.Sign.NoSign
         ems = self.get_ems(loc, M1_M2)
         fun = clingo.ast.Function(loc, self.volatile, ems, False)
-        return clingo.ast.Literal(loc, no_sign, clingo.ast.SymbolicAtom(fun))
+        return clingo.ast.Literal(loc, NO_SIGN, clingo.ast.SymbolicAtom(fun))
 
 
 class Visitor:
