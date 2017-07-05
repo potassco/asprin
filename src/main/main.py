@@ -73,9 +73,7 @@ Get help/report bugs via : https://potassco.org/support
 
     version_string = "asprin " + VERSION + """
 Copyright (C) Javier Romero
-License GPLv2+: GNU GPL version 2 or later <http://gnu.org/licenses/gpl.html>
-asprin is free software: you are free to change and redistribute it.
-There is NO WARRANTY, to the extent permitted by law."""
+License: The MIT License <https://opensource.org/licenses/MIT>"""
 
 
     def __init__(self):
