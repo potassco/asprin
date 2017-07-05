@@ -35,7 +35,10 @@ SHOW       = "show"
 HASH_SEM = "#sem"
 
 # ast
-NO_SIGN = clingo.ast.Sign.None
+try:
+    NO_SIGN = clingo.ast.Sign.None
+except Exception as e:
+    NO_SIGN = clingo.ast.Sign.NoSign
 
 # errors
 ERROR_PROJECT = """\
