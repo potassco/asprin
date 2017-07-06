@@ -305,7 +305,7 @@ class Solver:
         ass += [ (clingo.Function(h, [x,0]), False) for x in self.nholds]
         # solve
         self.old_shown, self.enumerate_flag = self.shown, False
-        control.solve(ass, self.on_model_enumerate)
+        control.solve(assumptions=ass, on_model=self.on_model_enumerate)
         self.shown = self.old_shown
         control.configuration.solve.models = old_models
 
