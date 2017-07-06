@@ -119,6 +119,8 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
         #                   help=argparse.SUPPRESS)
         basic.add_argument('--stats', dest='stats', action='store_true',
                            help=': Print statistics')
+        basic.add_argument('--no-info', dest='no_info', action='store_true',
+                           help=': Do not print basic information')
         basic.add_argument('--no-asprin-lib', dest='asprin-lib',
                            help=': Do not include asprin.lib',
                            action='store_false')

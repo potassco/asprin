@@ -326,8 +326,11 @@ class Solver:
 
     def end(self):
         state, p = self.state, self.printer
-        p.print_stats(self.control, state.models, state.more_models,
-                      state.opt_models,state.stats)
+        if self.state.no_info:
+            self.printer.do_print("")
+        else:
+            p.print_stats(self.control, state.models, state.more_models,
+                          state.opt_models, state.stats)
         raise EndException
 
     #

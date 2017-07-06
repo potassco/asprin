@@ -4,7 +4,7 @@ import re
 
 PYTHON = "python"
 ASPRIN = PYTHON + " " + str(os.path.join(os.path.dirname(os.path.realpath(
-                            __file__)),"..","..","asprin"))
+                            __file__)),"..","..","asprin")) + " --no-info"
 
 class Test:
 
