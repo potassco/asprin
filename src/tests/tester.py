@@ -3,11 +3,23 @@ from __future__ import print_function
 import os
 import utils
 import sys
+import subprocess
 
 PATH = os.path.dirname(os.path.realpath(__file__))
-STR_TMP = "_tester.tmp"
+STR_TMP = "tester.tmp"
 TMP_FILE = os.path.join(PATH, STR_TMP)
-CALL = "cd {}; {} > {} 2> {}"
+
+class cd:
+    """Context manager for changing the current working directory"""
+    def __init__(self, newPath):
+        self.newPath = os.path.expanduser(newPath)
+
+    def __enter__(self):
+        self.savedPath = os.getcwd()
+        os.chdir(self.newPath)
+
+    def __exit__(self, etype, value, traceback):
+        os.chdir(self.savedPath)
 
 class Tester:
     
@@ -20,11 +32,17 @@ class Tester:
                 with open(abs_i, 'r') as f:
                     test = utils.Test(f.read())
                 print("Testing {}...".format(abs_i))
-                call = CALL.format(dir, test.command, TMP_FILE, TMP_FILE)
-                os.system(call)
+                with open(TMP_FILE, 'w') as tmp:
+                    with cd(dir):
+                        subprocess.call(test.command, stdout=tmp,
+                                        stderr=subprocess.STDOUT, shell=True)
                 with open(TMP_FILE, 'r') as tmp:
                     result = utils.Result(tmp.read())
                 result.compare(test)
+        try:
+            os.remove(TMP_FILE)
+        except OSError:
+            pass
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
