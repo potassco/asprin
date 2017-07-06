@@ -28,7 +28,7 @@ ERROR_INFO    = "*** Info : (asprin): Try '--help' for usage information"
 ERROR_OPEN    = "<cmd>: error: file could not be opened:\n  {}\n"
 ERROR_FATAL   = "Fatal error, this should not happen.\n"
 ERROR_PARSING = "parsing failed"
-
+DEBUG         = "--debug"
 
 #
 # GLOBAL VARIABLES AND FUNCTIONS
@@ -126,6 +126,8 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
                            action='store_false')
         basic.add_argument('-c', '--const', dest='constants', 
                            action="append", help=argparse.SUPPRESS,default=[])
+        basic.add_argument(DEBUG, dest='debug', action='store_true',
+                           help=argparse.SUPPRESS)
 
         # Solving Options
         solving = cmd_parser.add_argument_group('Solving Options')
@@ -246,6 +248,9 @@ class Asprin:
 
 
     def run(self):
+        if DEBUG in sys.argv:
+            self.run_wild()
+            return
         try:
             self.run_wild()
         except argparse.ArgumentError as e:
