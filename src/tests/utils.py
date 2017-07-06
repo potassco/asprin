@@ -105,28 +105,7 @@ class Result(Test):
             self.__print_error(test, "result gives an error")
         elif "\n".join(self.answers) != "\n".join(test.answers):
             self.__print_error(test, "different answers")
-
-
-
-#
-# not used any more
-#
-
-def get_path(file):
-    return os.path.dirname(file)
-
-# returns $directory{file}/name
-def add_dir(file, name):
-    return str(os.path.join(os.path.dirname(file), name))
-
-# returns the absolute paths of all ".lp" files 
-# in $directory{file}/dir_name
-def get_files(file, dir_name):
-    path = os.path.join(os.path.dirname(file), dir_name)
-    dir = [os.path.join(path, f) for f in os.listdir(path)]
-    out = [str(f) for f in dir if str(f)[-3:]==".lp"]
-    out.sort()
-    return out
-
-
+        else:
+            return False
+        return True
 

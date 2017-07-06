@@ -24,10 +24,11 @@ class cd:
 class Tester:
     
     def run(self, dir):
+        errors, error = False, False
         for i in sorted(os.listdir(dir)):
             abs_i = os.path.join(dir,i)
             if os.path.isdir(abs_i):
-                self.run(os.path.join(dir,i))
+                error = self.run(os.path.join(dir,i))
             elif str(abs_i)[-3:] == ".lp":
                 with open(abs_i, 'r') as f:
                     test = utils.Test(f.read())
@@ -38,15 +39,21 @@ class Tester:
                                         stderr=subprocess.STDOUT, shell=True)
                 with open(TMP_FILE, 'r') as tmp:
                     result = utils.Result(tmp.read())
-                result.compare(test)
+                error = result.compare(test)
+            if error:
+                errors = True
         try:
             os.remove(TMP_FILE)
         except OSError:
             pass
+        return errors
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
-        Tester().run(sys.argv[1])
+        errors = Tester().run(sys.argv[1])
     else:
-        Tester().run(PATH)
-
+        errors = Tester().run(PATH)
+    if errors:
+        print("ERROR: There were errors in the tests")
+    else:
+        print("OK: All tests were correct")
