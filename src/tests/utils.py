@@ -1,8 +1,9 @@
 from __future__ import print_function
 import os
 import re
+import sys
 
-PYTHON = "python"
+PYTHON = sys.executable
 ASPRIN = PYTHON + " " + str(os.path.join(os.path.dirname(os.path.realpath(
                             __file__)),"..","..","asprin")) + " --no-info"
 
