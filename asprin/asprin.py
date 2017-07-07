@@ -1,5 +1,5 @@
 #!/usr/bin/python
 
-from src.main.main import Asprin
+import src.main.main
 
-Asprin().run()
+src.main.main.main()

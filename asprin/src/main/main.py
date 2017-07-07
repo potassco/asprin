@@ -276,3 +276,8 @@ class Asprin:
             print(UNKNOWN,file=sys.stdout)
             sys.exit(65)
 
+
+def main():
+    Asprin().run()
+
+
