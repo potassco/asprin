@@ -28,25 +28,26 @@ import sys
 
 PYTHON = sys.executable
 ASPRIN = PYTHON + " " + str(os.path.join(os.path.dirname(os.path.realpath(
-                            __file__)),"..","..","asprin.py")) + " --no-info"
+                            __file__)),"..","..","asprin.py")) + " --no-info "
 
 class Test:
 
-    def __init__(self, string):
+    def __init__(self, string, options):
         self.command = None
         self.satisfiable = False
         self.unsatisfiable = False
         self.error = False
         self.answers = None
-        self.parse(string)
+        self.parse(string, options)
 
-    def parse(self, string):
+    def parse(self, string, options):
         line, last = 1, ""
         self.answers = [] 
         for i in string.splitlines():
             if line == 1:
                 self.command = i[1:]
-                self.command = self.command.replace('asprin',ASPRIN)
+                self.command = self.command.replace('asprin',
+                                                    ASPRIN + ' '.join(options))
             elif line == 2:
                 match = re.match(r'%( )*SATISFIABLE', i)
                 self.satisfiable = True if match else False
@@ -67,7 +68,10 @@ class Test:
             print("PARSING ERROR in class Test")
 
     def __repr__(self):
-        out = "\ncommand = \"{}\"\n".format(self.command)
+        if self.command:
+            out = "\ncommand = \"{}\"\n".format(self.command)
+        else:
+            out = ""
         if self.satisfiable:
             out += "SATISFIABLE\n"
         if self.unsatisfiable:
@@ -82,9 +86,10 @@ class Test:
 class Result(Test):
 
     def __init__(self, string):
-        Test.__init__(self, string)
+        self.count = 0
+        Test.__init__(self, string, [])
 
-    def parse(self, string):
+    def parse(self, string, options):
         line, last = 1, ""
         self.answers = []
         for i in string.splitlines():
@@ -103,25 +108,27 @@ class Result(Test):
                 self.answers.append(answer)
             line, last = line+1, i
         self.answers.sort()
-        count = 0
-        if self.satisfiable: count += 1
-        if self.unsatisfiable: count += 1
-        if self.error: count += 1
-        if count != 1:
-            print("***********************************************************")
-            print("PARSING ERROR in class Result (count={})".format(count))
-            print(string)
-            print("***********************************************************")
+        if self.satisfiable:   self.count += 1
+        if self.unsatisfiable: self.count += 1
+        if self.error:         self.count += 1
 
     def __print_error(self, test, message):
+        print("#############################################################")
         print("*************************************************************")
         print("ERROR: " + message)
+        print("*************************************************************")
+        print("EXPECTED:")
         print(test)
+        print("*************************************************************")
+        print("RESULT:")
         print(self)
-        print("#############################################################")
+        print("#############################################################\n")
 
     def compare(self, test):
-        if self.satisfiable != test.satisfiable:
+        if self.count != 1:
+            msg = "ERROR, UNSATISFIABLE or OPTIMUM FOUND messages"
+            self.__print_error(test, "parsing error, 0 or many " + msg)
+        elif self.satisfiable != test.satisfiable:
             self.__print_error(test, "result is satisfiable")
         elif self.unsatisfiable != test.unsatisfiable:
             self.__print_error(test, "result is unsatisfiable")

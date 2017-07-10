@@ -52,6 +52,7 @@ ERROR_OPEN    = "<cmd>: error: file could not be opened:\n  {}\n"
 ERROR_FATAL   = "Fatal error, this should not happen.\n"
 ERROR_PARSING = "parsing failed"
 DEBUG         = "--debug"
+TEST          = "--test"
 
 
 #
@@ -156,6 +157,8 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
                            action='store_true')
         #basic.add_argument('-', dest='read_stdin', action='store_true',
         #                   help=argparse.SUPPRESS)
+        basic.add_argument(TEST, dest='test', action='store_true',
+                           help=': Run system tests')
         basic.add_argument('--stats', dest='stats', action='store_true',
                            help=': Print statistics')
         basic.add_argument('--no-info', dest='no_info', action='store_true',
@@ -287,9 +290,6 @@ class Asprin:
 
 
     def run(self):
-        if DEBUG in sys.argv:
-            self.run_wild()
-            return
         try:
             self.run_wild()
         except argparse.ArgumentError as e:
@@ -317,6 +317,13 @@ class Asprin:
 
 
 def main():
-    Asprin().run()
+    if TEST in sys.argv:
+        sys.argv.remove(TEST)
+        from ..tests import tester
+        tester.main()
+    elif DEBUG in sys.argv:
+        Asprin().run_wild()
+    else:
+        Asprin().run()
 
 

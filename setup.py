@@ -40,8 +40,6 @@ setup(
     ],
     keywords='logic answer set programming preference optimization',
     packages=find_packages('.'),
-    #packages=['asprin'],
-    #package_dir= {'':'asprin'},
     include_package_data=True,
     entry_points={
         'console_scripts': [

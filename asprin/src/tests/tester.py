@@ -28,6 +28,7 @@ import utils
 import sys
 import subprocess
 
+DIR = "--test-dir="
 PATH = os.path.dirname(os.path.realpath(__file__))
 STR_TMP = "tester.tmp"
 TMP_FILE = os.path.join(PATH, STR_TMP)
@@ -46,15 +47,15 @@ class cd:
 
 class Tester:
     
-    def run(self, dir):
+    def run(self, dir, options):
         errors, error = False, False
         for i in sorted(os.listdir(dir)):
             abs_i = os.path.join(dir,i)
             if os.path.isdir(abs_i):
-                error = self.run(os.path.join(dir,i))
+                error = self.run(os.path.join(dir, i), options)
             elif str(abs_i)[-3:] == ".lp":
                 with open(abs_i, 'r') as f:
-                    test = utils.Test(f.read())
+                    test = utils.Test(f.read(), options)
                 print("Testing {}...".format(abs_i))
                 with open(TMP_FILE, 'w') as tmp:
                     with cd(dir):
@@ -71,12 +72,19 @@ class Tester:
             pass
         return errors
 
-if __name__ == "__main__":
-    if len(sys.argv) > 1:
-        errors = Tester().run(sys.argv[1])
-    else:
-        errors = Tester().run(PATH)
+def main():
+    path = PATH
+    for i in sys.argv:
+        if i.startswith(DIR):
+            path = i[len(DIR):]
+            sys.argv.remove(i)
+            break
+    errors = Tester().run(path, sys.argv[1:])
     if errors:
         print("ERROR: There were errors in the tests")
     else:
-        print("OK: All tests were correct")
+        print("OK: All tests were successful")
+
+if __name__ == "__main__":
+    main()
+
