@@ -2003,12 +2003,15 @@ class LRTable(object):
             parsetab = module
         else:
             exec('import %s' % module)
-            try:
-                parsetab = sys.modules[module]
             # MODIFIED [ J. Romero, November 2016 ]
-            except KeyError:
-                parsetab = sys.modules["src.spec_parser."+module]
+            if module == "parsetab":
+                if "asprin.src.spec_parser.parsetab" in sys.modules:
+                    parsetab = sys.modules["asprin.src.spec_parser.parsetab"]
+                elif "src.spec_parser.parsetab" in sys.modules:
+                    parsetab = sys.modules["src.spec_parser.parsetab"]
+            else:
             # END
+                parsetab = sys.modules[module]
 
         if parsetab._tabversion != __tabversion__:
             raise VersionError('yacc table file version is out of date')
