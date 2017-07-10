@@ -44,7 +44,7 @@ setup(
     include_package_data=True,
     entry_points={
         'console_scripts': [
-            'asprin=asprin.main.main:main',
+            'asprin=asprin.src.main.main:main',
         ],
     },
 )
