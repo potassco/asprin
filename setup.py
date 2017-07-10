@@ -39,12 +39,13 @@ setup(
         'Topic :: Scientific/Engineering :: Artificial Intelligence',
     ],
     keywords='logic answer set programming preference optimization',
-    packages=find_packages('asprin'),
-    package_dir= {'':'asprin'},
+    packages=find_packages('.'),
+    #packages=['asprin'],
+    #package_dir= {'':'asprin'},
     include_package_data=True,
     entry_points={
         'console_scripts': [
-            'asprin=asprin.src.main.main:main',
+            'asprin=asprin.asprin:main',
         ],
     },
 )

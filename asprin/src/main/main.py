@@ -40,11 +40,11 @@ from ..utils          import        printer
 from ..utils          import          utils
 import errno
 
+
 #
 # DEFINES
 #
 
-VERSION       = "3.0.0"
 UNKNOWN       = "UNKNOWN"
 ERROR         = "*** ERROR: (asprin): {}"
 ERROR_INFO    = "*** Info : (asprin): Try '--help' for usage information"
@@ -53,8 +53,24 @@ ERROR_FATAL   = "Fatal error, this should not happen.\n"
 ERROR_PARSING = "parsing failed"
 DEBUG         = "--debug"
 
+
 #
-# GLOBAL VARIABLES AND FUNCTIONS
+# VERSION
+#
+
+HERE = os.path.abspath(os.path.dirname(__file__))
+META_FILE = os.path.join(HERE,"..","..","__init__.py")
+with open(META_FILE,'r') as f:
+    meta = f.read()
+    meta_match = re.search(r"^__version__ = ['\"]([^'\"]*)['\"]", meta, re.M)
+    if meta_match:
+        VERSION = meta_match.group(1)
+    else:
+        raise RuntimeError("Unable to find __version__ string")
+
+
+#
+# MyArgumentParser
 #
 
 class MyArgumentParser(argparse.ArgumentParser):

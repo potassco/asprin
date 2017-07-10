@@ -25,5 +25,8 @@
 
 import src.main.main
 
-src.main.main.main()
+def main():
+    src.main.main.main()
 
+if __name__ == "__main__":
+    main()
