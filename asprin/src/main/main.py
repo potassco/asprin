@@ -33,11 +33,11 @@ import argparse
 import sys
 import clingo
 import os
-from src.spec_parser    import    spec_parser
-from src.program_parser import program_parser
-from src.solver         import         solver
-from src.utils          import        printer
-from src.utils          import          utils
+from ..spec_parser    import    spec_parser
+from ..program_parser import program_parser
+from ..solver         import         solver
+from ..utils          import        printer
+from ..utils          import          utils
 import errno
 
 #

@@ -22,8 +22,8 @@
 # -*- coding: utf-8 -*-
 
 from __future__ import print_function
-from src.utils import clingo_stats
-from src.utils import utils
+from ..utils import clingo_stats
+from ..utils import utils
 import sys
 
 BASE = utils.BASE

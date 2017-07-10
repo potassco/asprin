@@ -23,7 +23,7 @@
 
 # this file should be reimplemented at some point...
 
-from src.utils import utils
+from ..utils import utils
 
 
 #

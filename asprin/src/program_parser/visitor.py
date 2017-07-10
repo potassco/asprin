@@ -24,8 +24,8 @@
 import clingo
 import clingo.ast
 from collections import namedtuple
-from src.utils import utils
-from src.utils import printer
+from ..utils import utils
+from ..utils import printer
 
 
 #

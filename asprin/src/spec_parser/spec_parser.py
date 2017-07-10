@@ -28,8 +28,8 @@ import sys
 import yacc
 from lex import LexToken
 from spec_lexer import Lexer
-from src.utils import printer
-from src.utils import utils
+from ..utils import printer
+from ..utils import utils
 import ast
 
 

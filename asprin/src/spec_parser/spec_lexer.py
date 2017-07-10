@@ -24,8 +24,8 @@
 #!/usr/bin/python
 
 import lex
-from src.utils import utils
-from src.utils import printer
+from ..utils import utils
+from ..utils import printer
 
 #
 # DEFINES

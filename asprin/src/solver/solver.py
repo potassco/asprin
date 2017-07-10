@@ -27,8 +27,8 @@
 
 import clingo
 import controller
-from src.utils import printer
-from src.utils import utils
+from ..utils import printer
+from ..utils import utils
 
 #
 # DEFINES

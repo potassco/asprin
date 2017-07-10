@@ -22,9 +22,9 @@
 # -*- coding: utf-8 -*-
 
 import clingo.ast
-from src.utils import utils
-from src.program_parser import transitive_closure
-from src.program_parser import visitor
+from ..utils import utils
+from ..program_parser import transitive_closure
+from ..program_parser import visitor
 
 
 #

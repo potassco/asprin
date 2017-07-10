@@ -24,8 +24,8 @@
 from __future__ import print_function
 import clingo
 import sys
-from src.utils import utils
-from src.utils import printer
+from ..utils import utils
+from ..utils import printer
 import preference
 import basic
 

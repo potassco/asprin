@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 # MIT License
 # 
 # Copyright (c) 2017 Javier Romero
@@ -21,8 +23,7 @@
 # SOFTWARE.
 # -*- coding: utf-8 -*-
 
-#!/usr/bin/python
-
 import src.main.main
 
 src.main.main.main()
+
