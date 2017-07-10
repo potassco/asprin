@@ -1,0 +1,4 @@
+include *.md
+include LICENSE.txt
+include asprin/examples/*.lp
+recursive-include asprin/src/tests *.lp*
