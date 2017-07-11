@@ -50,6 +50,8 @@ UNSATISFIABLE = "UNSATISFIABLE"
 STR_ANSWER             = "Answer: {}"
 STR_OPTIMUM_FOUND      = "OPTIMUM FOUND"
 STR_OPTIMUM_FOUND_STAR = "OPTIMUM FOUND *"
+STR_MODEL_FOUND        = "MODEL FOUND"
+STR_MODEL_FOUND_STAR   = "MODEL FOUND *"
 STR_UNSATISFIABLE      = "UNSATISFIABLE"
 # program names
 #ENCODINGS        = os.path.dirname(os.path.realpath(__file__)) + "/encodings.lp"
@@ -84,8 +86,8 @@ probably an incorrect preference program"""
 # AUXILIARY PROGRAMS
 #
 
-token    = "##"
-programs = \
+TOKEN    = "##"
+PROGRAMS = \
   [(DO_HOLDS_AT_ZERO,       [],"""
 #show ##holds_at_zero(X) : ##""" + HOLDS + """(X,0)."""),
    (DO_HOLDS,            ["m"],"""
@@ -107,11 +109,11 @@ programs = \
 :-     ##""" + UNSAT_ATOM + """(##m(m1),##m(m2)),
        ##""" +   VOLATILE + """(##m(m1),##m(m2)).""")
   ]
-
+UNSAT_PREFP = (PREFP, ["m1","m2"], "##" + UNSAT_ATOM +"(##m(m1),##m(m2)).")
 
 
 #
-# Auxiliary Classes (EndException, State)
+# Auxiliary Classes (EndException, State) and methods (call)
 #
 
 class EndException(Exception):
@@ -152,8 +154,10 @@ class Solver:
         #l = [START, START_LOOP, SOLVE, SAT, UNSAT, UNKNOWN, END_LOOP, END]
         # self.pre  = dict([(i, []) for i in l])
         # self.post = dict([(i, []) for i in l])
-        self.externals = dict()
-        self.improving = []
+        self.externals  = dict()
+        self.improving  = []
+        self.state.str_found      = STR_OPTIMUM_FOUND
+        self.state.str_found_star = STR_OPTIMUM_FOUND_STAR
         # printer
         self.printer = printer.Printer()
 
@@ -198,9 +202,13 @@ class Solver:
     #
 
     def add_encodings(self):
-        for i in programs:
-            self.control.add(i[0], i[1], i[2].replace(token, self.underscores))
+        for i in PROGRAMS:
+            self.control.add(i[0], i[1], i[2].replace(TOKEN, self.underscores))
         self.control.ground([(DO_HOLDS_AT_ZERO, [])], self)
+
+    def add_unsat_to_preference_program(self):
+        self.control.add(UNSAT_PREFP[0], UNSAT_PREFP[1],
+                         UNSAT_PREFP[2].replace(TOKEN, self.underscores))
 
     def ground_approximation(self):
         self.control.ground([(APPROX, [])], self)
@@ -268,7 +276,7 @@ class Solver:
         self.printer.do_print(" ".join(map(self.__symbol2str, self.shown)))
 
     def print_optimum_string(self):
-        self.printer.do_print(STR_OPTIMUM_FOUND)
+        self.printer.do_print(self.state.str_found)
 
     def print_unsat(self):
         self.printer.do_print(STR_UNSATISFIABLE)
@@ -309,7 +317,7 @@ class Solver:
             self.state.models     += 1
             self.state.opt_models += 1
             self.print_shown()
-            self.printer.do_print(STR_OPTIMUM_FOUND_STAR)
+            self.printer.do_print(self.state.str_found_star)
 
     def enumerate(self):
         # models
@@ -351,7 +359,7 @@ class Solver:
             self.printer.do_print("")
         else:
             p.print_stats(self.control, state.models, state.more_models,
-                          state.opt_models, state.stats)
+                          state.opt_models, state.non_optimal, state.stats)
         raise EndException
 
     #
@@ -372,19 +380,23 @@ class Solver:
         general = controller.GeneralController(self, self.state)
         optimal = controller.GeneralControllerHandleOptimal(self, self.state)
         basic = controller.BasicMethodController(self, self.state)
-        approx, heur = None, None
+        enumeration = controller.EnumerationController(self, self.state)
+        checker = controller.CheckerController(self, self.state)
+        # optional
+        approx, heur, non_optimal = None, None, None
         if self.state.solving_mode == "approx":
             approx = controller.ApproxMethodController(self, self.state)
         elif self.state.solving_mode == "heuristic":
             heur = controller.HeurMethodController(self, self.state)
-        enumeration = controller.EnumerationController(self, self.state)
-        checker = controller.CheckerController(self, self.state)
+        if self.state.non_optimal:
+            non_optimal = controller.NonOptimalController(self, self.state)
 
         # loop
         try:
             # START
             general.start()
             checker.start()
+            call(non_optimal, "start")
             call(approx, "start")
             call(heur, "start")
             self.printer.do_print("Solving...")

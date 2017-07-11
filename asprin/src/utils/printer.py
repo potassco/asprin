@@ -98,13 +98,15 @@ class Printer:
     # stats
     #
 
-    def print_stats(self,control,models,more_models,opt_models,stats=False):
+    def print_stats(self, ctl, models, more_models,
+                    opt_models, non_optimal, stats=False):
         print("")
         print("Models       : {}{}".format(models,"+" if more_models else ""))
-        print("  Optimum    : {}".format("yes" if opt_models>0 else "no"))
-        if opt_models > 1:
-            print("  Optimal    : {}".format(opt_models))
-        print(clingo_stats.Stats().summary(control,False))
+        if not non_optimal:
+            print("  Optimum    : {}".format("yes" if opt_models>0 else "no"))
+            if opt_models > 1:
+                print("  Optimal    : {}".format(opt_models))
+        print(clingo_stats.Stats().summary(ctl,False))
         if stats:
-            print(clingo_stats.Stats().statistics(control))
+            print(clingo_stats.Stats().statistics(ctl))
 

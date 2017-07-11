@@ -172,3 +172,17 @@ class CheckerController:
     def start(self):
         self.solver.check_errors()
 
+
+class NonOptimalController:
+    
+    def __init__(self, solver, state):
+        self.solver = solver
+        self.state = state
+    
+    def start(self):
+        import solver as _solver
+        self.state.str_found      = _solver.STR_MODEL_FOUND
+        self.state.str_found_star = _solver.STR_MODEL_FOUND_STAR
+        self.solver.add_unsat_to_preference_program()
+
+

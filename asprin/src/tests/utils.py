@@ -56,7 +56,7 @@ class Test:
                 match = re.match(r'%( )*ERROR', i)
                 self.error = True if match else False
             else:
-                match = re.match(r'%( )*OPTIMUM FOUND', i)
+                match = re.match(r'%( )*((OPTIMUM)|(MODEL)) FOUND.*', i)
                 if match:
                     answer = last[1:].split(' ')
                     answer.sort()
@@ -99,7 +99,7 @@ class Result(Test):
             match = re.match(r'.*UNSATISFIABLE.*', i)
             if match:
                 self.unsatisfiable = True
-            match = re.match(r'.*OPTIMUM FOUND.*', i)
+            match = re.match(r'.*((OPTIMUM)|(MODEL)) FOUND.*', i)
             if match:
                 self.satisfiable = True
                 answer = last.split(' ')

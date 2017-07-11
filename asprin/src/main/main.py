@@ -190,6 +190,9 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
                              help=argparse.SUPPRESS,
                              default="normal", 
                              choices=["normal", "approx", "heuristic"])
+        solving.add_argument('--non-optimal', dest='non_optimal', 
+                             help=": Compute also non optimal models", 
+                             action='store_true')
 
         options, unknown = cmd_parser.parse_known_args(args=args)
         options = vars(options)
