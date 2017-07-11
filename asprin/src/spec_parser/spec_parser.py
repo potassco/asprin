@@ -366,6 +366,11 @@ class Parser(object):
     #   T :: [ Body ]
     # The translation in the other direction is not always possible
     #
+    # A base program can also contain minimize and maximize statements, 
+    #   which are translated as if they were preference statements of
+    #   name clingo and type clingo_minimize.
+    # In this case, no preference or optimize statements are allowed.
+    #
 
     #
     # START
@@ -499,7 +504,7 @@ class Parser(object):
             p[0] = (p[1],[])
         else:
             p[0] = (p[1],p[3])
-        self.element.vars     = self.element.all_vars
+        self.element.vars = self.element.all_vars
 
     def p_elem_head(self, p):
         """ elem_head : elem_head GTGT weighted_body_set
@@ -1012,7 +1017,7 @@ class Parser(object):
         self.element = ast.Element()
         # error if not in base
         if self.program != BASE:
-            self.__syntax_error(p,1,len(p)-1,ERROR_PREFERENCE)
+            self.__syntax_error(p, 1, len(p)-1, ERROR_PREFERENCE)
         # add optimize statement
         s = ast.OStatement()
         s.name     = MINIMIZE_NAME
@@ -1092,9 +1097,9 @@ class Parser(object):
                               | min_weight min_tuple
         """
         if len(p) == 5:
-            p[0] = ast.WBody(["-"]+p[1]+p[2],p[4])
+            p[0] = ast.WBody(["-"]+p[1]+p[2], p[4])
         else:
-            p[0] = ast.WBody(["-"]+p[1]+p[2],[["ext_atom",["true",["#true"]]]])
+            p[0] = ast.WBody(["-"]+p[1]+p[2], [["ext_atom",["true",["#true"]]]])
 
 
     #

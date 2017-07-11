@@ -261,7 +261,7 @@ class Element:
         self.sets     = []
         self.cond     = []
         self.body     = None
-        self.vars     = None
+        self.vars     = set()
         self.all_vars = set() # temporary variable
         self.pooling  = False
 
