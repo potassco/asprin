@@ -77,10 +77,12 @@ UNSAT_ATOM    = utils.UNSAT
 HOLDS_AT_ZERO = "holds_at_zero"
 CSP           = "$"
 
-# exceptions
+# messages
 SAME_MODEL = """\
 same stable model computed twice, there is an error in the input, \
 probably an incorrect preference program"""
+WARNING_NO_OPTIMIZE = """warning: no optimize statement, \
+computing also non optimal models"""
 
 #
 # AUXILIARY PROGRAMS
@@ -205,6 +207,15 @@ class Solver:
         for i in PROGRAMS:
             self.control.add(i[0], i[1], i[2].replace(TOKEN, self.underscores))
         self.control.ground([(DO_HOLDS_AT_ZERO, [])], self)
+
+    def no_optimize(self):
+        optimize = self.underscores + utils.OPTIMIZE
+        for atom in self.control.symbolic_atoms.by_signature(optimize, 1):
+            return False
+        return True
+
+    def print_no_optimize_warning(self):
+        self.printer.print_warning(WARNING_NO_OPTIMIZE)
 
     def add_unsat_to_preference_program(self):
         self.control.add(UNSAT_PREFP[0], UNSAT_PREFP[1],
@@ -382,21 +393,20 @@ class Solver:
         basic = controller.BasicMethodController(self, self.state)
         enumeration = controller.EnumerationController(self, self.state)
         checker = controller.CheckerController(self, self.state)
+        non_optimal = controller.NonOptimalController(self, self.state)
         # optional
-        approx, heur, non_optimal = None, None, None
+        approx, heur = None, None
         if self.state.solving_mode == "approx":
             approx = controller.ApproxMethodController(self, self.state)
         elif self.state.solving_mode == "heuristic":
             heur = controller.HeurMethodController(self, self.state)
-        if self.state.non_optimal:
-            non_optimal = controller.NonOptimalController(self, self.state)
 
         # loop
         try:
             # START
             general.start()
             checker.start()
-            call(non_optimal, "start")
+            non_optimal.start()
             call(approx, "start")
             call(heur, "start")
             self.printer.do_print("Solving...")

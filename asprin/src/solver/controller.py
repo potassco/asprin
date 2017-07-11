@@ -180,9 +180,13 @@ class NonOptimalController:
         self.state = state
     
     def start(self):
-        import solver as _solver
-        self.state.str_found      = _solver.STR_MODEL_FOUND
-        self.state.str_found_star = _solver.STR_MODEL_FOUND_STAR
-        self.solver.add_unsat_to_preference_program()
+        if self.solver.no_optimize():
+            self.state.non_optimal = True
+            self.solver.print_no_optimize_warning()
+        if self.state.non_optimal:
+            import solver as _solver
+            self.state.str_found      = _solver.STR_MODEL_FOUND
+            self.state.str_found_star = _solver.STR_MODEL_FOUND_STAR
+            self.solver.add_unsat_to_preference_program()
 
 

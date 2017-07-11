@@ -94,10 +94,10 @@ CHECK_SPEC = """
   D = "optimizing non existent preference statement".
 
 % no optimize statements
-##error((A,B,C)):- { ##optimize(Y) } 0, 
-  A = "optimize",
-  B = ": error: preference specification error, ",
-  C = "no optimize statement".
+%##error((A,B,C)):- { ##optimize(Y) } 0, 
+%  A = "optimize",
+%  B = ": error: preference specification error, ",
+%  C = "no optimize statement".
 
 % many optimize statements
 ##error((A,B,C,D)):- ##optimize(X), 2 { ##optimize(Y) }, 

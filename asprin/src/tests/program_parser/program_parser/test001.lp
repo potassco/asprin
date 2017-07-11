@@ -1,4 +1,4 @@
-% asprin test009.lp 0
+% asprin test001.lp 0
 % ERROR
 
 1 { a(X) : dom(X) }.

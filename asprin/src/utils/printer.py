@@ -52,12 +52,6 @@ class Printer:
         Printer.last = string
         return False
 
-    def __print_warning(self, string, **kwargs):
-        if not self.__last(string):
-            sys.stdout.flush()
-            print(string, file=sys.stderr, **kwargs)
-            self.__check_messages(1)
-
     def __print_error(self, string, **kwargs):
         if not self.__last(string):
             sys.stdout.flush()
@@ -76,14 +70,20 @@ class Printer:
     def print_error(self, string):
         self.__print_error(string)
 
-    def print_spec_error(self,string):
+    def print_spec_error(self, string):
         self.__print_error(string)
 
-    def warning_included_file(self,file,loc=None):
+    def print_warning(self, string, **kwargs):
+        if not self.__last(string):
+            sys.stdout.flush()
+            print(string, file=sys.stderr, **kwargs)
+            self.__check_messages(1)
+
+    def warning_included_file(self, file, loc=None):
         warning = WARNING_INCLUDED_FILE 
         if loc: 
-            warning = warning.replace("<cmd>: ",str(loc))
-        self.__print_warning(warning.format(file))
+            warning = warning.replace("<cmd>: ", str(loc))
+        self.print_warning(warning.format(file))
 
     def error_included_file(self, file, loc):
         self.print_error_location(loc, ERROR_INCLUDED_FILE.format(file))
