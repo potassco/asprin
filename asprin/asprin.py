@@ -24,9 +24,12 @@
 # -*- coding: utf-8 -*-
 
 import src.main.main
+import sys
 
-def main():
-    src.main.main.main()
+def main(args=None):
+    if args==None:
+        args = sys.argv[1:]
+    src.main.main.main(args)
 
 if __name__ == "__main__":
     main()

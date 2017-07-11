@@ -72,14 +72,14 @@ class Tester:
             pass
         return errors
 
-def main():
+def main(args):
     path = PATH
-    for i in sys.argv:
+    for i in args:
         if i.startswith(DIR):
             path = i[len(DIR):]
-            sys.argv.remove(i)
+            args.remove(i)
             break
-    errors = Tester().run(path, sys.argv[1:])
+    errors = Tester().run(path, args)
     if errors:
         print("ERROR: There were errors in the tests")
     else:

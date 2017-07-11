@@ -137,13 +137,13 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
             self.__first_file = file
 
 
-    def run(self):
+    def run(self, args):
 
         # command parser
         _epilog = self.clingo_help + "\nusage: " + self.usage + self.epilog
         cmd_parser = MyArgumentParser(usage=self.usage, epilog=_epilog,
             formatter_class=argparse.RawDescriptionHelpFormatter,
-            add_help=False)
+            add_help=False, prog="asprin")
 
         # Basic Options
         basic = cmd_parser.add_argument_group('Basic Options')
@@ -191,7 +191,7 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
                              default="normal", 
                              choices=["normal", "approx", "heuristic"])
 
-        options, unknown = cmd_parser.parse_known_args()
+        options, unknown = cmd_parser.parse_known_args(args=args)
         options = vars(options)
 
         # print version
@@ -260,11 +260,11 @@ class Asprin:
         except Exception as e:
             raise argparse.ArgumentError(None,e.message)
 
-    def run_wild(self):
+    def run_wild(self, args):
 
         # arguments parsing 
         aap = AsprinArgumentParser()
-        options, clingo_options, underscores, prologue, warnings = aap.run()
+        options, clingo_options, underscores, prologue, warnings = aap.run(args)
 
         # create Control object
         control = self.__get_control(clingo_options)
@@ -289,9 +289,9 @@ class Asprin:
         _solver.run()
 
 
-    def run(self):
+    def run(self, args):
         try:
-            self.run_wild()
+            self.run_wild(args)
         except argparse.ArgumentError as e:
             print(ERROR.format(str(e)),file=sys.stderr)
             print(ERROR_INFO,file=sys.stderr)
@@ -316,14 +316,14 @@ class Asprin:
             sys.exit(65)
 
 
-def main():
-    if TEST in sys.argv:
-        sys.argv.remove(TEST)
+def main(args):
+    if TEST in args:
+        args.remove(TEST)
         from ..tests import tester
-        tester.main()
-    elif DEBUG in sys.argv:
-        Asprin().run_wild()
+        tester.main(args)
+    elif DEBUG in args:
+        Asprin().run_wild(args)
     else:
-        Asprin().run()
+        Asprin().run(args)
 
 

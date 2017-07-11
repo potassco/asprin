@@ -71,7 +71,8 @@ STDIN        = "-"
 END          = "end."
 CLINGOPATH   = "CLINGOPATH"
 ASPRIN_LIB   = "asprin.lib"
-ASPRIN_LIB_RELATIVE = os.path.dirname(__file__) + "/../../" + ASPRIN_LIB
+ASPRIN_LIB_RELATIVE = os.path.join(os.path.abspath(os.path.dirname(__file__)),
+                                   "..", "..", ASPRIN_LIB)
 # WARNING: ASPRIN_LIB_RELATIVE must be changed if 
 #          asprin.lib location relative to this file changes
 
@@ -300,8 +301,9 @@ class Parser(object):
         self.__parse_included_files(files)
 
         # asprin.lib
-        filenames = [os.path.basename(i[0]) for i in files]
-        if options['asprin-lib'] and ASPRIN_LIB not in filenames:
+        #filenames = [os.path.basename(i[0]) for i in files]
+        #if options['asprin-lib'] and ASPRIN_LIB not in filenames:
+        if options['asprin-lib']:
             if os.path.isfile(ASPRIN_LIB):
                 file = ASPRIN_LIB
             else:
