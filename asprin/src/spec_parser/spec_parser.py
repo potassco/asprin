@@ -70,11 +70,11 @@ OPTIMIZE     = "OPTIMIZE"
 STDIN        = "-"
 END          = "end."
 CLINGOPATH   = "CLINGOPATH"
-ASPRIN_LIB   = "asprin.lib"
+ASPRIN_LIB   = "asprin_lib.lp"
 ASPRIN_LIB_RELATIVE = os.path.join(os.path.abspath(os.path.dirname(__file__)),
                                    "..", "..", ASPRIN_LIB)
 # WARNING: ASPRIN_LIB_RELATIVE must be changed if 
-#          asprin.lib location relative to this file changes
+#          asprin_lib.lp location relative to this file changes
 
 # clingo minimize statements
 MINIMIZE_NAME = "clingo"
@@ -300,7 +300,7 @@ class Parser(object):
         # included files
         self.__parse_included_files(files)
 
-        # asprin.lib
+        # asprin_lib.lp
         #filenames = [os.path.basename(i[0]) for i in files]
         #if options['asprin-lib'] and ASPRIN_LIB not in filenames:
         if options['asprin-lib']:
