@@ -3,6 +3,3 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-asprin.egg-info/
-build/
-dist/
