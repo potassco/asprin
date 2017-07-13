@@ -14,39 +14,67 @@ error_type(X,Y) :- #false, error_type(X,Y). % to avoid warnings
 
 %%% no formulas
 error(("preference:",P,": error: preference specification error, type '",T,"' does not allow formulas.")) :-
-             preference(P,T), error_type(T,no_formulas), 
-             preference(P,_,_,for(X),_).
+  preference(P,T), error_type(T,no_formulas),
+  preference(P,_,_,for(X),_).
 
 %%% no weights
 error(("preference:",P,": error: preference specification error, type '",T,"' does not allow weights.")) :-
-             preference(P,T), error_type(T,no_weights),
-             preference(P,_,_,_,W), W != ().
+  preference(P,T), error_type(T,no_weights),
+  preference(P,_,_,_,W), W != ().
 
 %%% no ordering
 error(("preference:",P,": error: preference specification error, type '",T,"' does not allow using '>>'.")) :-
-             preference(P,T), error_type(T,no_ordering),
-             preference(P,_,R,_,_), R > 1.
+  preference(P,T), error_type(T,no_ordering),
+  preference(P,_,R,_,_), R > 1.
 
 %%% no sets
 error(("preference:",P,": error: preference specification error, type '",T,"' does not allow sets.")) :-
-             preference(P,T), error_type(T,no_sets), 
-             preference(P,E,S,X,_), preference(P,E,S,Y,_), X > Y.
+  preference(P,T), error_type(T,no_sets),
+  preference(P,E,S,X,_), preference(P,E,S,Y,_), X > Y.
 
 %%% no names
 error(("preference:",P,": error: preference specification error, type '",T,"' does not allow naming atoms.")) :-
-             preference(P,T), error_type(T,no_naming),
-             preference(P,_,_,name(X),_).
-           
+  preference(P,T), error_type(T,no_naming),
+  preference(P,_,_,name(X),_).
+
 %%% single 
 error(("preference:",P,": error: preference specification error, type '",T,"' does not allow more than one preference element.")) :-
-             preference(P,T), error_type(T,single), 
-             2 { preference(P,_,_,_,_) }.
-           
+  preference(P,T), error_type(T,single),
+  2 { preference(P,_,_,_,_) }.
+
 % no condition
 error(("preference:",P,": error: preference specification error, type '",T,"' does not allow using '||'.")) :-
-             preference(P,poset), error_type(T,no_condition), 
-             preference(P,_,0,_,_).
-           
+  preference(P,T), error_type(T,no_condition),
+  preference(P,_,0,_,_).
+
+% weights length
+error(("preference:",P,": error: preference specification error, type '",T,"' requires a weight tuple of at least ",N," elements.")) :-
+  preference(P,T), error_type(T,(weight_length,N)),
+  preference(P,_,_,_,W), @length(W) < N.
+
+%
+% Python functions
+%
+% asprin provides the following functions,
+% which are part of src/solver/solver.py,
+% and may be called using @function() syntax
+% (see, for example, less(weight) preference program)
+%
+
+%
+%    def get(self, atuple, index):
+%        try:
+%            return atuple.arguments[index]
+%        except:
+%            return atuple
+%
+%    def length(self, atuple):
+%        try:
+%            return len(atuple.arguments)
+%        except:
+%            return 0
+%
+
 #program preference(and).
 
 required(Q,better) :- preference(P,and), required(P,better), preference(P,_,_,name(Q),_).
@@ -198,24 +226,24 @@ error_type(less(cardinality),no_sets).
 
 
 better(P) :- preference(P,less(weight)), required(P,better),
-             1 #sum { -W,T : holds(X),  preference(P,_,_,for(X),T), W = @head(T); 
-                       W,T : holds'(X), preference(P,_,_,for(X),T), W = @head(T)}.
+             1 #sum { -W,T : holds(X),  preference(P,_,_,for(X),T), W = @get(T,0); 
+                       W,T : holds'(X), preference(P,_,_,for(X),T), W = @get(T,0)}.
 
 bettereq(P) :- preference(P,less(weight)), required(P,bettereq),
-                  0 #sum { -W,T : holds(X),  preference(P,_,_,for(X),T), W = @head(T); 
-                            W,T : holds'(X), preference(P,_,_,for(X),T), W = @head(T)}. 
+               0 #sum { -W,T : holds(X),  preference(P,_,_,for(X),T), W = @get(T,0); 
+                         W,T : holds'(X), preference(P,_,_,for(X),T), W = @get(T,0)}. 
 
 eq(P) :- preference(P,less(weight)), required(P,eq),
-         0 #sum { -W,T : holds(X),  preference(P,_,_,for(X),T), W = @head(T); 
-                   W,T : holds'(X), preference(P,_,_,for(X),T), W = @head(T)}0. 
+         0 #sum { -W,T : holds(X),  preference(P,_,_,for(X),T), W = @get(T,0); 
+                   W,T : holds'(X), preference(P,_,_,for(X),T), W = @get(T,0)}0. 
 
 worseeq(P) :- preference(P,less(weight)), required(P,worseeq),
-              #sum { -W,T : holds(X),  preference(P,_,_,for(X),T), W = @head(T); 
-                      W,T : holds'(X), preference(P,_,_,for(X),T), W = @head(T)}0.
+              #sum { -W,T : holds(X),  preference(P,_,_,for(X),T), W = @get(T,0); 
+                      W,T : holds'(X), preference(P,_,_,for(X),T), W = @get(T,0)}0.
 
 worse(P) :- preference(P,less(weight)), required(P,worse),
-            #sum { -W,T : holds(X),  preference(P,_,_,for(X),T), W = @head(T); 
-                    W,T : holds'(X), preference(P,_,_,for(X),T), W = @head(T)}-1.
+            #sum { -W,T : holds(X),  preference(P,_,_,for(X),T), W = @get(T,0); 
+                    W,T : holds'(X), preference(P,_,_,for(X),T), W = @get(T,0)}-1.
 
 % errors
 error_type(less(weight),no_naming).
@@ -297,24 +325,24 @@ error_type(more(cardinality),no_sets).
 #program preference(more(weight)).
 
 better(P) :- preference(P,more(weight)), required(P,better),
-                #sum { -W,T : holds(X),  preference(P,_,_,for(X),T), W = @head(T); 
-                        W,T : holds'(X), preference(P,_,_,for(X),T), W = @head(T)}-1.
+                #sum { -W,T : holds(X),  preference(P,_,_,for(X),T), W = @get(T,0); 
+                        W,T : holds'(X), preference(P,_,_,for(X),T), W = @get(T,0)}-1.
 
 bettereq(P) :- preference(P,more(weight)), required(P,bettereq),
-                  #sum { -W,T : holds(X),  preference(P,_,_,for(X),T), W = @head(T); 
-                          W,T : holds'(X), preference(P,_,_,for(X),T), W = @head(T)}0. 
+                  #sum { -W,T : holds(X),  preference(P,_,_,for(X),T), W = @get(T,0); 
+                          W,T : holds'(X), preference(P,_,_,for(X),T), W = @get(T,0)}0. 
 
 eq(P) :- preference(P,more(weight)), required(P,eq),
-         0 #sum { -W,T : holds(X),  preference(P,_,_,for(X),T), W = @head(T); 
-                   W,T : holds'(X), preference(P,_,_,for(X),T), W = @head(T)}0. 
+         0 #sum { -W,T : holds(X),  preference(P,_,_,for(X),T), W = @get(T,0); 
+                   W,T : holds'(X), preference(P,_,_,for(X),T), W = @get(T,0)}0. 
 
 worseeq(P) :- preference(P,more(weight)), required(P,worseeq),
-              0 #sum { -W,T : holds(X),  preference(P,_,_,for(X),T), W = @head(T); 
-                        W,T : holds'(X), preference(P,_,_,for(X),T), W = @head(T)}.
+              0 #sum { -W,T : holds(X),  preference(P,_,_,for(X),T), W = @get(T,0); 
+                        W,T : holds'(X), preference(P,_,_,for(X),T), W = @get(T,0)}.
 
 worse(P) :- preference(P,more(weight)), required(P,worse),
-            1 #sum { -W,T : holds(X),  preference(P,_,_,for(X),T), W = @head(T); 
-                      W,T : holds'(X), preference(P,_,_,for(X),T), W = @head(T)}.
+            1 #sum { -W,T : holds(X),  preference(P,_,_,for(X),T), W = @get(T,0); 
+                      W,T : holds'(X), preference(P,_,_,for(X),T), W = @get(T,0)}.
                      
 % errors
 error_type(more(weight),no_naming).
@@ -541,7 +569,7 @@ error_type(superset,no_sets).
 
 #program preference(clingo_minimize).
 
-level(P,L) :- preference(P,clingo_minimize), preference(P,_,_,_,T), L = @second(T).
+level(P,L) :- preference(P,clingo_minimize), preference(P,_,_,_,T), L = @get(T,1).
            
 better(P) :- preference(P,clingo_minimize),
              level(P,L), better(P,L), 
@@ -561,24 +589,24 @@ worse(P) :- preference(P,clingo_minimize),
            eq(P,LL) : level(P,LL), LL>L.
 
 better(P,L) :- preference(P,clingo_minimize), required(P,better), level(P,L),
-  1 #sum { -W,T : holds(X),  preference(P,_,_,for(X),T), W = @head(T), L=@second(T); 
-            W,T : holds'(X), preference(P,_,_,for(X),T), W = @head(T), L=@second(T)}.
+  1 #sum { -W,T : holds(X),  preference(P,_,_,for(X),T), W = @get(T,0), L=@get(T,1); 
+            W,T : holds'(X), preference(P,_,_,for(X),T), W = @get(T,0), L=@get(T,1)}.
 
 bettereq(P,L) :- preference(P,clingo_minimize), required(P,better), level(P,L),
-  0 #sum { -W,T : holds(X),  preference(P,_,_,for(X),T), W = @head(T), L=@second(T); 
-            W,T : holds'(X), preference(P,_,_,for(X),T), W = @head(T), L=@second(T)}.
+  0 #sum { -W,T : holds(X),  preference(P,_,_,for(X),T), W = @get(T,0), L=@get(T,1); 
+            W,T : holds'(X), preference(P,_,_,for(X),T), W = @get(T,0), L=@get(T,1)}.
 
 eq(P,L) :- preference(P,clingo_minimize), required(P,better), level(P,L),
-  0 #sum { -W,T : holds(X),  preference(P,_,_,for(X),T), W = @head(T), L=@second(T); 
-            W,T : holds'(X), preference(P,_,_,for(X),T), W = @head(T), L=@second(T)}0.
+  0 #sum { -W,T : holds(X),  preference(P,_,_,for(X),T), W = @get(T,0), L=@get(T,1); 
+            W,T : holds'(X), preference(P,_,_,for(X),T), W = @get(T,0), L=@get(T,1)}0.
 
 worseeq(P,L) :- preference(P,clingo_minimize), required(P,better), level(P,L),
-  #sum { -W,T : holds(X),  preference(P,_,_,for(X),T), W = @head(T), L=@second(T); 
-          W,T : holds'(X), preference(P,_,_,for(X),T), W = @head(T), L=@second(T)}0.
+  #sum { -W,T : holds(X),  preference(P,_,_,for(X),T), W = @get(T,0), L=@get(T,1); 
+          W,T : holds'(X), preference(P,_,_,for(X),T), W = @get(T,0), L=@get(T,1)}0.
 
 worse(P,L) :- preference(P,clingo_minimize), required(P,better), level(P,L),
-  #sum { -W,T : holds(X),  preference(P,_,_,for(X),T), W = @head(T), L=@second(T); 
-          W,T : holds'(X), preference(P,_,_,for(X),T), W = @head(T), L=@second(T)}-1.
+  #sum { -W,T : holds(X),  preference(P,_,_,for(X),T), W = @get(T,0), L=@get(T,1); 
+          W,T : holds'(X), preference(P,_,_,for(X),T), W = @get(T,0), L=@get(T,1)}-1.
 
 % errors
 error_type(clingo_minimize,no_naming).
@@ -586,6 +614,88 @@ error_type(clingo_minimize,no_ordering).
 error_type(clingo_minimize,no_condition).
 error_type(clingo_minimize,no_sets).
 
+
+#program preference(maxmin).
+
+%%% get groups
+group(P,@get(T,0)) :- preference(P,maxmin), preference(P,_,_,_,T).
+
+% value of holds'
+value_h'(P,V)   :- preference(P,maxmin), V = #min { VV : value_h'(P,G,VV) }.
+value_h'(P,G,V) :- preference(P,maxmin), group(P,G),
+  V = #sum { W,T : holds'(X), preference(P,_,_,for(X),T),
+                   G = @get(T,0), W = @get(T,1) }.
+
+% bettereq/2 and worseeq/2 for every group
+bettereq(P,G) :- preference(P,maxmin), group(P,G), value_h'(P,V),
+  V <= #sum { W,T : holds(X), preference(P,_,_,for(X),T), 
+                    G = @get(T,0), W = @get(T,1) }.
+worseeq(P,G) :- preference(P,maxmin), group(P,G), value_h'(P,V),
+  V >= #sum { W,T : holds(X), preference(P,_,_,for(X),T), 
+                    G = @get(T,0), W = @get(T,1) }.
+
+% better/1, bettereq/1, eq/1, worseeq/1, worse/1
+better(P) :- preference(P,maxmin),
+             not worseeq(P,G) : group(P,G).
+
+bettereq(P) :- preference(P,maxmin),
+               bettereq(P,G) : group(P,G).
+
+eq(P) :- preference(P,maxmin), bettereq(P), worseeq(P).
+
+worseeq(P) :- preference(P,maxmin),
+              worseeq(P,G).
+
+worse(P) :- preference(P,maxmin),
+            worseeq(P,G), not bettereq(P,G).
+
+% errors
+error_type(maxmin,no_naming).
+error_type(maxmin,no_ordering).
+error_type(maxmin,no_condition).
+error_type(maxmin,no_sets).
+error_type(maxmin,(weight_length,2)).
+
+#program preference(minmax).
+
+%%% get groups
+group(P,@get(T,0)) :- preference(P,minmax), preference(P,_,_,_,T).
+
+% value of holds'
+value_h'(P,V)   :- preference(P,minmax), V = #max { VV : value_h'(P,G,VV) }.
+value_h'(P,G,V) :- preference(P,minmax), group(P,G),
+  V = #sum { W,T : holds'(X), preference(P,_,_,for(X),T),
+                   G = @get(T,0), W = @get(T,1) }.
+
+% bettereq/2 and worseeq/2 for every group
+bettereq(P,G) :- preference(P,minmax), group(P,G), value_h'(P,V),
+  V >= #sum { W,T : holds(X), preference(P,_,_,for(X),T), 
+                    G = @get(T,0), W = @get(T,1) }.
+worseeq(P,G) :- preference(P,minmax), group(P,G), value_h'(P,V),
+  V <= #sum { W,T : holds(X), preference(P,_,_,for(X),T), 
+                    G = @get(T,0), W = @get(T,1) }.
+
+% better/1, bettereq/1, eq/1, worseeq/1, worse/1
+better(P) :- preference(P,minmax),
+             not worseeq(P,G) : group(P,G).
+
+bettereq(P) :- preference(P,minmax),
+               bettereq(P,G) : group(P,G).
+
+eq(P) :- preference(P,minmax), bettereq(P), worseeq(P).
+
+worseeq(P) :- preference(P,minmax),
+              worseeq(P,G).
+
+worse(P) :- preference(P,minmax),
+            worseeq(P,G), not bettereq(P,G).
+
+% errors
+error_type(minmax,no_naming).
+error_type(minmax,no_ordering).
+error_type(minmax,no_condition).
+error_type(minmax,no_sets).
+error_type(minmax,(weight_length,2)).
 
 #program preference. % to avoid warnings
 

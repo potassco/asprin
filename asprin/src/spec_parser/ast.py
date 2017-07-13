@@ -204,7 +204,7 @@ class PStatement(Statement):
             for j in i.sets:
                 for k in j:
                     out += u + PREFERENCE
-                    s = "({},(({},{}),({})),{},{},({})){}{}.\n"
+                    s = "({},({},{},({})),{},{},{}){}{}.\n"
                     out += s.format(name, self.number, elem, ",".join(i.vars),
                                     set, k.str_body(), k.str_weight(), arrow,
                                     body)
@@ -216,7 +216,7 @@ class PStatement(Statement):
             # condition set
             for k in i.cond:
                 out += u + PREFERENCE
-                s = "({},(({},{}),({})),{},{},({})){}{}.\n"
+                s = "({},({},{},({})),{},{},{}){}{}.\n"
                 out += s.format(name, self.number, elem, ",".join(i.vars), 0,
                                 k.str_body(), k.str_weight(), arrow, body)
                 out += k.str_holds(body)
@@ -440,7 +440,7 @@ class WBody:
 
     # return the weight
     def str_weight(self):
-        return ast2str(self.weight) if self.weight is not None else "()"
+        return "(" + ast2str(self.weight) + ")"
 
 
     # return the body with for() or name()

@@ -81,8 +81,8 @@ CSP           = "$"
 SAME_MODEL = """\
 same stable model computed twice, there is an error in the input, \
 probably an incorrect preference program"""
-WARNING_NO_OPTIMIZE = """warning: no optimize statement, \
-computing also non optimal models"""
+WARNING_NO_OPTIMIZE = """WARNING: no optimize statement, \
+computing non optimal stable models"""
 
 #
 # AUXILIARY PROGRAMS
@@ -177,21 +177,21 @@ class Solver:
 
     def getHolds(self):
         return self.holds
-    
+
     def getNHolds(self):
         return self.nholds
 
-    def head(self, atuple):
+    def get(self, atuple, index):
         try:
-            return atuple.arguments[0]
+            return atuple.arguments[index.number]
         except:
             return atuple
 
-    def second(self, atuple):
+    def length(self, atuple):
         try:
-            return atuple.arguments[1]
+            return len(atuple.arguments)
         except:
-            return atuple
+            return 0 
 
     def __cat(self, tuple):
         if tuple.arguments:
