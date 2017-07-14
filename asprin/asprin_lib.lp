@@ -635,18 +635,23 @@ worseeq(P,G) :- preference(P,maxmin), group(P,G), value_h'(P,V),
                     G = @get(T,0), W = @get(T,1) }.
 
 % better/1, bettereq/1, eq/1, worseeq/1, worse/1
-better(P) :- preference(P,maxmin),
-             not worseeq(P,G) : group(P,G).
+better(P) :- preference(P,maxmin), required(P,better), 
+             group(P,_), not worseeq(P,G) : group(P,G).
 
-bettereq(P) :- preference(P,maxmin),
+bettereq(P) :- preference(P,maxmin), required(P,bettereq),
                bettereq(P,G) : group(P,G).
 
-eq(P) :- preference(P,maxmin), bettereq(P), worseeq(P).
+required(P,bettereq) :- preference(P,maxmin), required(P,eq).
+required(P,worseeq)  :- preference(P,maxmin), required(P,eq).
+eq(P) :- preference(P,maxmin), required(P,eq),
+         bettereq(P), worseeq(P).
 
-worseeq(P) :- preference(P,maxmin),
+worseeq(P) :- preference(P,maxmin), required(P,worseeq),
               worseeq(P,G).
+worseeq(P) :- preference(P,maxmin), required(P,worseeq),
+              not group(P,_).
 
-worse(P) :- preference(P,maxmin),
+worse(P) :- preference(P,maxmin), required(P,worse),
             worseeq(P,G), not bettereq(P,G).
 
 % errors
@@ -676,18 +681,23 @@ worseeq(P,G) :- preference(P,minmax), group(P,G), value_h'(P,V),
                     G = @get(T,0), W = @get(T,1) }.
 
 % better/1, bettereq/1, eq/1, worseeq/1, worse/1
-better(P) :- preference(P,minmax),
-             not worseeq(P,G) : group(P,G).
+better(P) :- preference(P,minmax), required(P,better),
+             group(P,_), not worseeq(P,G) : group(P,G).
 
-bettereq(P) :- preference(P,minmax),
+bettereq(P) :- preference(P,minmax), required(P,bettereq),
                bettereq(P,G) : group(P,G).
 
-eq(P) :- preference(P,minmax), bettereq(P), worseeq(P).
+required(P,bettereq) :- preference(P,minmax), required(P,eq).
+required(P,worseeq)  :- preference(P,minmax), required(P,eq).
+eq(P) :- preference(P,minmax), required(P,eq),
+         bettereq(P), worseeq(P).
 
-worseeq(P) :- preference(P,minmax),
+worseeq(P) :- preference(P,minmax), required(P,worseeq),
               worseeq(P,G).
+worseeq(P) :- preference(P,minmax), required(P,worseeq),
+              not group(P,_).
 
-worse(P) :- preference(P,minmax),
+worse(P) :- preference(P,minmax), required(P,worse),
             worseeq(P,G), not bettereq(P,G).
 
 % errors
