@@ -7,7 +7,7 @@ $ asprin [number_of_models] [options] [files]
 ```
 By default, asprin loads its library `asprin_lib.lp`. This may be disabled with option `--no-asprin-lib`.
 
-Run `--help` for help.
+Option `--help` prints help.
 
 ## Building
 `asprin` requires Python (version 2.7 is tested), and 
