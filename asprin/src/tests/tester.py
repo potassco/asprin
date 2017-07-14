@@ -30,8 +30,6 @@ import subprocess
 
 DIR = "--test-dir="
 PATH = os.path.dirname(os.path.realpath(__file__))
-STR_TMP = "tester.tmp"
-TMP_FILE = os.path.join(PATH, STR_TMP)
 
 class cd:
     """Context manager for changing the current working directory"""
@@ -57,19 +55,16 @@ class Tester:
                 with open(abs_i, 'r') as f:
                     test = utils.Test(f.read(), options)
                 print("Testing {}...".format(abs_i))
-                with open(TMP_FILE, 'w') as tmp:
-                    with cd(dir):
-                        subprocess.call(test.command, stdout=tmp,
-                                        stderr=subprocess.STDOUT, shell=True)
-                with open(TMP_FILE, 'r') as tmp:
+                import tempfile
+                tmp = tempfile.TemporaryFile()
+                with cd(dir):
+                    subprocess.call(test.command, stdout=tmp,
+                                    stderr=subprocess.STDOUT, shell=True)
+                    tmp.seek(0)
                     result = utils.Result(tmp.read())
                 error = result.compare(test)
             if error:
                 errors = True
-        try:
-            os.remove(TMP_FILE)
-        except OSError:
-            pass
         return errors
 
 def main(args):
