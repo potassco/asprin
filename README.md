@@ -12,7 +12,7 @@ Option `--help` prints help.
 ## Building
 `asprin` requires Python (version 2.7 is tested), and 
 the [python module of clingo](https://github.com/potassco/clingo) (version 5.2.0 is tested),
-whose directory should appear in the [environment variable](https://en.wikipedia.org/wiki/Environment_variable)
+whose directory should be part of the [environment variable](https://en.wikipedia.org/wiki/Environment_variable)
 `PYTHONPATH`.
 
 `asprin` can be installed with [pip](https://pip.pypa.io) via
