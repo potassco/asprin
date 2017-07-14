@@ -5,15 +5,21 @@
 ```bash
 $ asprin [number_of_models] [options] [files]
 ```
-By default, asprin loads its library `asprin.lib`. This may be disabled with option `--no-asprin-lib`.
+By default, asprin loads its library `asprin_lib.lp`. This may be disabled with option `--no-asprin-lib`.
 
-On Windows, please add `python ` before `asprin` in the command line.
-
-Type `--help` for help.
+Run `--help` for help.
 
 ## Building
-`asprin` requires Python (version 2.7 is tested), and the [python module of clingo](https://github.com/potassco/clingo) (version 5.2.0 is tested). 
+`asprin` requires Python (version 2.7 is tested), and 
+the [python module of clingo](https://github.com/potassco/clingo) (version 5.2.0 is tested),
+whose path should appear in the [environment variable](https://en.wikipedia.org/wiki/Environment_variable)
+`PYTHONPATH`.
 
+`asprin` can be installed with [pip](https://pip.pypa.io) via
+```pip install asprin```. 
+For a local installation, add option ```--user```.
+
+For older releases, please click [here](https://pypi.org/project/asprin/#history).
 
 ## Examples
 ```
