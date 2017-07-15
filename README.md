@@ -12,12 +12,28 @@ Option `--help` prints help.
 ## Building
 `asprin` requires Python (version 2.7 is tested), and 
 the [python module of clingo](https://github.com/potassco/clingo) (version 5.2.0 is tested),
-whose directory should be part of the [environment variable](https://en.wikipedia.org/wiki/Environment_variable)
+whose directory should be in the [environment variable](https://en.wikipedia.org/wiki/Environment_variable)
 `PYTHONPATH`.
+
+* On Windows, 
+you can download the corresponding [clingo release](https://github.com/potassco/clingo/releases/download/v5.2.0/clingo-5.2.0-macos-10.9.tar.gz), 
+uncompress it in some directory `dir`,
+and set `PYTHONPATH` to `dir\clingo-5.2.0-win64\python-api` (with `set PYTHONPATH=dir\clingo-5.2.0-win64\python-api`).
+
+* On Mac, 
+you can download the corresponding [clingo release](https://github.com/potassco/clingo/releases/download/v5.2.0/clingo-5.2.0-macos-10.9.tar.gz), 
+uncompress it in some directory `dir`,
+and set `PYTHONPATH` to `dir\clingo-5.2.0-macos-10.9\python-api` (with `export PYTHONPATH=dir\clingo-5.2.0-macos-10.9\python-api`).
+
+* On Unix, you can ownload the [source code](https://github.com/potassco/clingo/archive/v5.2.0.tar.gz), 
+build it following the instructions in `INSTALL.md`, and set `PYTHONPATH` accordingly.
 
 `asprin` can be installed with [pip](https://pip.pypa.io) via
 ```pip install asprin```. 
+
 For a local installation, add option ```--user```.
+In this case, setting environment variable `PYTHONUSERBASE` to `dir` before `pip`, 
+`asprin` will be installed in `dir/bin/asprin`.
 
 For older releases, please click [here](https://pypi.org/project/asprin/#history).
 
