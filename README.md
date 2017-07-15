@@ -22,7 +22,7 @@ Option `--help` prints help.
 
 ## Building
 `asprin` requires Python (version 2.7 is tested), and 
-the [python module of clingo](https://github.com/potassco/clingo) (version 5.2.0 is tested),
+the python module of [clingo](https://github.com/potassco/clingo) (version 5.2.0 is tested),
 whose directory should be in the environment variable `PYTHONPATH`:
 
 * On Windows, 
