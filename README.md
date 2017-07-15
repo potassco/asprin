@@ -83,9 +83,6 @@ OPTIMUM FOUND
 Models       : 3
   Optimum    : yes
   Optimal    : 3
-Calls        : 10
-Time         : 0.054s (Solving: 0.00s 1st Model: 0.00s Unsat: 0.00s)
-CPU Time     : 0.052s
 
 $ cat examples/example2.lp
 %
@@ -148,9 +145,6 @@ OPTIMUM FOUND
 
 Models       : 1+
   Optimum    : yes
-  Calls        : 2
-  Time         : 0.109s (Solving: 0.00s 1st Model: 0.00s Unsat: 0.00s)
-  CPU Time     : 0.104s
 ```
 
 ## Contributors

@@ -28,7 +28,7 @@ import sys
 
 PYTHON = sys.executable
 ASPRIN = PYTHON + " " + str(os.path.join(os.path.dirname(os.path.realpath(
-                            __file__)),"..","..","asprin.py")) + " --no-info "
+                            __file__)),"..","..","asprin.py"))
 
 class Test:
 
