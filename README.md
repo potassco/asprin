@@ -12,8 +12,7 @@ Option `--help` prints help.
 ## Building
 `asprin` requires Python (version 2.7 is tested), and 
 the [python module of clingo](https://github.com/potassco/clingo) (version 5.2.0 is tested),
-whose directory should be in the [environment variable](https://en.wikipedia.org/wiki/Environment_variable)
-`PYTHONPATH`.
+whose directory should be in the environment variable `PYTHONPATH`:
 
 * On Windows, 
 you can download the corresponding [clingo release](https://github.com/potassco/clingo/releases/download/v5.2.0/clingo-5.2.0-macos-10.9.tar.gz), 
@@ -25,7 +24,7 @@ you can download the corresponding [clingo release](https://github.com/potassco/
 uncompress it in some directory `dir`,
 and set `PYTHONPATH` to `dir\clingo-5.2.0-macos-10.9\python-api` (with `export PYTHONPATH=dir\clingo-5.2.0-macos-10.9\python-api`).
 
-* On Unix, you can ownload the [source code](https://github.com/potassco/clingo/archive/v5.2.0.tar.gz), 
+* On Unix, you can download the [source code](https://github.com/potassco/clingo/archive/v5.2.0.tar.gz), 
 build it following the instructions in `INSTALL.md`, and set `PYTHONPATH` accordingly.
 
 `asprin` can be installed with [pip](https://pip.pypa.io) via
