@@ -45,6 +45,10 @@ For a local installation, add option ```--user```.
 In this case, setting environment variable `PYTHONUSERBASE` to `dir` before running `pip`, 
 `asprin` will be installed in `dir/bin/asprin`.
 
+If that does not work, 
+you can always download the sources from [here](https://pypi.org/project/asprin/#files) in some directory `dir`,
+and run `asprin` with `python dir/asprin/asprin/asprin.py`.
+
 System tests may be run with ```asprin --test```.
 
 For older releases, please click [here](https://pypi.org/project/asprin/#history).
