@@ -42,7 +42,7 @@ build it following the instructions in `INSTALL.md`, and set `PYTHONPATH` accord
 ```pip install asprin```. 
 
 For a local installation, add option ```--user```.
-In this case, setting environment variable `PYTHONUSERBASE` to `dir` before `pip`, 
+In this case, setting environment variable `PYTHONUSERBASE` to `dir` before running `pip`, 
 `asprin` will be installed in `dir/bin/asprin`.
 
 System tests may be run with ```asprin --test```.
