@@ -1,6 +1,17 @@
 # asprin
 > A general framework for qualitative and quantitative optimization in answer set programming.
 
+## Description
+`asprin` is a general framework for optimization in ASP that allows:
+* computing optimal stable models of logic programs with preferences, and
+* defining new preference types in a very easy way.
+Some preference types (`subset`, `pareto`...) are already defined in `asprin`'s library,
+but many more can be defined simply writing a logic program.
+
+For a formal description of asprin, please read our paper ([pdf](http://www.cs.uni-potsdam.de/wv/pdfformat/brderosc15a.pdf), [bibtex](http://www.cs.uni-potsdam.de/wv/bibtex/brderosc15a.bib)).
+
+The User Guide of `asprin` appears in Section 10.2 of the Potassco User Guide, available [here](https://sourceforge.net/projects/potassco/files/guide/). 
+
 ## Usage
 ```bash
 $ asprin [number_of_models] [options] [files]
