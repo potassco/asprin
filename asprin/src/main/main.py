@@ -39,7 +39,7 @@ from ..solver         import         solver
 from ..utils          import        printer
 from ..utils          import          utils
 import errno
-
+import signal
 
 #
 # DEFINES
@@ -253,6 +253,10 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
 #
 class Asprin:
 
+    def __init__(self):
+        self.control = None
+        self.solver = None
+        self.options = None
 
     def __update_constants(self,options,constants):
         for i in constants:
@@ -270,10 +274,10 @@ class Asprin:
 
         # arguments parsing 
         aap = AsprinArgumentParser()
-        options, clingo_options, underscores, prologue, warnings = aap.run(args)
+        self.options, clingo_options, u, prologue, warnings = aap.run(args)
 
         # create Control object
-        control = self.__get_control(clingo_options)
+        self.control = self.__get_control(clingo_options)
 
         # print prologue and warnings
         print(prologue)
@@ -281,23 +285,35 @@ class Asprin:
             printer.Printer().warning_included_file(i)
 
         # specification parsing
-        sp = spec_parser.Parser(underscores)
-        programs, utils.underscores, base_constants, options['show'] = \
-                                                 sp.parse_files(options)
-        self.__update_constants(options, base_constants)
+        sp = spec_parser.Parser(u)
+        programs, utils.underscores, base_constants, self.options['show'] = \
+                                                 sp.parse_files(self.options)
+        self.__update_constants(self.options, base_constants)
 
         # preference programs parsing
-        program_parser.Parser(control, programs, options).parse()
+        program_parser.Parser(self.control, programs, self.options).parse()
 
         # solving
-        _solver = solver.Solver(control)
-        _solver.set_options(options)
-        _solver.run()
+        self.solver = solver.Solver(self.control)
+        self.solver.set_options(self.options)
+        self.solver.run()
 
+    def signal_handler(self, signum, frame):
+        if self.solver is not None:
+            self.solver.end()
+        elif self.control is not None:
+            printer.Printer().print_stats(self.control, 0, True, 0, False,
+                                          self.options['stats'])
+        sys.exit(1)
 
     def run(self, args):
+        # signals
+        signal.signal(signal.SIGTERM, self.signal_handler)
+        signal.signal(signal.SIGINT,  self.signal_handler)
+        # try to run wild
         try:
             self.run_wild(args)
+        # catch exceptions
         except argparse.ArgumentError as e:
             print(ERROR.format(str(e)),file=sys.stderr)
             print(ERROR_INFO,file=sys.stderr)
