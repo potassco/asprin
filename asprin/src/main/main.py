@@ -147,9 +147,9 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
 
         # Basic Options
         basic = cmd_parser.add_argument_group('Basic Options')
-        basic.add_argument('-h', '--help', action='help',
+        basic.add_argument('--help', '-h', action='help',
                            help=': Print help and exit')
-        basic.add_argument('-v', '--version', dest='version',
+        basic.add_argument('--version', '-v', dest='version',
                            action='store_true',
                            help=': Print version information and exit')
         basic.add_argument('--print-programs', dest='print-programs',
@@ -161,6 +161,9 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
                            help=': Run system tests')
         basic.add_argument('--stats', dest='stats', action='store_true',
                            help=': Print statistics')
+        basic.add_argument('--quiet', '-q', dest='quiet', choices=[0,1,2],
+                           metavar='<q>', type=int, default=0, 
+                           help=': print {0=all|1=optimal|2=no} models')
         #basic.add_argument('--no-info', dest='no_info', action='store_true',
         #                   help=': Do not print basic information')
         basic.add_argument('--no-asprin-lib', dest='asprin-lib',

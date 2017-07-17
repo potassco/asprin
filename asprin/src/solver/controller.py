@@ -52,7 +52,11 @@ class GeneralController:
         self.state.models    += 1
         self.state.last_unsat = False
         self.solver.check_last_model()
-        self.solver.print_shown()
+        if self.state.quiet == 0:
+            self.solver.print_answer()
+        else:
+            self.solver.print_str_answer()
+
 
     def unsat(self):
         if self.state.last_unsat:
@@ -61,6 +65,8 @@ class GeneralController:
                 self.solver.print_unsat()
             self.solver.end()
             return
+        if self.state.quiet == 1:
+            self.solver.print_shown()
         self.state.last_unsat = True
         self.state.opt_models  += 1
         self.solver.print_optimum_string()

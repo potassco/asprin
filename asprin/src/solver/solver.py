@@ -283,9 +283,15 @@ class Solver:
         return str(symbol)
 
     def print_shown(self):
-        self.printer.do_print(STR_ANSWER.format(self.state.models))
         self.printer.do_print(" ".join(map(self.__symbol2str, self.shown)))
 
+    def print_str_answer(self):
+        self.printer.do_print(STR_ANSWER.format(self.state.models))
+
+    def print_answer(self):
+        self.printer.do_print(STR_ANSWER.format(self.state.models))
+        self.printer.do_print(" ".join(map(self.__symbol2str, self.shown)))
+    
     def print_optimum_string(self):
         self.printer.do_print(self.state.str_found)
 
@@ -327,7 +333,10 @@ class Solver:
         if self.enumerate_flag or not self.state.same_shown_function():
             self.state.models     += 1
             self.state.opt_models += 1
-            self.print_shown()
+            if self.state.quiet in {0,1}:
+                self.print_answer()
+            else:
+                self.print_str_answer()
             self.printer.do_print(self.state.str_found_star)
 
     def enumerate(self):
