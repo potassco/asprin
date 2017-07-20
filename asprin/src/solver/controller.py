@@ -93,32 +93,54 @@ class GeneralControllerHandleOptimal:
         self.solver.handle_optimal_models()
 
 
-class BasicMethodController:
+class MethodController:
 
     def __init__(self, solver, state):
         self.solver = solver
-        self.state  = state
-        self.state.basic_method_controller_on = True
+        self.state = state
 
+    def start(self):
+        pass
+    
     def start_loop(self):
-        if not self.state.basic_method_controller_on:
-            return
-        if self.state.step > self.state.start_step:
-            self.solver.ground_preference_program()
+        pass
+
+    def solve(self):
+        pass
 
     def unsat(self):
-        if not self.state.basic_method_controller_on:
-            return
+        pass
+
+
+class GroundManyMethodController(MethodController):
+
+    def __init__(self, solver, state):
+        MethodController.__init__(self, solver, state)
+        self.volatile = True if (self.state.max_models != 1) else False
+
+    def start_loop(self):
+        if self.state.step > self.state.start_step:
+            self.solver.ground_preference_program(self.volatile)
+
+    def unsat(self):
         self.solver.relax_previous_models()
 
 
-class ApproxMethodController:
+class GroundOnceMethodController(MethodController):
 
     def __init__(self, solver, state):
-        self.solver = solver
-        self.state  = state
+        MethodController.__init__(self, solver, state)
+
+    def start(self):
+        self.solver.ground_open_preference_program()
+    ### TODO: implement this!
+
+
+class ApproxMethodController(MethodController):
+
+    def __init__(self, solver, state):
+        MethodController.__init__(self, solver, state)
         self.state.normal_solve = False
-        self.state.basic_method_controller_on = False
 
     def start(self):
         self.solver.ground_approximation()
@@ -133,15 +155,14 @@ class ApproxMethodController:
         self.solver.control.configuration.solve.opt_mode == opt_mode
 
 
-class HeurMethodController:
+class HeurMethodController(MethodController):
 
     def __init__(self, solver, state):
-        self.solver = solver
-        self.state  = state
+        MethodController.__init__(self, solver, state)
         self.state.normal_solve = False
-        self.state.basic_method_controller_on = False
         for _solver in self.solver.control.configuration.solver:
             _solver.heuristic="Domain"
+        # move to solve?
 
     def start(self):
         self.solver.ground_heuristic()

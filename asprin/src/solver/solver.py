@@ -95,8 +95,7 @@ PROGRAMS = \
    (DO_HOLDS,            ["m"],"""
 ##""" + HOLDS + """(X,m) :- X = @getHolds()."""),
    (OPEN_HOLDS,          ["m"],"""
-{ ##""" + HOLDS + """(X,m) } :- X = @getHolds().  
-{ ##""" + HOLDS + """(X,m) } :- X = @getNHolds()."""),
+{ ##""" + HOLDS + """(X,m) } :- X = @getHoldsDomain()."""),
    (VOLATILE_FACT, ["m1","m2"],"""
 ##""" + VOLATILE + """(##m(m1),##m(m2))."""),
    (VOLATILE_EXT,  ["m1","m2"],"""
@@ -115,7 +114,7 @@ UNSAT_PREFP = (PREFP, ["m1","m2"], "##" + UNSAT_ATOM +"(##m(m1),##m(m2)).")
 
 
 #
-# Auxiliary Classes (EndException, State) and methods (call)
+# Auxiliary Classes (EndException, State)
 #
 
 class EndException(Exception):
@@ -124,9 +123,9 @@ class EndException(Exception):
 class State:
     pass
 
-def call(object, method):
-    if object:
-        getattr(object, method)()
+#def call(object, method):
+#    if object:
+#        getattr(object, method)()
 
 #
 # Solver
@@ -177,6 +176,13 @@ class Solver:
 
     def getHolds(self):
         return self.holds
+
+    def getHoldsDomain(self):
+        return self.holds
+        pass
+        holds = self.control.symbolic_atoms.by_signature(self.holds_str, 2)
+        print(holds)
+        return [i.arguments[1] for i in holds]
 
     def getNHolds(self):
         return self.nholds
@@ -234,13 +240,24 @@ class Solver:
         control, prev_step = self.control, self.state.step-1
         control.ground([(DO_HOLDS, [prev_step])], self)
 
-    def ground_preference_program(self):
-        state, control, prev_step = self.state, self.control, self.state.step-1
-        #control.ground([(DO_HOLDS,       [prev_step]),
-        control.ground([(PREFP,         [0,prev_step]),
-                        (NOT_UNSAT_PRG, [0,prev_step]),
-                        (VOLATILE_EXT,  [0,prev_step])],self)
-        control.assign_external(self.get_external(0,prev_step),True)
+    def ground_open_preference_program(self):
+        parts = [(PREFP,         [0,1]),
+                 (OPEN_HOLDS,      [1]),
+                 (NOT_UNSAT_PRG, [0,1]),
+                 (VOLATILE_EXT,  [0,1])]
+        self.control.ground(parts, self)
+
+    def ground_preference_program(self, volatile):
+        control, prev_step = self.control, self.state.step-1
+        parts = [(PREFP,         [0,prev_step]),
+                 (NOT_UNSAT_PRG, [0,prev_step])]
+        if volatile:
+            parts.append((VOLATILE_EXT,  [0,prev_step]))
+        else:
+            parts.append((VOLATILE_FACT, [0,prev_step]))
+        control.ground(parts, self)
+        if volatile:
+            control.assign_external(self.get_external(0,prev_step),True)
         self.improving.append(prev_step)
 
     def check_errors(self):
@@ -396,16 +413,16 @@ class Solver:
         # controllers
         general = controller.GeneralController(self, self.state)
         optimal = controller.GeneralControllerHandleOptimal(self, self.state)
-        basic = controller.BasicMethodController(self, self.state)
         enumeration = controller.EnumerationController(self, self.state)
         checker = controller.CheckerController(self, self.state)
         non_optimal = controller.NonOptimalController(self, self.state)
-        # optional
-        approx, heur = None, None
+        # MethodController
         if self.state.solving_mode == "approx":
-            approx = controller.ApproxMethodController(self, self.state)
+            method = controller.ApproxMethodController(self, self.state)
         elif self.state.solving_mode == "heuristic":
-            heur = controller.HeurMethodController(self, self.state)
+            method = controller.HeurMethodController(self, self.state)
+        else:
+            method = controller.GroundManyMethodController(self, self.state)
 
         # loop
         try:
@@ -413,16 +430,14 @@ class Solver:
             general.start()
             checker.start()
             non_optimal.start()
-            call(approx, "start")
-            call(heur, "start")
+            method.start()
             self.printer.do_print("Solving...")
             while True:
                 # START_LOOP
                 general.start_loop()
-                basic.start_loop()
+                method.start_loop()
                 # SOLVE
-                call(approx, "solve")
-                call(heur, "solve")
+                method.solve()
                 general.solve()
                 if self.solving_result == SATISFIABLE:
                     # SAT
@@ -430,7 +445,7 @@ class Solver:
                 elif self.solving_result == UNSATISFIABLE:
                     # UNSAT
                     general.unsat()
-                    basic.unsat()
+                    method.unsat()
                     enumeration.unsat()
                     optimal.unsat()
                     # UNSAT_POST
