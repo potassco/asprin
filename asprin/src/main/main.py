@@ -53,6 +53,8 @@ ERROR_FATAL   = "Fatal error, this should not happen.\n"
 ERROR_PARSING = "parsing failed"
 DEBUG         = "--debug"
 TEST          = "--test"
+HELP_PROJECT  = """R|: Enable projective solution enumeration,
+  projecting on the formulas of the specification"""
 
 
 #
@@ -84,6 +86,13 @@ class MyArgumentParser(argparse.ArgumentParser):
        
     def error(self, message):
         raise argparse.ArgumentError(None,"In context <asprin>: " + message)
+
+class SmartFormatter(argparse.RawDescriptionHelpFormatter):
+
+    def _split_lines(self, text, width):
+        if text.startswith('R|'):
+            return text[2:].splitlines()
+        return argparse.RawDescriptionHelpFormatter._split_lines(self, text, width)
 
 
 #
@@ -142,7 +151,7 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
         # command parser
         _epilog = self.clingo_help + "\nusage: " + self.usage + self.epilog
         cmd_parser = MyArgumentParser(usage=self.usage, epilog=_epilog,
-            formatter_class=argparse.RawDescriptionHelpFormatter,
+            formatter_class=SmartFormatter, #argparse.RawDescriptionHelpFormatter,
             add_help=False, prog="asprin")
 
         # Basic Options
@@ -183,8 +192,7 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
         solving.add_argument('--steps', '-s', 
                              help=": Execute at most <s> steps", type=int,
                              dest='steps', metavar='<s>', default=0)
-        solving.add_argument('--project', dest='project',
-                             help=': Enable projective solution enumeration',
+        solving.add_argument('--project', dest='project', help = HELP_PROJECT,
                              action='store_true')
         solving.add_argument('--solving-mode', dest='solving_mode', 
                              metavar="<arg>",
