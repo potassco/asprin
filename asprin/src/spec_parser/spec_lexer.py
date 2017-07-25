@@ -298,6 +298,13 @@ class Lexer(object):
         t.lexer.lexpos = t.lexpos + 1
         self.__show.add(self.__program)
 
+    # project: return error
+    def t_normal_PROJECT(self, t):
+        r'\#project'
+        self.__error = True
+        t.lexer.skip(8)
+        self.__print_error(t.value,t.lexpos)
+
 
     #
     # changing state:
