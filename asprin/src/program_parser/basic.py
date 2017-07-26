@@ -44,11 +44,12 @@ M1_M2 = visitor.M1_M2
 ZERO  = visitor.ZERO
 
 # errors
-ERROR_PROJECT    = utils.ERROR_PROJECT
-ERROR_MINIMIZE   = utils.ERROR_MINIMIZE
-ERROR_DISJOINT   = utils.ERROR_DISJOINT
-ERROR_CSPLITERAL = utils.ERROR_CSPLITERAL
-ERROR_HOLDSP     = utils.ERROR_HOLDSP
+ERROR_PROJECT       = utils.ERROR_PROJECT
+ERROR_MINIMIZE      = utils.ERROR_MINIMIZE
+ERROR_DISJOINT      = utils.ERROR_DISJOINT
+ERROR_CSPLITERAL    = utils.ERROR_CSPLITERAL
+ERROR_HOLDSP        = utils.ERROR_HOLDSP
+ERROR_BAD_HEURISTIC = utils.ERROR_BAD_HEURISTIC
 
 
 class BasicTermTransformer(visitor.TermTransformer):
@@ -79,7 +80,7 @@ class BasicProgramVisitor(visitor.Visitor):
         self.__term_transformer = BasicTermTransformer(underscores)
         self.__term_transformer.set_predicates_info()
 
-    def __add(self, statement):
+    def add(self, statement):
         if not self.__in_program:
             prg = clingo.ast.Program(statement.location, self.type, [])
             self.__builder.add(prg)
@@ -92,27 +93,27 @@ class BasicProgramVisitor(visitor.Visitor):
 
     def visit_Rule(self, rule):
         self.visit_children(rule)
-        self.__add(rule)
+        self.add(rule)
 
     def visit_Definition(self, d):
-        self.__add(d)
+        self.add(d)
 
     def visit_ShowSignature(self, sig):
         self.__term_transformer.transform_signature(sig)
-        self.__add(sig)
+        self.add(sig)
 
     def visit_ShowTerm(self, show):
         self.visit_children(show)
         show.term = self.__term_transformer.reify_term(show.term,
                                                        self.helper.show)
-        self.__add(show)
+        self.add(show)
 
     def visit_Minimize(self, min):
         self.visit_children(min)
-        self.__add(min)
+        self.add(min)
 
     def visit_Script(self, script):
-        self.__add(script)
+        self.add(script)
 
     def visit_Program(self, prg):
         pass # ignore
@@ -125,11 +126,11 @@ class BasicProgramVisitor(visitor.Visitor):
         tt = self.__term_transformer
         edge.u = tt.reify_term(edge.u, self.helper.edge + "_" + self.type)
         edge.v = tt.reify_term(edge.v, self.helper.edge + "_" + self.type)
-        self.__add(edge)
+        self.add(edge)
 
     def visit_Heuristic(self, heur):
         self.visit_children(heur)
-        self.__add(heur)
+        self.add(heur)
 
     def visit_ProjectAtom(self,atom):
         string = ERROR_PROJECT.format(self.type, str(atom))
@@ -170,4 +171,11 @@ class HeuristicProgramVisitor(BasicProgramVisitor):
     def visit_Minimize(self, min):
         string = ERROR_MINIMIZE.format(self.type, str(min))
         self.helper.raise_exception(string)
+
+    def visit_Heuristic(self, heur):
+        if str(heur.atom.term.type) not in ["Symbol", "Function"]:
+            string = ERROR_BAD_HEURISTIC.format(self.type, str(heur))
+            self.helper.raise_exception(string)
+        self.visit_children(heur)
+        self.add(heur)
 
