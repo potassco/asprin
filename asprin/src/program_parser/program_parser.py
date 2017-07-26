@@ -283,11 +283,18 @@ class Parser:
         self.__add_and_ground(SHOW,[],show,[(SHOW,[])])
 
     def add_programs(self, types, builder):
-        preference_v = preference.PreferenceProgramVisitor(builder)
-        approx_v     = basic.BasicProgramVisitor(builder, APPROX, 2)
-        heuristic_v  = basic.HeuristicProgramVisitor(builder, HEURISTIC, 3)
-        visitors     = [(PREFP, preference_v), (APPROX, approx_v),
-                        (HEURISTIC, heuristic_v)]
+        # select programs to be added
+        solving_mode = self.__options['solving_mode']
+        preference_v = (PREFP, preference.PreferenceProgramVisitor(builder))
+        approx_v     = (APPROX, basic.BasicProgramVisitor(builder, APPROX, 2))
+        heuristic_v  = (HEURISTIC,
+                        basic.HeuristicProgramVisitor(builder, HEURISTIC, 3))
+        visitors = [preference_v]
+        if solving_mode == 'heuristic':
+            visitors.append(heuristic_v)
+        if solving_mode == 'approx':
+            visitors.append(approx_v)
+        # add programs
         for name, visitor in visitors:
             for type_, program in self.__programs[name].items():
                 if type_ in types:

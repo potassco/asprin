@@ -160,16 +160,24 @@ class HeurMethodController(MethodController):
     def __init__(self, solver, state):
         MethodController.__init__(self, solver, state)
         self.state.normal_solve = False
-        for _solver in self.solver.control.configuration.solver:
-            _solver.heuristic="Domain"
-        # move to solve?
 
     def start(self):
         self.solver.ground_heuristic()
 
     def solve(self):
         if self.state.last_unsat:
+            h = []
+            # gather heuristics
+            for _solver in self.solver.control.configuration.solver:
+                h.append(_solver.heuristic)
+                _solver.heuristic="Domain"
+            # solve
             self.solver.solve()
+            # restore heuristics
+            i = 0
+            for _solver in self.solver.control.configuration.solver:
+                _solver.heuristic = h[i]
+                i += 1
         else:
             self.solver.solve_unsat()
 

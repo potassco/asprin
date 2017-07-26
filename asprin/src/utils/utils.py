@@ -85,6 +85,14 @@ error: syntax error, special predicate depends on non domain atoms in {} program
 ERROR_HOLDSP = """\
 error: syntax error, unexpected holds'/1 predicate in {} program
   {}\n"""
+ERROR_HOLDSP_H = """\
+error: syntax error, unexpected holds'/1 predicate in the head of a heuristic \
+directive in a {} program
+  {}\n"""
+ERROR_HOLDS_H = """\
+error: syntax error, holds/1 predicate in the head of a heuristic \
+directive in a {} program depends on non domain atoms
+  {}\n"""
 
 #
 # global variables

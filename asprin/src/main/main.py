@@ -83,7 +83,7 @@ class MyArgumentParser(argparse.ArgumentParser):
             file = sys.stdout
         file.write("asprin version {}\n".format(VERSION))
         argparse.ArgumentParser.print_help(self, file)
-       
+
     def error(self, message):
         raise argparse.ArgumentError(None,"In context <asprin>: " + message)
 
@@ -200,7 +200,7 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
                              #          solving mode""",
                              help=argparse.SUPPRESS,
                              default="normal", 
-                             choices=["normal", "approx", "heuristic"])
+                             choices=["normal", "heuristic", "approx"])
         solving.add_argument('--non-optimal', dest='non_optimal', 
                              help=": Compute also non optimal models", 
                              action='store_true')

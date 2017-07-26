@@ -377,7 +377,6 @@ class Solver:
 
     def relax_previous_models(self):
         state, control = self.state, self.control
-        #for i in range(state.start_step,state.step):
         for i in self.improving:
             control.release_external(self.get_external(0, i))
         self.improving = []

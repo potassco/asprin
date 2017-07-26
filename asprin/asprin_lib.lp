@@ -715,3 +715,29 @@ required(P,Q) :- #false, required(P,Q).
 error(X) :- #false, error(X).
 error_type(X,Y) :- #false, error_type(X,Y).
 
+
+% heuristic programs:
+% - used with option --solving-mode=heuristic
+%   only preference types subset and superset are implemented
+#program heuristic.
+#heuristic holds(X) : heuristic(X,V,M). [V,M]
+
+#program heuristic(subset).
+heuristic(X,1,false) :- preference(P,subset), preference(P,_,_,for(X),_).
+
+#program heuristic(superset).
+heuristic(X,1,true) :- preference(P,superset), preference(P,_,_,for(X),_).
+
+#program heuristic(poset).
+
+heuristic(X,1,true) :- preference(P,poset),
+                       preference(P,_,_,for(X),_),
+                       assigned(Y) : poset(Y,X).
+
+poset(Y,X)  :- preference(P,I,1,for(Y),_), preference(P,I,2,for(X),_).
+poset(Y,X)  :- poset(Y,Z), poset(Z,X).
+assigned(Y) :- poset(Y,_),     holds(Y).
+assigned(Y) :- poset(Y,_), not holds(Y).
+
+
+

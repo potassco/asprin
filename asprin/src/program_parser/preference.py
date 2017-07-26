@@ -58,9 +58,17 @@ ERROR_HEURISTIC  = utils.ERROR_HEURISTIC
 ERROR_DISJOINT   = utils.ERROR_DISJOINT
 ERROR_CSPLITERAL = utils.ERROR_CSPLITERAL
 ERROR_KEYWORD    = utils.ERROR_KEYWORD
+ERROR_HOLDS_H    = utils.ERROR_HOLDS_H
+ERROR_HOLDSP_H   = utils.ERROR_HOLDSP_H
 
 # no sign
 NO_SIGN = utils.NO_SIGN
+
+# finish() function return value
+SKIP   = 1 # do not add to program
+DET    = 2 # add deterministic part 
+NONDET = 3 # add nondeterministic part
+
 
 class PreferenceTermTransformer(visitor.TermTransformer):
 
@@ -204,8 +212,8 @@ class PreferenceProgramVisitor(visitor.Visitor):
         id2 = clingo.ast.Id(location, self.__helper.underscore(M2))
         return [id1, id2]
 
-    def __get_program(self, nondet, loc):
-        if not nondet:
+    def __get_program(self, deterministic_type, loc):
+        if deterministic_type == DET:
             return clingo.ast.Program(loc, PBASE,[])
         return clingo.ast.Program(loc, PREFP, self.__get_params(loc))
 
@@ -225,14 +233,16 @@ class PreferenceProgramVisitor(visitor.Visitor):
             if self.__is_nondet(c, open_list):
                 self.__add_volatile(c.condition, c.location)
         # iterate over statements
-        in_nondet, add = None, self.__builder.add
+        deterministic_type = None
         for st in self.__statements:
             method = "finish_" + st.type
-            nondet = getattr(self, method, lambda x, y: False)(st, open_list)
-            if nondet != in_nondet:
-                add(self.__get_program(nondet, st.statement.location))
-                in_nondet = nondet
-            add(st.statement)
+            ret = getattr(self, method, lambda x, y: DET)(st, open_list)
+            if ret is not SKIP:
+                if ret != deterministic_type:
+                    self.__builder.add(self.__get_program(
+                                       ret, st.statement.location))
+                    deterministic_type = ret
+                self.__builder.add(st.statement)
 
     #
     # Statements
@@ -264,7 +274,8 @@ class PreferenceProgramVisitor(visitor.Visitor):
         rule = statement.statement
         if self.__is_nondet(statement, open_list):
             self.__add_volatile(rule.body, rule.location)
-            return True
+            return NONDET
+        return DET
 
     def visit_Definition(self, d):
         self.__statements.append(Statement("Definition", d))
@@ -274,6 +285,7 @@ class PreferenceProgramVisitor(visitor.Visitor):
 
     def finish_ShowSignature(self, statement, open_list):
         self.__term_transformer.transform_signature(statement.statement)
+        return DET
 
     def visit_ShowTerm(self, show):
         self.__statements.append(Statement("ShowTerm", show))
@@ -286,7 +298,8 @@ class PreferenceProgramVisitor(visitor.Visitor):
         if self.__is_nondet(statement, open_list):
             self.__add_volatile(show.body, show.location)
             tt.extend_function(show.term, M1_M2)
-            return True
+            return NONDET
+        return DET
 
     def visit_Minimize(self, min):
         string = ERROR_MINIMIZE.format(self.__type, str(min))
@@ -315,30 +328,43 @@ class PreferenceProgramVisitor(visitor.Visitor):
         tt.extend_function(edge.v, M1_M2)
         # could be done only if *some* edge is nondet
         self.__add_volatile(edge.body, edge.location)
-        return True
+        return NONDET
 
-    #TODO: holds(X) in head ok
     def visit_Heuristic(self, heur):
-        string = ERROR_HEURISTIC.format(self.__type, str(heur))
-        self.__helper.raise_exception(string)
         self.__statements.append(Statement("Heuristic", heur))
         self.__visit_body(heur.body)
         # head
         term = heur.atom.term
         if str(term.type) == "Function":
             self.__graph.add_atom(term, False, False, False)
-            self.__statements[-1].preds.append((term.name, len(term.arguments)))
+            self.__statements[-1].heur_atom = (term.name, len(term.arguments))
         # update graph
         self.__graph.update()
 
-    #TODO: holds(X) in head ok
     def finish_Heuristic(self, statement, open_list):
         heur = statement.statement
-        if self.__is_nondet(statement, open_list):
-            self.__add_volatile(heur.body, heur.location)
-            return True
+        # not open -> skip
+        if statement.heur_atom not in open_list:
+            return SKIP
+        # holds
+        elif statement.heur_atom == HOLDS_KEY:
+            if self.__is_nondet(statement, open_list):
+                atom = utils.HOLDS + "("+str(heur.atom.term.arguments[0])+")"
+                string = ERROR_HOLDS_H.format(self.__type, atom)
+                self.__helper.raise_exception(string)
+            zero = clingo.ast.Symbol(heur.location, clingo.parse_term("0"))
+            heur.atom.term.arguments[1] = zero
+            return DET
+        # holds'
+        elif statement.heur_atom == HOLDSP_KEY:
+            atom = utils.HOLDSP + "("+str(heur.atom.term.arguments[0])+")"
+            string = ERROR_HOLDSP_H.format(self.__type, atom)
+            self.__helper.raise_exception(string)
+        # open and not holds[']
+        self.__add_volatile(heur.body, heur.location)
+        return NONDET
 
-    def visit_ProjectAtom(self,atom):
+    def visit_ProjectAtom(self, atom):
         string = ERROR_PROJECT.format(self.__type, str(atom))
         self.__helper.raise_exception(string)
 

@@ -104,7 +104,7 @@ class Printer:
         print("Models       : {}{}".format(models,"+" if more_models else ""))
         if not non_optimal:
             print("  Optimum    : {}".format("yes" if opt_models>0 else "no"))
-            if opt_models > 1:
+            if opt_models > 0:
                 print("  Optimal    : {}".format(opt_models))
         #print(clingo_stats.Stats().summary(ctl,False))
         if stats:
