@@ -718,7 +718,7 @@ error_type(X,Y) :- #false, error_type(X,Y).
 %
 % heuristic programs:
 % - used with option --solving-mode=heuristic
-%   only preference types subset and superset are implemented
+%   only preference types subset, superset and poset are implemented
 %
 
 #program heuristic.
