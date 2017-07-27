@@ -196,9 +196,9 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
                              action='store_true')
         solving.add_argument('--solving-mode', dest='solving_mode', 
                              metavar="<arg>",
-                             #help=""": Run {normal|approx|heuristic} \
-                             #          solving mode""",
-                             help=argparse.SUPPRESS,
+                             help=""": Run {normal|approx|heuristic} \
+                                       solving mode""",
+                             #help=argparse.SUPPRESS,
                              default="normal", 
                              choices=["normal", "heuristic", "approx"])
         solving.add_argument('--non-optimal', dest='non_optimal', 

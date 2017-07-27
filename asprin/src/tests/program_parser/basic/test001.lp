@@ -19,6 +19,7 @@ dom(1..3).
   a(X)
 }.
 
+%*
 #preference(p(2),less(weight)){
   X :: b(X)
 }.
@@ -26,7 +27,7 @@ dom(1..3).
 #preference(p(3),aso){
   a(X) >> not a(X) || b(X)
 }.
-
+*%
 #preference(p(4),poset){
   a(X);
   b(X);
@@ -36,7 +37,7 @@ dom(1..3).
 %
 % composite preference statements
 %
-
+%*
 #preference(q,pareto){
   **p(X)
 }.
@@ -44,7 +45,7 @@ dom(1..3).
 #preference(r,neg){
   **q
 }.
-
+*%
 %
 % optimize statement
 %

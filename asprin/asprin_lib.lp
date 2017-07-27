@@ -739,4 +739,3 @@ poset(Y,X)  :- poset(Y,Z), poset(Z,X).
 assigned(Y) :- poset(Y,_),     holds(Y).
 assigned(Y) :- poset(Y,_), not holds(Y).
 
-

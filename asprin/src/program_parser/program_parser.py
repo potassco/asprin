@@ -124,7 +124,11 @@ ERROR_PREF_NON_DOMAIN  = "preference:{}: "            + ERROR_NON_DOMAIN
 ERROR_ELEM_NON_DOMAIN  = "preference:{}:element:{}: " + ERROR_NON_DOMAIN
 ERROR_OPT_NON_DOMAIN   = "optimize:{}: "             + ERROR_NON_DOMAIN
 ERROR_NO_PREF_PROGRAM  = "preference:{}: " + ERROR_SPEC + """\
-preference type {} has no preference program\n"""
+preference type '{}' has no preference program\n"""
+ERROR_NO_HEURISTIC_PROGRAM  = "preference:{}: " + ERROR_SPEC + """\
+preference type '{}' has no heuristic program\n"""
+ERROR_NO_APPROX_PROGRAM  = "preference:{}: " + ERROR_SPEC + """\
+preference type '{}' has no approximation program\n"""
 
 
 class BuilderProxy:
@@ -213,6 +217,27 @@ class Parser:
             arg1 = str(atom.symbol.arguments[0])
             return ERROR_OPT_NON_DOMAIN.format(arg1)
 
+    def __program_exists(self, atom):
+        # get programs
+        programs = [(PREFERENCE, ERROR_NO_PREF_PROGRAM)]
+        if self.__options['solving_mode'] == 'heuristic':
+            programs.append((HEURISTIC, ERROR_NO_HEURISTIC_PROGRAM))
+        elif self.__options['solving_mode'] == 'approx':
+            programs.append((APPROX, ERROR_NO_APPROX_PROGRAM))
+        # arguments of atom
+        arg1 = str(atom.symbol.arguments[0])
+        arg2 = str(atom.symbol.arguments[1])
+        # loop
+        ok = True
+        for program, error in programs:
+            if arg2 not in self.__programs[program]:
+                printer.Printer().print_spec_error(error.format(arg1, arg2))
+                ok = False
+        return ok
+
+
+        return self.__do_program_exists(atom, PREFERENCE, ERROR_NO_PREF_PROGRAM)
+    
     def do_spec(self):
 
         control, programs = self.__control, self.__programs
@@ -247,13 +272,10 @@ class Parser:
         upreference = u + PREFERENCE
         for atom in control.symbolic_atoms.by_signature(upreference,2):
             out.add(str(atom.symbol.arguments[1]))
-            if str(atom.symbol.arguments[1]) not in programs[PREFERENCE]:
-                arg1 = str(atom.symbol.arguments[0])
-                arg2 = str(atom.symbol.arguments[1])
-                s = ERROR_NO_PREF_PROGRAM.format(arg1, arg2)
-                pr.print_spec_error(s)
+            ok = self.__program_exists(atom)
+            if not ok:
                 errors = True
-
+        
         # if errors
         if errors:
             raise Exception("parsing failed")
