@@ -39,6 +39,7 @@ class Test:
         self.error = False
         self.answers = None
         self.parse(string, options)
+        self.string = string
 
     def parse(self, string, options):
         line, last = 1, ""
@@ -68,6 +69,7 @@ class Test:
             print("PARSING ERROR in class Test")
 
     def __repr__(self):
+        return self.command + "\n" + self.string
         if self.command:
             out = "\ncommand = \"{}\"\n".format(self.command)
         else:
@@ -88,6 +90,9 @@ class Result(Test):
     def __init__(self, string):
         self.count = 0
         Test.__init__(self, string, [])
+
+    def __repr__(self):
+        return self.string
 
     def parse(self, string, options):
         line, last = 1, ""
@@ -118,9 +123,11 @@ class Result(Test):
         print("ERROR: " + message)
         print("*************************************************************")
         print("EXPECTED:")
+        print("*************************************************************")
         print(test)
         print("*************************************************************")
         print("RESULT:")
+        print("*************************************************************")
         print(self)
         print("#############################################################\n")
 
