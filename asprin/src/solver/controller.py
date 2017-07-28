@@ -39,6 +39,10 @@ class GeneralController:
     def start(self):
         self.solver.add_encodings()
         self.solver.ground_preference_base()
+        if self.state.cmd_heuristic is not None:
+            self.solver.ground_cmd_heuristic()
+            for _solver in self.solver.control.configuration.solver:
+                _solver.heuristic="Domain"
 
     def start_loop(self):
         if not self.state.last_unsat:
@@ -88,9 +92,21 @@ class GeneralControllerHandleOptimal:
 
     def __init__(self, solver, state):
         self.solver = solver
+        self.state  = state
+        self.first  = True
+        self.delete_worse  = True
+        self.delete_better = self.state.delete_better
+
+    def start(self):
+        if self.delete_better:
+            self.solver.ground_holds_delete_better()
 
     def unsat(self):
-        self.solver.handle_optimal_models()
+        if self.state.total_order and not self.first:
+            self.delete_worse  = False
+            self.delete_better = False
+        self.solver.handle_optimal_models(self.delete_worse, self.delete_better)
+        self.first = False
 
 
 class MethodController:

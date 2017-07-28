@@ -53,8 +53,9 @@ STR_OPTIMUM_FOUND_STAR = "OPTIMUM FOUND *"
 STR_MODEL_FOUND        = "MODEL FOUND"
 STR_MODEL_FOUND_STAR   = "MODEL FOUND *"
 STR_UNSATISFIABLE      = "UNSATISFIABLE"
+
 # program names
-#ENCODINGS        = os.path.dirname(os.path.realpath(__file__)) + "/encodings.lp"
+DO_HOLDS_DELETE_BETTER = "do_holds_delete_better"
 DO_HOLDS_AT_ZERO = "do_holds_at_zero"
 DO_HOLDS         = "do_holds"
 OPEN_HOLDS       = "open_holds"
@@ -63,6 +64,7 @@ VOLATILE_EXT     = "volatile_external"
 DELETE_MODEL     = "delete_model"
 UNSAT_PRG        = "unsat"
 NOT_UNSAT_PRG    = "not_unsat"
+CMD_HEURISTIC    = "cmd_heuristic"
 PREFP            = utils.PREFP
 PBASE            = utils.PBASE
 APPROX           = utils.APPROX
@@ -74,8 +76,10 @@ MODEL         = utils.MODEL
 HOLDS         = utils.HOLDS
 VOLATILE      = utils.VOLATILE
 UNSAT_ATOM    = utils.UNSAT
+PREFERENCE    = utils.PREFERENCE
 HOLDS_AT_ZERO = "holds_at_zero"
 CSP           = "$"
+MODEL_DELETE_BETTER = clingo.parse_term("delete_better")
 
 # messages
 SAME_MODEL = """\
@@ -108,8 +112,14 @@ PROGRAMS = \
        ##""" +   VOLATILE + """(##m(m1),##m(m2))."""),
    (NOT_UNSAT_PRG, ["m1","m2"],"""
 :-     ##""" + UNSAT_ATOM + """(##m(m1),##m(m2)),
-       ##""" +   VOLATILE + """(##m(m1),##m(m2)).""")
-  ]
+       ##""" +   VOLATILE + """(##m(m1),##m(m2))."""),
+   (CMD_HEURISTIC,   ["v","m"],"""
+#heuristic ##""" + HOLDS + """(X,0) : ##""" + PREFERENCE + 
+    """(_,_,_,for(X),_). [v@0,m]"""),
+   (DO_HOLDS_DELETE_BETTER,        [],"""
+##""" + HOLDS + """(X,""" + str(MODEL_DELETE_BETTER) + """) :- ##""" + 
+    HOLDS + """(X,0)."""),
+ ]
 UNSAT_PREFP = (PREFP, ["m1","m2"], "##" + UNSAT_ATOM +"(##m(m1),##m(m2)).")
 
 
@@ -152,11 +162,10 @@ class Solver:
         self.state.old_nholds  = None
         self.shown             = []
         self.solving_result    = None
-        #l = [START, START_LOOP, SOLVE, SAT, UNSAT, UNKNOWN, END_LOOP, END]
-        # self.pre  = dict([(i, []) for i in l])
-        # self.post = dict([(i, []) for i in l])
+        self.state.added_notbetter = False
         self.externals  = dict()
         self.improving  = []
+        # strings
         self.state.str_found      = STR_OPTIMUM_FOUND
         self.state.str_found_star = STR_OPTIMUM_FOUND_STAR
         # printer
@@ -233,6 +242,10 @@ class Solver:
     def ground_heuristic(self):
         self.control.ground([(HEURISTIC, [])], self)
 
+    def ground_cmd_heuristic(self):
+        params = [clingo.parse_term(i) for i in self.state.cmd_heuristic]
+        self.control.ground([(CMD_HEURISTIC, params)], self)
+    
     def ground_preference_base(self):
         self.control.ground([(PBASE, [])], self)
 
@@ -308,7 +321,7 @@ class Solver:
     def print_answer(self):
         self.printer.do_print(STR_ANSWER.format(self.state.models))
         self.printer.do_print(" ".join(map(self.__symbol2str, self.shown)))
-    
+
     def print_optimum_string(self):
         self.printer.do_print(self.state.str_found)
 
@@ -381,14 +394,22 @@ class Solver:
             control.release_external(self.get_external(0, i))
         self.improving = []
 
-    def handle_optimal_models(self):
-        state, control, prev_step = self.state, self.control, self.state.step-1
-        preference   = [(PREFP,         [prev_step,0])]
-        unsat        = [(UNSAT_PRG,     [prev_step,0])]
-        delete_model = [(DELETE_MODEL,             [])]
-        volatile     = [(VOLATILE_FACT, [prev_step,0])]
-        control.ground(preference + unsat + delete_model + volatile,self)
+    def ground_holds_delete_better(self):
+        self.control.ground([(DO_HOLDS_DELETE_BETTER, [])], self)
 
+    def handle_optimal_models(self, delete_worse, delete_better):
+        prev_step = self.state.step - 1
+        parts = [(DELETE_MODEL, [])]
+        if delete_worse:
+            parts += [(PREFP,         [prev_step,0]),
+                      (UNSAT_PRG,     [prev_step,0]),
+                      (VOLATILE_FACT, [prev_step,0])]
+        if delete_better:
+            parts += [(PREFP,         [MODEL_DELETE_BETTER,prev_step]),
+                      (UNSAT_PRG,     [MODEL_DELETE_BETTER,prev_step]),
+                      (VOLATILE_FACT, [MODEL_DELETE_BETTER,prev_step])]
+        self.control.ground(parts, self)
+       
     def end(self):
         state, p = self.state, self.printer
         p.print_stats(self.control, state.models, state.more_models,
@@ -429,6 +450,7 @@ class Solver:
             general.start()
             checker.start()
             non_optimal.start()
+            optimal.start()
             method.start()
             self.printer.do_print("Solving...")
             while True:

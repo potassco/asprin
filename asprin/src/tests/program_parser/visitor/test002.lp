@@ -3,15 +3,16 @@
 1 { a(X) : dom(X) }.
 dom(1..3).
 #show a/1.
- 
- #preference(p, subset){ 
+
+a(3).
+
+#preference(p, subset){
   a(X) 
 }.
 #optimize(p).
 
 #program preference.
-a :- not c.
-c :- not b.
+a :- not b.
 b :- not a.
 
 %asprin version 3.0.0

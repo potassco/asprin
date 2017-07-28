@@ -45,16 +45,23 @@ import signal
 # DEFINES
 #
 
-UNKNOWN       = "UNKNOWN"
-ERROR         = "*** ERROR: (asprin): {}"
-ERROR_INFO    = "*** Info : (asprin): Try '--help' for usage information"
-ERROR_OPEN    = "<cmd>: error: file could not be opened:\n  {}\n"
-ERROR_FATAL   = "Fatal error, this should not happen.\n"
-ERROR_PARSING = "parsing failed"
-DEBUG         = "--debug"
-TEST          = "--test"
-HELP_PROJECT  = """R|: Enable projective solution enumeration,
+UNKNOWN        = "UNKNOWN"
+ERROR          = "*** ERROR: (asprin): {}"
+ERROR_INFO     = "*** Info : (asprin): Try '--help' for usage information"
+ERROR_OPEN     = "<cmd>: error: file could not be opened:\n  {}\n"
+ERROR_FATAL    = "Fatal error, this should not happen.\n"
+ERROR_PARSING  = "parsing failed"
+DEBUG          = "--debug"
+TEST           = "--test"
+HELP_PROJECT   = """R|: Enable projective solution enumeration,
   projecting on the formulas of the specification"""
+HELP_HEURISTIC = """R|: Apply domain heuristics with value <v> and modifier <m>
+  on formulas of the preference specification"""
+HELP_DELETE_BETTER = """R|: After computing an optimal model,
+  add a program to delete models better than that one"""
+HELP_TOTAL_ORDER = """R|: Do not add programs for optimal models after the \
+first one
+  Use only if the preference specification represents a total order"""
 
 
 #
@@ -192,7 +199,7 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
         solving.add_argument('--steps', '-s', 
                              help=": Execute at most <s> steps", type=int,
                              dest='steps', metavar='<s>', default=0)
-        solving.add_argument('--project', dest='project', help = HELP_PROJECT,
+        solving.add_argument('--project', dest='project', help=HELP_PROJECT,
                              action='store_true')
         solving.add_argument('--solving-mode', dest='solving_mode', 
                              metavar="<arg>",
@@ -201,8 +208,20 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
                              #help=argparse.SUPPRESS,
                              default="normal", 
                              choices=["normal", "heuristic", "approx"])
+        solving.add_argument('--dom-heur', dest='cmd_heuristic',
+                              nargs=2, metavar=('<v>','<m>'),
+                              help=HELP_HEURISTIC)
         solving.add_argument('--non-optimal', dest='non_optimal', 
                              help=": Compute also non optimal models", 
+                             action='store_true')
+        
+        # Additional Solving Options  
+        solving = cmd_parser.add_argument_group('Additional Solving Options')
+        solving.add_argument('--delete-better', dest='delete_better', 
+                             help=HELP_DELETE_BETTER,
+                             action='store_true')
+        solving.add_argument('--total-order', dest='total_order', 
+                             help=HELP_TOTAL_ORDER,
                              action='store_true')
 
         options, unknown = cmd_parser.parse_known_args(args=args)

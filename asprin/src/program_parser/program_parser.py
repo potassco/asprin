@@ -267,7 +267,7 @@ class Parser:
                     pr.print_spec_error(self.__non_domain_message(atom, i))
                     errors = True
 
-        # get preference types, and test for a corresponding preference program
+        # get preference types, and test for corresponding programs
         out = set()
         upreference = u + PREFERENCE
         for atom in control.symbolic_atoms.by_signature(upreference,2):
@@ -305,17 +305,14 @@ class Parser:
         self.__add_and_ground(SHOW,[],show,[(SHOW,[])])
 
     def add_programs(self, types, builder):
-        # select programs to be added
-        solving_mode = self.__options['solving_mode']
-        preference_v = (PREFP, preference.PreferenceProgramVisitor(builder))
-        approx_v     = (APPROX, basic.BasicProgramVisitor(builder, APPROX, 2))
-        heuristic_v  = (HEURISTIC,
-                        basic.HeuristicProgramVisitor(builder, HEURISTIC, 3))
-        visitors = [preference_v]
-        if solving_mode == 'heuristic':
-            visitors.append(heuristic_v)
-        if solving_mode == 'approx':
-            visitors.append(approx_v)
+        # visitors 
+        visitors = [(PREFP, preference.PreferenceProgramVisitor(builder))]
+        if self.__options['solving_mode'] == 'heuristic':
+            v = (HEURISTIC, basic.HeuristicProgramVisitor(builder, HEURISTIC,3))
+            visitors.append(v)
+        elif self.__options['solving_mode'] == 'approx':
+            v = (APPROX, basic.BasicProgramVisitor(builder, APPROX, 2))
+            visitors.append(v)
         # add programs
         for name, visitor in visitors:
             for type_, program in self.__programs[name].items():
