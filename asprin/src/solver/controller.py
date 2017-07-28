@@ -23,86 +23,85 @@
 
 class GeneralController:
 
-    def __init__(self, solver, state):
-        self.solver             = solver
-        self.state              = state
-        self.state.step         = 1
-        self.state.start_step   = 1
-        self.state.last_unsat   = True
-        self.state.opt_models   = 0
-        self.state.models       = 0
-        self.state.more_models  = True
-        self.state.old_holds    = None
-        self.state.old_nholds   = None
-        self.state.normal_solve = True
+    def __init__(self, solver):
+        solver.step         = 1
+        solver.start_step   = 1
+        solver.last_unsat   = True
+        solver.opt_models   = 0
+        solver.models       = 0
+        solver.more_models  = True
+        solver.old_holds    = None
+        solver.old_nholds   = None
+        solver.normal_solve = True
+        self.solver         = solver
 
     def start(self):
         self.solver.add_encodings()
         self.solver.ground_preference_base()
-        if self.state.cmd_heuristic is not None:
+        if self.solver.options.cmd_heuristic is not None:
             self.solver.ground_cmd_heuristic()
             for _solver in self.solver.control.configuration.solver:
                 _solver.heuristic="Domain"
 
     def start_loop(self):
-        if not self.state.last_unsat:
+        if not self.solver.last_unsat:
             self.solver.ground_holds()
 
     def solve(self):
-        if self.state.normal_solve:
+        if self.solver.normal_solve:
             self.solver.solve()
 
     def sat(self):
-        self.state.models    += 1
-        self.state.last_unsat = False
+        self.solver.models     += 1
+        self.solver.last_unsat  = False
         self.solver.check_last_model()
-        if self.state.quiet == 0:
+        if self.solver.options.quiet == 0:
             self.solver.print_answer()
         else:
             self.solver.print_str_answer()
 
 
     def unsat(self):
-        if self.state.last_unsat:
-            self.state.more_models = False
-            if self.state.models == 0:
+        if self.solver.last_unsat:
+            self.solver.more_models = False
+            if self.solver.models == 0:
                 self.solver.print_unsat()
             self.solver.end()
             return
-        if self.state.quiet == 1:
+        if self.solver.options.quiet == 1:
             self.solver.print_shown()
-        self.state.last_unsat = True
-        self.state.opt_models  += 1
+        self.solver.last_unsat = True
+        self.solver.opt_models  += 1
         self.solver.print_optimum_string()
-        if self.state.opt_models == self.state.max_models:
+        if self.solver.opt_models == self.solver.options.max_models:
             self.solver.end()
-        if self.state.steps == self.state.step:
+        if self.solver.options.steps == self.solver.step:
             self.solver.end() # to exit asap in this case
 
     def unsat_post(self):
-        self.state.start_step = self.state.step + 1
+        self.solver.start_step = self.solver.step + 1
 
     def end_loop(self):
-        self.state.step = self.state.step + 1
-        if self.state.steps == (self.state.step - 1):
+        self.solver.step       = self.solver.step + 1
+        if self.solver.options.steps == (self.solver.step - 1):
             self.solver.end()
 
 
 class GeneralControllerHandleOptimal:
 
-    def __init__(self, solver, state):
+    def __init__(self, solver):
         self.solver = solver
-        self.state  = state
         self.first  = True
         self.delete_worse  = True
-        self.delete_better = self.state.delete_better
+        self.delete_better = self.solver.options.delete_better
+        self.total_order   = self.solver.options.total_order
 
     def start(self):
         if self.delete_better:
             self.solver.ground_holds_delete_better()
 
     def unsat(self):
-        if self.state.total_order and not self.first:
+        if self.total_order and not self.first:
             self.delete_worse  = False
             self.delete_better = False
         self.solver.handle_optimal_models(self.delete_worse, self.delete_better)
@@ -111,13 +110,12 @@ class GeneralControllerHandleOptimal:
 
 class MethodController:
 
-    def __init__(self, solver, state):
+    def __init__(self, solver):
         self.solver = solver
-        self.state = state
 
     def start(self):
         pass
-    
+
     def start_loop(self):
         pass
 
@@ -130,12 +128,12 @@ class MethodController:
 
 class GroundManyMethodController(MethodController):
 
-    def __init__(self, solver, state):
-        MethodController.__init__(self, solver, state)
-        self.volatile = True if (self.state.max_models != 1) else False
+    def __init__(self, solver):
+        MethodController.__init__(self, solver)
+        self.volatile = True if (self.solver.options.max_models != 1) else False
 
     def start_loop(self):
-        if self.state.step > self.state.start_step:
+        if self.solver.step > self.solver.start_step:
             self.solver.ground_preference_program(self.volatile)
 
     def unsat(self):
@@ -144,8 +142,8 @@ class GroundManyMethodController(MethodController):
 
 class GroundOnceMethodController(MethodController):
 
-    def __init__(self, solver, state):
-        MethodController.__init__(self, solver, state)
+    def __init__(self, solver):
+        MethodController.__init__(self, solver)
 
     def start(self):
         self.solver.ground_open_preference_program()
@@ -154,9 +152,9 @@ class GroundOnceMethodController(MethodController):
 
 class ApproxMethodController(MethodController):
 
-    def __init__(self, solver, state):
-        MethodController.__init__(self, solver, state)
-        self.state.normal_solve = False
+    def __init__(self, solver):
+        MethodController.__init__(self, solver)
+        self.solver.normal_solve = False
 
     def start(self):
         self.solver.ground_approximation()
@@ -164,7 +162,7 @@ class ApproxMethodController(MethodController):
     def solve(self):
         opt_mode = self.solver.control.configuration.solve.opt_mode
         self.solver.control.configuration.solve.opt_mode == "opt"
-        if self.state.last_unsat:
+        if self.solver.last_unsat:
             self.solver.solve()
         else:
             self.solver.solve_unsat()
@@ -173,15 +171,15 @@ class ApproxMethodController(MethodController):
 
 class HeurMethodController(MethodController):
 
-    def __init__(self, solver, state):
-        MethodController.__init__(self, solver, state)
-        self.state.normal_solve = False
+    def __init__(self, solver):
+        MethodController.__init__(self, solver)
+        self.solver.normal_solve = False
 
     def start(self):
         self.solver.ground_heuristic()
 
     def solve(self):
-        if self.state.last_unsat:
+        if self.solver.last_unsat:
             h = []
             # gather heuristics
             for _solver in self.solver.control.configuration.solver:
@@ -200,24 +198,23 @@ class HeurMethodController(MethodController):
 
 class EnumerationController:
 
-    def __init__(self, solver, state):
+    def __init__(self, solver):
         self.solver = solver
-        self.state  = state
-        if not state.project:
-            if not state.show_underscores:
-                state.same_shown_function = solver.same_shown
+        if not solver.options.project:
+            # show_underscores is set by program_parser.py
+            if not solver.options.show_underscores:
+                solver.same_shown_function = solver.same_shown
             else:
-                u = solver.same_shown_underscores
-                state.same_shown_function = u
+                solver.same_shown_function = solver.same_shown_underscores
 
     def unsat(self):
-        if not self.state.project:
+        if not self.solver.options.project:
             self.solver.enumerate()
 
 
 class CheckerController:
 
-    def __init__(self, solver, state):
+    def __init__(self, solver):
         self.solver = solver
 
     def start(self):
@@ -226,18 +223,18 @@ class CheckerController:
 
 class NonOptimalController:
     
-    def __init__(self, solver, state):
+    def __init__(self, solver):
         self.solver = solver
-        self.state = state
     
     def start(self):
         if self.solver.no_optimize():
-            self.state.non_optimal = True
+            # modifying options
+            self.solver.options.non_optimal = True 
             self.solver.print_no_optimize_warning()
-        if self.state.non_optimal:
+        if self.solver.options.non_optimal:
             import solver as _solver
-            self.state.str_found      = _solver.STR_MODEL_FOUND
-            self.state.str_found_star = _solver.STR_MODEL_FOUND_STAR
+            self.solver.str_found      = _solver.STR_MODEL_FOUND
+            self.solver.str_found_star = _solver.STR_MODEL_FOUND_STAR
             self.solver.add_unsat_to_preference_program()
 
 

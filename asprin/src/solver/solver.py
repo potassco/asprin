@@ -124,18 +124,14 @@ UNSAT_PREFP = (PREFP, ["m1","m2"], "##" + UNSAT_ATOM +"(##m(m1),##m(m2)).")
 
 
 #
-# Auxiliary Classes (EndException, State)
+# Auxiliary Classes (EndException, Options)
 #
 
 class EndException(Exception):
     pass
 
-class State:
+class Options:
     pass
-
-#def call(object, method):
-#    if object:
-#        getattr(object, method)()
 
 #
 # Solver
@@ -156,18 +152,16 @@ class Solver:
         self.holds             = []
         self.nholds            = []
         # others
-        self.state             = State()
-        self.state.max_models  = 1
-        self.state.old_holds   = None
-        self.state.old_nholds  = None
+        self.options           = Options()
+        self.old_holds   = None
+        self.old_nholds  = None
         self.shown             = []
         self.solving_result    = None
-        self.state.added_notbetter = False
         self.externals  = dict()
         self.improving  = []
         # strings
-        self.state.str_found      = STR_OPTIMUM_FOUND
-        self.state.str_found_star = STR_OPTIMUM_FOUND_STAR
+        self.str_found      = STR_OPTIMUM_FOUND
+        self.str_found_star = STR_OPTIMUM_FOUND_STAR
         # printer
         self.printer = printer.Printer()
 
@@ -243,14 +237,14 @@ class Solver:
         self.control.ground([(HEURISTIC, [])], self)
 
     def ground_cmd_heuristic(self):
-        params = [clingo.parse_term(i) for i in self.state.cmd_heuristic]
+        params = [clingo.parse_term(i) for i in self.options.cmd_heuristic]
         self.control.ground([(CMD_HEURISTIC, params)], self)
     
     def ground_preference_base(self):
         self.control.ground([(PBASE, [])], self)
 
     def ground_holds(self):
-        control, prev_step = self.control, self.state.step-1
+        control, prev_step = self.control, self.step-1
         control.ground([(DO_HOLDS, [prev_step])], self)
 
     def ground_open_preference_program(self):
@@ -261,7 +255,7 @@ class Solver:
         self.control.ground(parts, self)
 
     def ground_preference_program(self, volatile):
-        control, prev_step = self.control, self.state.step-1
+        control, prev_step = self.control, self.step-1
         parts = [(PREFP,         [0,prev_step]),
                  (NOT_UNSAT_PRG, [0,prev_step])]
         if volatile:
@@ -316,29 +310,28 @@ class Solver:
         self.printer.do_print(" ".join(map(self.__symbol2str, self.shown)))
 
     def print_str_answer(self):
-        self.printer.do_print(STR_ANSWER.format(self.state.models))
+        self.printer.do_print(STR_ANSWER.format(self.models))
 
     def print_answer(self):
-        self.printer.do_print(STR_ANSWER.format(self.state.models))
+        self.printer.do_print(STR_ANSWER.format(self.models))
         self.printer.do_print(" ".join(map(self.__symbol2str, self.shown)))
 
     def print_optimum_string(self):
-        self.printer.do_print(self.state.str_found)
+        self.printer.do_print(self.str_found)
 
     def print_unsat(self):
         self.printer.do_print(STR_UNSATISFIABLE)
 
     def check_last_model(self):
-        if self.state.old_holds  == self.holds and (
-           self.state.old_nholds == self.nholds):
+        if self.old_holds  == self.holds and (
+           self.old_nholds == self.nholds):
                 self.printer.do_print()
                 raise Exception(SAME_MODEL)
-        self.state.old_holds  = self.holds
-        self.state.old_nholds = self.nholds
+        self.old_holds  = self.holds
+        self.old_nholds = self.nholds
 
     def relax_previous_model(self):
-        state, control = self.state, self.control
-        control.release_external(self.get_external(0,state.step-1))
+        self.control.release_external(self.get_external(0,self.step-1))
 
     def same_shown(self):
         if set(self.old_shown) == set(self.shown):
@@ -358,26 +351,26 @@ class Solver:
     def on_model_enumerate(self,model):
         true = model.symbols(shown=True)
         self.shown = [ i for i in true if i.name != self.holds_at_zero_str ]
-        # self.state.same_shown_function is modified by EnumerationController 
+        # self.same_shown_function is modified by EnumerationController 
         # at controller.py
-        if self.enumerate_flag or not self.state.same_shown_function():
-            self.state.models     += 1
-            self.state.opt_models += 1
-            if self.state.quiet in {0,1}:
+        if self.enumerate_flag or not self.same_shown_function():
+            self.models     += 1
+            self.opt_models += 1
+            if self.options.quiet in {0,1}:
                 self.print_answer()
             else:
                 self.print_str_answer()
-            self.printer.do_print(self.state.str_found_star)
+            self.printer.do_print(self.str_found_star)
 
     def enumerate(self):
         # models
         control    = self.control
         old_models = self.control.configuration.solve.models
-        if self.state.max_models == 0: 
+        if self.options.max_models == 0: 
             control.configuration.solve.models = 0
         else:
-            control.configuration.solve.models = (self.state.max_models -
-                                                  self.state.opt_models)
+            control.configuration.solve.models = (self.options.max_models -
+                                                  self.opt_models)
         # assumptions
         h = self.holds_str
         ass  = [ (clingo.Function(h, [x,0]), True)  for x in self.holds ]
@@ -389,16 +382,15 @@ class Solver:
         control.configuration.solve.models = old_models
 
     def relax_previous_models(self):
-        state, control = self.state, self.control
         for i in self.improving:
-            control.release_external(self.get_external(0, i))
+            self.control.release_external(self.get_external(0, i))
         self.improving = []
 
     def ground_holds_delete_better(self):
         self.control.ground([(DO_HOLDS_DELETE_BETTER, [])], self)
 
     def handle_optimal_models(self, delete_worse, delete_better):
-        prev_step = self.state.step - 1
+        prev_step = self.step - 1
         parts = [(DELETE_MODEL, [])]
         if delete_worse:
             parts += [(PREFP,         [prev_step,0]),
@@ -411,9 +403,9 @@ class Solver:
         self.control.ground(parts, self)
        
     def end(self):
-        state, p = self.state, self.printer
-        p.print_stats(self.control, state.models, state.more_models,
-                      state.opt_models, state.non_optimal, state.stats)
+        self.printer.print_stats(self.control,             self.models,
+                                 self.more_models,         self.opt_models,
+                                 self.options.non_optimal, self.options.stats)
         raise EndException
 
     #
@@ -422,7 +414,7 @@ class Solver:
 
     def set_options(self,options):
         for key,value in options.items():
-            setattr(self.state,key,value)
+            setattr(self.options,key,value)
 
     #
     # RUN()
@@ -431,18 +423,18 @@ class Solver:
     def run(self):
 
         # controllers
-        general = controller.GeneralController(self, self.state)
-        optimal = controller.GeneralControllerHandleOptimal(self, self.state)
-        enumeration = controller.EnumerationController(self, self.state)
-        checker = controller.CheckerController(self, self.state)
-        non_optimal = controller.NonOptimalController(self, self.state)
+        general = controller.GeneralController(self)
+        optimal = controller.GeneralControllerHandleOptimal(self)
+        enumeration = controller.EnumerationController(self)
+        checker = controller.CheckerController(self)
+        non_optimal = controller.NonOptimalController(self)
         # MethodController
-        if self.state.solving_mode == "approx":
-            method = controller.ApproxMethodController(self, self.state)
-        elif self.state.solving_mode == "heuristic":
-            method = controller.HeurMethodController(self, self.state)
+        if self.options.solving_mode == "approx":
+            method = controller.ApproxMethodController(self)
+        elif self.options.solving_mode == "heuristic":
+            method = controller.HeurMethodController(self)
         else:
-            method = controller.GroundManyMethodController(self, self.state)
+            method = controller.GroundManyMethodController(self)
 
         # loop
         try:
