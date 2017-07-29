@@ -32,7 +32,8 @@ class GeneralController:
         solver.more_models  = True
         solver.old_holds    = None
         solver.old_nholds   = None
-        solver.normal_solve = True
+        if solver.options.max_models == 1:
+            self.store_nholds = False
         self.solver         = solver
 
     def start(self):
@@ -48,10 +49,13 @@ class GeneralController:
             self.solver.ground_holds()
 
     def solve(self):
-        if self.solver.normal_solve:
-            self.solver.solve()
+        if not self.solver.normal_solve:
+            return
+        self.solver.solve()
 
     def sat(self):
+        if not self.solver.normal_sat:
+            return
         self.solver.models     += 1
         self.solver.last_unsat  = False
         self.solver.check_last_model()
@@ -59,7 +63,6 @@ class GeneralController:
             self.solver.print_answer()
         else:
             self.solver.print_str_answer()
-
 
     def unsat(self):
         if self.solver.last_unsat:
@@ -104,7 +107,8 @@ class GeneralControllerHandleOptimal:
         if self.total_order and not self.first:
             self.delete_worse  = False
             self.delete_better = False
-        self.solver.handle_optimal_models(self.delete_worse, self.delete_better)
+        self.solver.handle_optimal_model(self.solver.step-1,
+                                          self.delete_worse, self.delete_better)
         self.first = False
 
 
@@ -155,6 +159,8 @@ class ApproxMethodController(MethodController):
     def __init__(self, solver):
         MethodController.__init__(self, solver)
         self.solver.normal_solve = False
+        self.solver.aprrox_index = 1
+        self.solver.approx_opt_models = [[]]
 
     def start(self):
         self.solver.ground_approximation()
@@ -163,7 +169,7 @@ class ApproxMethodController(MethodController):
         opt_mode = self.solver.control.configuration.solve.opt_mode
         self.solver.control.configuration.solve.opt_mode == "opt"
         if self.solver.last_unsat:
-            self.solver.solve()
+            self.solver.solve_approx()
         else:
             self.solver.solve_unsat()
         self.solver.control.configuration.solve.opt_mode == opt_mode

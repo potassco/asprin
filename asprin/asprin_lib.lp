@@ -739,3 +739,17 @@ poset(Y,X)  :- poset(Y,Z), poset(Z,X).
 assigned(Y) :- poset(Y,_),     holds(Y).
 assigned(Y) :- poset(Y,_), not holds(Y).
 
+%
+% approximation programs:
+% - used with option --solving-mode=approx
+%   only preference types subset and superset are implemented
+%
+#program approximation.
+#minimize{ W@L,T : minimize(P,W,L,T,X), optimize(P), holds(X) }.
+
+#program approximation(subset).
+minimize(P,1,1,X,X) :- preference(P,subset), preference(P,_,_,for(X),_).
+
+#program approximation(superset).
+minimize(P,-1,1,X,X) :- preference(P,superset), preference(P,_,_,for(X),_).
+

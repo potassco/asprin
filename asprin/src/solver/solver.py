@@ -55,20 +55,22 @@ STR_MODEL_FOUND_STAR   = "MODEL FOUND *"
 STR_UNSATISFIABLE      = "UNSATISFIABLE"
 
 # program names
+DO_HOLDS = "do_holds"
+DO_HOLDS_APPROX = "do_holds_approx"
 DO_HOLDS_DELETE_BETTER = "do_holds_delete_better"
 DO_HOLDS_AT_ZERO = "do_holds_at_zero"
-DO_HOLDS         = "do_holds"
-OPEN_HOLDS       = "open_holds"
-VOLATILE_FACT    = "volatile_fact"
-VOLATILE_EXT     = "volatile_external"
-DELETE_MODEL     = "delete_model"
-UNSAT_PRG        = "unsat"
-NOT_UNSAT_PRG    = "not_unsat"
-CMD_HEURISTIC    = "cmd_heuristic"
-PREFP            = utils.PREFP
-PBASE            = utils.PBASE
-APPROX           = utils.APPROX
-HEURISTIC        = utils.HEURISTIC
+OPEN_HOLDS = "open_holds"
+VOLATILE_FACT = "volatile_fact"
+VOLATILE_EXT = "volatile_external"
+DELETE_MODEL = "delete_model"
+DELETE_MODEL_APPROX = "delete_model_approx"
+UNSAT_PRG = "unsat"
+NOT_UNSAT_PRG = "not_unsat"
+CMD_HEURISTIC = "cmd_heuristic"
+PREFP = utils.PREFP
+PBASE = utils.PBASE
+APPROX = utils.APPROX
+HEURISTIC = utils.HEURISTIC
 
 # predicate and term names
 VOLATILE      = utils.VOLATILE
@@ -97,16 +99,16 @@ PROGRAMS = \
   [(DO_HOLDS_AT_ZERO,       [],"""
 #show ##holds_at_zero(X) : ##""" + HOLDS + """(X,0)."""),
    (DO_HOLDS,            ["m"],"""
-##""" + HOLDS + """(X,m) :- X = @getHolds()."""),
+##""" + HOLDS + """(X,m) :- X = @get_holds()."""),
    (OPEN_HOLDS,          ["m"],"""
-{ ##""" + HOLDS + """(X,m) } :- X = @getHoldsDomain()."""),
+{ ##""" + HOLDS + """(X,m) } :- X = @get_holds_domain()."""),
    (VOLATILE_FACT, ["m1","m2"],"""
 ##""" + VOLATILE + """(##m(m1),##m(m2))."""),
    (VOLATILE_EXT,  ["m1","m2"],"""
 #external ##""" + VOLATILE + """(##m(m1),##m(m2))."""),
    (DELETE_MODEL,           [],"""
-:-     ##""" + HOLDS + """(X,0) : X = @getHolds(); 
-   not ##""" + HOLDS + """(X,0) : X = @getNHolds()."""),
+:-     ##""" + HOLDS + """(X,0) : X = @get_holds(); 
+   not ##""" + HOLDS + """(X,0) : X = @get_nholds()."""),
    (UNSAT_PRG,     ["m1","m2"],"""
 :- not ##""" + UNSAT_ATOM + """(##m(m1),##m(m2)),
        ##""" +   VOLATILE + """(##m(m1),##m(m2))."""),
@@ -119,6 +121,11 @@ PROGRAMS = \
    (DO_HOLDS_DELETE_BETTER,        [],"""
 ##""" + HOLDS + """(X,""" + str(MODEL_DELETE_BETTER) + """) :- ##""" + 
     HOLDS + """(X,0)."""),
+   (DO_HOLDS_APPROX,            ["m"],"""
+##""" + HOLDS + """(X,m) :- X = @get_holds_approx(m)."""),
+   (DELETE_MODEL_APPROX,           ["m"],"""
+:-     ##""" + HOLDS + """(X,0) : X = @get_holds_approx(m); 
+   not ##""" + HOLDS + """(X,0) : X = @get_nholds_approx(m)."""),
  ]
 UNSAT_PREFP = (PREFP, ["m1","m2"], "##" + UNSAT_ATOM +"(##m(m1),##m(m2)).")
 
@@ -159,6 +166,12 @@ class Solver:
         self.solving_result    = None
         self.externals  = dict()
         self.improving  = []
+        self.store_nholds = True
+        self.holds_domain = set()
+        self.approx_opt_models = []
+        # for GeneralController
+        self.normal_solve = True
+        self.normal_sat   = True
         # strings
         self.str_found      = STR_OPTIMUM_FOUND
         self.str_found_star = STR_OPTIMUM_FOUND_STAR
@@ -177,17 +190,20 @@ class Solver:
             self.externals[(m1,m2)] = external
         return external
 
-    def getHolds(self):
+    def get_holds(self):
         return self.holds
 
-    def getHoldsDomain(self):
-        return self.holds
-        pass
-        holds = self.control.symbolic_atoms.by_signature(self.holds_str, 2)
-        print(holds)
-        return [i.arguments[1] for i in holds]
+    def get_holds_domain(self):
+        return list(self.holds_domain)
 
-    def getNHolds(self):
+    def set_holds_domain(self):
+        for i in self.control.symbolic_atoms.by_signature(self.holds_str, 2):
+            symbol = i.symbol
+            if str(symbol.arguments[1]) == "0":
+                self.holds_domain.add(symbol.arguments[0])
+        return self.holds_domain
+
+    def get_nholds(self):
         return self.nholds
 
     def get(self, atuple, index):
@@ -285,21 +301,83 @@ class Solver:
                 self.holds.append(a.arguments[0])
             else:
                 self.shown.append(a)
-        #TODO: improve on nholds, we do not need it always
+        if not self.store_nholds:
+            return
         for a in model.symbols(terms=True, complement=True):
             if a.name == self.holds_at_zero_str:
                 self.nholds.append(a.arguments[0])
 
-    def solve(self):
-        result = self.control.solve(on_model=self.on_model)
+    def __set_solving_result(self, result):
         self.solving_result = None
         if result.satisfiable:
             self.solving_result = SATISFIABLE
         elif result.unsatisfiable:
             self.solving_result = UNSATISFIABLE
 
+    def solve(self):
+        result = self.control.solve(on_model=self.on_model)
+        self.__set_solving_result(result)
+
     def solve_unsat(self):
         self.solving_result = UNSATISFIABLE
+
+    def on_model_approx(self, model):
+        # TODO: option to print no optimal
+        if not model.optimality_proven:
+            return
+        self.on_model(model)
+        self.approx_opt_models.append(self.holds)
+        self.models     += 1
+        self.opt_models += 1
+        if self.options.quiet in {0,1}:
+            self.print_answer()
+        else:
+            self.print_str_answer()
+        self.print_optimum_string()
+
+    def __set_control_models(self):
+        solve_conf = self.control.configuration.solve
+        if self.options.max_models == 0:
+            solve_conf.models = 0
+        else:
+            solve_conf.models = self.options.max_models - self.opt_models
+    
+    def get_holds_approx(self, i):
+        return self.approx_opt_models[int(str(i)) - self.opt_models]
+
+    def get_nholds_approx(self, i):
+        _set = self.holds_domain.difference(self.approx_opt_models[int(str(i)) - self.opt_models])
+        return list(_set)
+# TODO
+# n models:
+# tests
+# nicer
+# delete-better
+# total-order
+# library
+
+    def solve_approx(self):
+        self.set_holds_domain()
+        self.__set_control_models()
+        self.control.configuration.solve.models = 0
+        self.control.configuration.solve.opt_mode='optN'
+        result = self.control.solve(on_model=self.on_model_approx)
+        while result.satisfiable:
+            parts = []
+            size = len(self.approx_opt_models)
+            for i in range(1+self.opt_models, size+self.opt_models):
+                parts += [(DELETE_MODEL_APPROX, [i]),
+                          (DO_HOLDS_APPROX, [i]),
+                          (PREFP,         [i,0]),
+                          (UNSAT_PRG,     [i,0]),
+                          (VOLATILE_FACT, [i,0])]
+            self.control.ground(parts, self)
+            self.approx_opt_models = [[]]
+            self.__set_control_models()
+            self.control.configuration.solve.models = 0
+            result = self.control.solve(on_model=self.on_model_approx)
+        self.more_models = False
+        self.end() 
 
     def __symbol2str(self,symbol):
         if symbol.name == CSP:
@@ -366,11 +444,7 @@ class Solver:
         # models
         control    = self.control
         old_models = self.control.configuration.solve.models
-        if self.options.max_models == 0: 
-            control.configuration.solve.models = 0
-        else:
-            control.configuration.solve.models = (self.options.max_models -
-                                                  self.opt_models)
+        self.__set_control_models()
         # assumptions
         h = self.holds_str
         ass  = [ (clingo.Function(h, [x,0]), True)  for x in self.holds ]
@@ -389,17 +463,16 @@ class Solver:
     def ground_holds_delete_better(self):
         self.control.ground([(DO_HOLDS_DELETE_BETTER, [])], self)
 
-    def handle_optimal_models(self, delete_worse, delete_better):
-        prev_step = self.step - 1
+    def handle_optimal_model(self, step, delete_worse, delete_better):
         parts = [(DELETE_MODEL, [])]
         if delete_worse:
-            parts += [(PREFP,         [prev_step,0]),
-                      (UNSAT_PRG,     [prev_step,0]),
-                      (VOLATILE_FACT, [prev_step,0])]
+            parts += [(PREFP,         [step,0]),
+                      (UNSAT_PRG,     [step,0]),
+                      (VOLATILE_FACT, [step,0])]
         if delete_better:
-            parts += [(PREFP,         [MODEL_DELETE_BETTER,prev_step]),
-                      (UNSAT_PRG,     [MODEL_DELETE_BETTER,prev_step]),
-                      (VOLATILE_FACT, [MODEL_DELETE_BETTER,prev_step])]
+            parts += [(PREFP,         [MODEL_DELETE_BETTER,step]),
+                      (UNSAT_PRG,     [MODEL_DELETE_BETTER,step]),
+                      (VOLATILE_FACT, [MODEL_DELETE_BETTER,step])]
         self.control.ground(parts, self)
        
     def end(self):
