@@ -158,21 +158,9 @@ class ApproxMethodController(MethodController):
 
     def __init__(self, solver):
         MethodController.__init__(self, solver)
-        self.solver.normal_solve = False
-        self.solver.aprrox_index = 1
-        self.solver.approx_opt_models = [[]]
 
     def start(self):
-        self.solver.ground_approximation()
-
-    def solve(self):
-        opt_mode = self.solver.control.configuration.solve.opt_mode
-        self.solver.control.configuration.solve.opt_mode == "opt"
-        if self.solver.last_unsat:
-            self.solver.solve_approx()
-        else:
-            self.solver.solve_unsat()
-        self.solver.control.configuration.solve.opt_mode == opt_mode
+        self.solver.solve_approx()
 
 
 class HeurMethodController(MethodController):

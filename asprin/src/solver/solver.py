@@ -67,6 +67,7 @@ DELETE_MODEL_APPROX = "delete_model_approx"
 UNSAT_PRG = "unsat"
 NOT_UNSAT_PRG = "not_unsat"
 CMD_HEURISTIC = "cmd_heuristic"
+PROJECT_APPROX = "project_approx"
 PREFP = utils.PREFP
 PBASE = utils.PBASE
 APPROX = utils.APPROX
@@ -121,14 +122,17 @@ PROGRAMS = \
    (DO_HOLDS_DELETE_BETTER,        [],"""
 ##""" + HOLDS + """(X,""" + str(MODEL_DELETE_BETTER) + """) :- ##""" + 
     HOLDS + """(X,0)."""),
-   (DO_HOLDS_APPROX,            ["m"],"""
-##""" + HOLDS + """(X,m) :- X = @get_holds_approx(m)."""),
-   (DELETE_MODEL_APPROX,           ["m"],"""
-:-     ##""" + HOLDS + """(X,0) : X = @get_holds_approx(m); 
-   not ##""" + HOLDS + """(X,0) : X = @get_nholds_approx(m)."""),
- ]
+  ]
+PROGRAMS_APPROX = \
+  [(DO_HOLDS_APPROX,            ["m","mm"],"""
+##""" + HOLDS + """(X,m) :- X = @get_holds_approx(mm)."""),
+   (DELETE_MODEL_APPROX,           ["mm"],"""
+:-     ##""" + HOLDS + """(X,0) : X = @get_holds_approx(mm); 
+   not ##""" + HOLDS + """(X,0) : X = @get_nholds_approx(mm)."""),
+   (PROJECT_APPROX,           [],"""
+#project  ##""" + HOLDS + """/2."""),
+  ]
 UNSAT_PREFP = (PREFP, ["m1","m2"], "##" + UNSAT_ATOM +"(##m(m1),##m(m2)).")
-
 
 #
 # Auxiliary Classes (EndException, Options)
@@ -246,9 +250,6 @@ class Solver:
         self.control.add(UNSAT_PREFP[0], UNSAT_PREFP[1],
                          UNSAT_PREFP[2].replace(TOKEN, self.underscores))
 
-    def ground_approximation(self):
-        self.control.ground([(APPROX, [])], self)
-
     def ground_heuristic(self):
         self.control.ground([(HEURISTIC, [])], self)
 
@@ -321,61 +322,84 @@ class Solver:
     def solve_unsat(self):
         self.solving_result = UNSATISFIABLE
 
-    def on_model_approx(self, model):
-        # TODO: option to print no optimal
-        if not model.optimality_proven:
-            return
-        self.on_model(model)
-        self.approx_opt_models.append(self.holds)
-        self.models     += 1
-        self.opt_models += 1
-        if self.options.quiet in {0,1}:
-            self.print_answer()
-        else:
-            self.print_str_answer()
-        self.print_optimum_string()
-
     def __set_control_models(self):
         solve_conf = self.control.configuration.solve
         if self.options.max_models == 0:
             solve_conf.models = 0
         else:
             solve_conf.models = self.options.max_models - self.opt_models
-    
+
+    #
+    # approximation
+    #
+
+    def on_model_approx(self, model):
+        # all models
+        self.models += 1
+        self.print_str_answer()
+        # non optimal models
+        if not model.optimality_proven:
+            if self.options.quiet == 0:
+                self.on_model(model)
+                self.print_shown()
+            return
+        # optimal models
+        self.on_model(model)
+        if self.options.quiet in {0,1}:
+            self.print_shown()
+        self.approx_opt_models.append(self.holds)
+        self.opt_models += 1
+        self.print_optimum_string()
+
     def get_holds_approx(self, i):
-        return self.approx_opt_models[int(str(i)) - self.opt_models]
+        return self.approx_opt_models[int(str(i))]
 
     def get_nholds_approx(self, i):
-        _set = self.holds_domain.difference(self.approx_opt_models[int(str(i)) - self.opt_models])
+        _set = self.holds_domain.difference(self.approx_opt_models[int(str(i))])
         return list(_set)
-# TODO
-# n models:
-# tests
-# nicer
-# delete-better
-# total-order
-# library
+
+    def __do_solve_approx(self):
+        self.__set_control_models()
+        self.approx_opt_models = [[]]
+        self.do_solve_approx_first = True
+        return self.control.solve(on_model=self.on_model_approx)
 
     def solve_approx(self):
+        # prepare
+        self.control.ground([(APPROX, [])], self)
+        for i in PROGRAMS_APPROX:
+            self.control.add(i[0], i[1], i[2].replace(TOKEN, self.underscores))
         self.set_holds_domain()
-        self.__set_control_models()
-        self.control.configuration.solve.models = 0
-        self.control.configuration.solve.opt_mode='optN'
-        result = self.control.solve(on_model=self.on_model_approx)
+        self.control.configuration.solve.opt_mode = 'optN'
+        if self.options.project:
+            self.control.ground([(PROJECT_APPROX,[])], self)
+            self.control.configuration.solve.project = 'project'
+        # solve
+        result = self.__do_solve_approx()
+        # loop
         while result.satisfiable:
+            # break if computed all
+            if self.options.max_models == self.opt_models:
+                break
+            # add programs
             parts = []
-            size = len(self.approx_opt_models)
-            for i in range(1+self.opt_models, size+self.opt_models):
-                parts += [(DELETE_MODEL_APPROX, [i]),
-                          (DO_HOLDS_APPROX, [i]),
-                          (PREFP,         [i,0]),
-                          (UNSAT_PRG,     [i,0]),
-                          (VOLATILE_FACT, [i,0])]
+            for mm in range(1, len(self.approx_opt_models)):
+                m = mm + self.opt_models
+                if self.options.total_order and m>1:
+                    break
+                parts += [(DELETE_MODEL_APPROX, [mm]),
+                          (DO_HOLDS_APPROX,   [m,mm]),
+                          (PREFP,              [m,0]),
+                          (UNSAT_PRG,          [m,0]),
+                          (VOLATILE_FACT,      [m,0])]
+                if self.options.delete_better:
+                    parts += [(PREFP,              [0,m]),
+                              (UNSAT_PRG,          [0,m]),
+                              (VOLATILE_FACT,      [0,m])]
             self.control.ground(parts, self)
-            self.approx_opt_models = [[]]
-            self.__set_control_models()
-            self.control.configuration.solve.models = 0
-            result = self.control.solve(on_model=self.on_model_approx)
+            # solve
+            result = self.__do_solve_approx()
+        # end
         self.more_models = False
         self.end() 
 
