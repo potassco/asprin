@@ -375,6 +375,7 @@ class Solver:
             self.control.ground([(PROJECT_APPROX,[])], self)
             self.control.configuration.solve.project = 'project'
         # solve
+        prev_opt_models = 0
         result = self.__do_solve_approx()
         # loop
         while result.satisfiable:
@@ -384,7 +385,7 @@ class Solver:
             # add programs
             parts = []
             for mm in range(1, len(self.approx_opt_models)):
-                m = mm + self.opt_models
+                m = mm + prev_opt_models
                 if self.options.total_order and m>1:
                     break
                 parts += [(DELETE_MODEL_APPROX, [mm]),
@@ -398,6 +399,7 @@ class Solver:
                               (VOLATILE_FACT,      [0,m])]
             self.control.ground(parts, self)
             # solve
+            prev_opt_models = self.opt_models
             result = self.__do_solve_approx()
         # end
         self.more_models = False
@@ -498,7 +500,7 @@ class Solver:
                       (UNSAT_PRG,     [MODEL_DELETE_BETTER,step]),
                       (VOLATILE_FACT, [MODEL_DELETE_BETTER,step])]
         self.control.ground(parts, self)
-       
+
     def end(self):
         self.printer.print_stats(self.control,             self.models,
                                  self.more_models,         self.opt_models,
