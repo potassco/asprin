@@ -220,7 +220,7 @@ class Solver:
         try:
             return len(atuple.arguments)
         except:
-            return 0 
+            return 1 
 
     def __cat(self, tuple):
         if tuple.arguments:

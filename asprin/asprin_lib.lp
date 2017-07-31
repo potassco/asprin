@@ -49,8 +49,19 @@ error(("preference:",P,": error: preference specification error, type '",T,"' do
 
 % weights length
 error(("preference:",P,": error: preference specification error, type '",T,"' requires a weight tuple of at least ",N," elements.")) :-
-  preference(P,T), error_type(T,(weight_length,N)),
+  preference(P,T), error_type(T,(min_weight_length,N)),
   preference(P,_,_,_,W), @length(W) < N.
+
+% weights length
+error(("preference:",P,": error: preference specification error, type '",T,"' requires a weight tuple of at most ",N," elements.")) :-
+  preference(P,T), error_type(T,(max_weight_length,N)),
+  preference(P,_,_,_,W), @length(W) > N.
+
+% naming unique weights
+error(("preference:",P,": error: preference specification error, type '",T,"' requires different weights for every named preference statement")) :- 
+  preference(P,T), error_type(T,naming_unique_weights),
+  preference(P,_,_,name(P1),W), 
+  preference(P,_,_,name(P2),W), P1 != P2.
 
 %
 % Python functions
@@ -72,7 +83,7 @@ error(("preference:",P,": error: preference specification error, type '",T,"' re
 %        try:
 %            return len(atuple.arguments)
 %        except:
-%            return 0
+%            return 1
 %
 
 #program preference(and).
@@ -289,6 +300,9 @@ error_type(lexico,no_formulas).
 error_type(lexico,no_ordering).
 error_type(lexico,no_condition).
 error_type(lexico,no_sets).
+error_type(lexico,(min_weight_length,1)).
+error_type(lexico,(max_weight_length,1)).
+error_type(lexico,naming_unique_weights).
 
 #program preference(more(cardinality)).
 
@@ -659,7 +673,7 @@ error_type(maxmin,no_naming).
 error_type(maxmin,no_ordering).
 error_type(maxmin,no_condition).
 error_type(maxmin,no_sets).
-error_type(maxmin,(weight_length,2)).
+error_type(maxmin,(min_weight_length,2)).
 
 #program preference(minmax).
 
@@ -705,7 +719,7 @@ error_type(minmax,no_naming).
 error_type(minmax,no_ordering).
 error_type(minmax,no_condition).
 error_type(minmax,no_sets).
-error_type(minmax,(weight_length,2)).
+error_type(minmax,(min_weight_length,2)).
 
 #program preference. % to avoid warnings
 
@@ -742,7 +756,7 @@ assigned(Y) :- poset(Y,_), not holds(Y).
 %
 % approximation programs:
 % - used with option --solving-mode=approx
-%   only preference types subset and superset are implemented
+% - some preference types (aso, poset, maxmin, minmax, and) are missing 
 %
 #program approximation.
 #minimize{ W@L,T : minimize(P,W,L,T,X), optimize(P), holds(X) }.
@@ -752,4 +766,113 @@ minimize(P,1,1,X,X) :- preference(P,subset), preference(P,_,_,for(X),_).
 
 #program approximation(superset).
 minimize(P,-1,1,X,X) :- preference(P,superset), preference(P,_,_,for(X),_).
+
+#program approximation(less(cardinality)).
+minimize(P,1,1,X,X) :- preference(P,less(cardinality)), preference(P,_,_,for(X),_).
+
+#program approximation(more(cardinality)).
+minimize(P,-1,1,X,X) :- preference(P,more(cardinality)), preference(P,_,_,for(X),_).
+
+#program approximation(less(weight)).
+minimize(P,W,1,T,X) :- preference(P,less(weight)), preference(P,_,_,for(X),T),
+                       W=@get(T,0).
+
+#program approximation(more(weight)).
+minimize(P,W,1,T,X) :- preference(P,more(weight)), preference(P,_,_,for(X),T),
+                       W=@get(T,0).
+
+#program approximation(neg).
+minimize(P,-W,L,T,X) :- preference(P,neg), preference(P,_,_,name(PP),_),
+                        minimize(PP,W,L,T,X).
+
+#program approximation(lexico).
+
+% level(P,PP,L): (in P) PP is at level L
+level(P,PP,L) :- preference(P,lexico), 
+                 preference(P,_,_,name(PP),L).
+
+% order(P,PP,L,O): (in P) the order of PP (with level L) is O
+order(P,P1,L1,1) :- preference(P,lexico), 
+                    level(P,P1,L1), 
+                    L1 < L2 : level(P,_,L2), L2 != L1.
+order(P,P2,L2,O1+1) :- preference(P,lexico), 
+                       order(P,P1,L1,O1),
+                       level(P,P2,L2),
+                       L1 < L2, L2 < L3 : level(P,_,L3), L1 < L3, L3 != L2.
+
+% named_level(P,P1,L): (in P) P1 has a statement at level L
+named_level(P,P1,L) :- preference(P,lexico),
+                       level(P,P1,_), minimize(P1,_,L,_,_).
+
+% named_order(P,P1,L,O): (in P) P1 statement at level L has order O
+named_order(P,P1,L1,1) :- preference(P,lexico), 
+                          named_level(P,P1,L1), 
+                          L1 < L2 : named_level(P,_,L2), L2 != L1.
+named_order(P,P1,L2,O1+1) :- preference(P,lexico), 
+                             named_order(P,P1,L1,O1),
+                             named_level(P,P1,L2),
+                             L1 < L2,
+                             L2 < L3 : named_level(P,P1,L3), L1 < L3, L3 != L2.
+
+% map(P,P1,L1,L2,L3): P names P1 at L1 and maps L2 in P1 to L3 in P
+map(P,P1,L1,L,O) :- preference(P,lexico),
+                    order(P,P1,L1,1),
+                    named_order(P,P1,L,O).
+
+map(P,P2,L2,L3,O3+M1) :- preference(P,lexico),
+                         order(P,P1,L1,O1), order(P,P2,L2,O1+1),
+                         named_order(P,P2,L3,O3),
+                         M1 = #max {OO1: map(P,P1,L1,LL1,OO1)}.
+
+% minimize
+minimize(P,W,LL,T,X) :- preference(P,lexico),
+                        level(P,P1,L1), minimize(P1,W,L,T,X),
+                        map(P,P1,L1,L,LL).
+
+#program approximation(pareto).
+
+% level(P,PP,L): (in P) PP is at level L
+level(P,PP,PP) :- preference(P,pareto), 
+                  preference(P,_,_,name(PP),_).
+
+% order(P,PP,L,O): (in P) the order of PP (with level L) is O
+order(P,P1,L1,1) :- preference(P,pareto), 
+                    level(P,P1,L1), 
+                    L1 < L2 : level(P,_,L2), L2 != L1.
+order(P,P2,L2,O1+1) :- preference(P,pareto), 
+                       order(P,P1,L1,O1),
+                       level(P,P2,L2),
+                       L1 < L2, L2 < L3 : level(P,_,L3), L1 < L3, L3 != L2.
+
+% named_level(P,P1,L): (in P) P1 has a statement at level L
+named_level(P,P1,L) :- preference(P,pareto),
+                       level(P,P1,_), minimize(P1,_,L,_,_).
+
+% named_order(P,P1,L,O): (in P) P1 statement at level L has order O
+named_order(P,P1,L1,1) :- preference(P,pareto), 
+                          named_level(P,P1,L1), 
+                          L1 < L2 : named_level(P,_,L2), L2 != L1.
+named_order(P,P1,L2,O1+1) :- preference(P,pareto), 
+                             named_order(P,P1,L1,O1),
+                             named_level(P,P1,L2),
+                             L1 < L2,
+                             L2 < L3 : named_level(P,P1,L3), L1 < L3, L3 != L2.
+
+% map(P,P1,L1,L2,L3): P names P1 at L1 and maps L2 in P1 to L3 in P
+map(P,P1,L1,L,O) :- preference(P,pareto),
+                    order(P,P1,L1,1),
+                    named_order(P,P1,L,O).
+
+map(P,P2,L2,L3,O3+M1) :- preference(P,pareto),
+                         order(P,P1,L1,O1), order(P,P2,L2,O1+1),
+                         named_order(P,P2,L3,O3),
+                         M1 = #max {OO1: map(P,P1,L1,LL1,OO1)}.
+
+% minimize
+minimize(P,W,LL,T,X) :- preference(P,pareto),
+                        level(P,P1,L1), minimize(P1,W,L,T,X),
+                        map(P,P1,L1,L,LL).
+
+
+
 
