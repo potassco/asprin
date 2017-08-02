@@ -1,5 +1,5 @@
 include *.md
 include LICENSE.txt
 include asprin/examples/*.lp
-include asprin/asprin.lib
+include asprin/asprin_lib.lp
 recursive-include asprin/src/tests *.lp*
