@@ -79,6 +79,9 @@ class Printer:
             print(string, file=sys.stderr, **kwargs)
             self.__check_messages(1)
 
+    def print_spec_warning(self, string):
+        self.print_warning(string)
+
     def warning_included_file(self, file, loc=None):
         warning = WARNING_INCLUDED_FILE 
         if loc: 

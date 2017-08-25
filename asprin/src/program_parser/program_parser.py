@@ -49,7 +49,8 @@ GEN_DOM    = utils.GEN_DOM
 PREFERENCE = utils.PREFERENCE
 SHOW       = utils.SHOW
 OPTIMIZE   = utils.OPTIMIZE
-ERROR      = utils.ERROR
+ERROR_PRED = utils.ERROR_PRED
+WARN_PRED  = utils.WARN_PRED
 
 # error checking
 CHECK_SPEC = """
@@ -93,12 +94,6 @@ CHECK_SPEC = """
   C = ": error: preference specification error, ", 
   D = "optimizing non existent preference statement".
 
-% no optimize statements
-%##error((A,B,C)):- { ##optimize(Y) } 0, 
-%  A = "optimize",
-%  B = ": error: preference specification error, ",
-%  C = "no optimize statement".
-
 % many optimize statements
 ##error((A,B,C,D)):- ##optimize(X), 2 { ##optimize(Y) }, 
   A = "optimize:", 
@@ -106,9 +101,18 @@ CHECK_SPEC = """
   C = ": error: preference specification error, ", 
   D = "many optimize statements".
 
+%
+% warnings
+%
+
+% no optimize statements
+##warning((A,B)):- { ##optimize(Y) } 0, 
+  A = "WARNING: no optimize statement, ",
+  B = "computing non optimal stable models".
+
 #program """ + utils.WARNINGS + """.
 
-% avoid warnings
+% avoid clingo warnings
 ##preference(A,B,C, for(D),E) :- #false, ##preference(A,B,C, for(D),E).
 ##preference(A,B,C,name(D),E) :- #false, ##preference(A,B,C,name(D),E).
 ##optimize(X) :- #false, ##optimize(X).
@@ -251,10 +255,13 @@ class Parser:
         string += CHECK_SPEC.replace("##",u)
         self.__add_and_ground(SPEC,old,string,[(SPEC,new)])
 
-        # get specification errors
-        errors = False
+        # get specification warnings and errors
         pr = printer.Printer()
-        for atom in control.symbolic_atoms.by_signature(u+ERROR, 1):
+        for atom in control.symbolic_atoms.by_signature(u+WARN_PRED, 1):
+            string = self.__cat(atom.symbol.arguments[0]) + "\n"
+            pr.print_spec_warning(string)
+        errors = False
+        for atom in control.symbolic_atoms.by_signature(u+ERROR_PRED, 1):
             string = self.__cat(atom.symbol.arguments[0]) + "\n"
             pr.print_spec_error(string)
             errors = True

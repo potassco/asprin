@@ -33,10 +33,11 @@ class GeneralController:
         solver.old_holds    = None
         solver.old_nholds   = None
         if solver.options.max_models == 1:
-            self.store_nholds = False
+            solver.store_nholds = False
         self.solver         = solver
 
     def start(self):
+        self.solver.set_holds_domain()
         self.solver.add_encodings()
         self.solver.ground_preference_base()
         if self.solver.options.cmd_heuristic is not None:
@@ -161,6 +162,7 @@ class ApproxMethodController(MethodController):
 
     def start(self):
         self.solver.solve_approx()
+        # finishes asprin
 
 
 class HeurMethodController(MethodController):
@@ -216,15 +218,14 @@ class CheckerController:
 
 
 class NonOptimalController:
-    
+
     def __init__(self, solver):
         self.solver = solver
-    
+
     def start(self):
         if self.solver.no_optimize():
             # modifying options
             self.solver.options.non_optimal = True 
-            self.solver.print_no_optimize_warning()
         if self.solver.options.non_optimal:
             import solver as _solver
             self.solver.str_found      = _solver.STR_MODEL_FOUND

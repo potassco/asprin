@@ -30,6 +30,15 @@ import controller
 from ..utils import printer
 from ..utils import utils
 
+# TIMING
+import time
+times = {}
+def start_clock(clock):
+    times[clock] = time.clock()
+def stop_clock(clock):
+    print(time.clock()-times[clock])
+
+
 #
 # DEFINES
 #
@@ -202,9 +211,8 @@ class Solver:
 
     def set_holds_domain(self):
         for i in self.control.symbolic_atoms.by_signature(self.holds_str, 2):
-            symbol = i.symbol
-            if str(symbol.arguments[1]) == "0":
-                self.holds_domain.add(symbol.arguments[0])
+            if str(i.symbol.arguments[1]) == "0":
+                self.holds_domain.add(i.symbol.arguments[0])
         return self.holds_domain
 
     def get_nholds(self):
@@ -222,7 +230,7 @@ class Solver:
         except:
             return 1 
 
-    def __cat(self, tuple):
+    def cat(self, tuple):
         if tuple.arguments:
             return "".join([str(i) for i in tuple.arguments]).replace('"',"")
         else:
@@ -256,7 +264,7 @@ class Solver:
     def ground_cmd_heuristic(self):
         params = [clingo.parse_term(i) for i in self.options.cmd_heuristic]
         self.control.ground([(CMD_HEURISTIC, params)], self)
-    
+
     def ground_preference_base(self):
         self.control.ground([(PBASE, [])], self)
 
@@ -264,31 +272,36 @@ class Solver:
         control, prev_step = self.control, self.step-1
         control.ground([(DO_HOLDS, [prev_step])], self)
 
+    def get_preference_parts(self, x, y, better, volatile):
+        parts = [(PREFP, [x, y])]
+        if better:
+            parts.append((NOT_UNSAT_PRG, [x,y]))
+        else:
+            parts.append((    UNSAT_PRG, [x,y]))
+        if volatile:
+            parts.append((VOLATILE_EXT,  [x,y]))
+        else:
+            parts.append((VOLATILE_FACT, [x,y]))
+        return parts
+
     def ground_open_preference_program(self):
-        parts = [(PREFP,         [0,1]),
-                 (OPEN_HOLDS,      [1]),
-                 (NOT_UNSAT_PRG, [0,1]),
-                 (VOLATILE_EXT,  [0,1])]
+        parts = self.get_preference_parts(0, 1, True, True)
+        parts.append((OPEN_HOLDS, [1]))
         self.control.ground(parts, self)
 
     def ground_preference_program(self, volatile):
         control, prev_step = self.control, self.step-1
-        parts = [(PREFP,         [0,prev_step]),
-                 (NOT_UNSAT_PRG, [0,prev_step])]
-        if volatile:
-            parts.append((VOLATILE_EXT,  [0,prev_step]))
-        else:
-            parts.append((VOLATILE_FACT, [0,prev_step]))
+        parts = self.get_preference_parts(0, prev_step, True, volatile)
         control.ground(parts, self)
         if volatile:
-            control.assign_external(self.get_external(0,prev_step),True)
+            control.assign_external(self.get_external(0,prev_step), True)
         self.improving.append(prev_step)
 
     def check_errors(self):
         pr, control, u = self.printer, self.control, self.underscores
         error = False
-        for atom in control.symbolic_atoms.by_signature(u+"_"+utils.ERROR, 1):
-            string = "\n" + self.__cat(atom.symbol.arguments[0])
+        for atom in control.symbolic_atoms.by_signature(u+"_"+utils.ERROR_PRED, 1):
+            string = "\n" + self.cat(atom.symbol.arguments[0])
             pr.print_spec_error(string)
             error = True
         if error:
@@ -302,13 +315,10 @@ class Solver:
                 self.holds.append(a.arguments[0])
             else:
                 self.shown.append(a)
-        if not self.store_nholds:
-            return
-        for a in model.symbols(terms=True, complement=True):
-            if a.name == self.holds_at_zero_str:
-                self.nholds.append(a.arguments[0])
+        if self.store_nholds:
+            self.nholds = list(self.holds_domain.difference(self.holds))
 
-    def __set_solving_result(self, result):
+    def set_solving_result(self, result):
         self.solving_result = None
         if result.satisfiable:
             self.solving_result = SATISFIABLE
@@ -317,12 +327,12 @@ class Solver:
 
     def solve(self):
         result = self.control.solve(on_model=self.on_model)
-        self.__set_solving_result(result)
+        self.set_solving_result(result)
 
     def solve_unsat(self):
         self.solving_result = UNSATISFIABLE
 
-    def __set_control_models(self):
+    def set_control_models(self):
         solve_conf = self.control.configuration.solve
         if self.options.max_models == 0:
             solve_conf.models = 0
@@ -334,16 +344,16 @@ class Solver:
     #
 
     def on_model_approx(self, model):
-        # all models
+        # for all models
         self.models += 1
         self.print_str_answer()
-        # non optimal models
+        # for non optimal models
         if not model.optimality_proven:
             if self.options.quiet == 0:
                 self.on_model(model)
                 self.print_shown()
             return
-        # optimal models
+        # for optimal models
         self.on_model(model)
         if self.options.quiet in {0,1}:
             self.print_shown()
@@ -358,67 +368,66 @@ class Solver:
         _set = self.holds_domain.difference(self.approx_opt_models[int(str(i))])
         return list(_set)
 
-    def __do_solve_approx(self):
-        self.__set_control_models()
-        self.approx_opt_models = [[]]
-        self.do_solve_approx_first = True
-        return self.control.solve(on_model=self.on_model_approx)
-
     def solve_approx(self):
-        # prepare
+        # approximation programs
         self.control.ground([(APPROX, [])], self)
         for i in PROGRAMS_APPROX:
             self.control.add(i[0], i[1], i[2].replace(TOKEN, self.underscores))
+        # set the domain of holds
         self.set_holds_domain()
-        self.control.configuration.solve.opt_mode = 'optN'
+        # opt_mode
+        if self.options.max_models == 1:
+            self.control.configuration.solve.opt_mode = 'opt'
+        else:
+            self.control.configuration.solve.opt_mode = 'optN'
+        # project
         if self.options.project:
             self.control.ground([(PROJECT_APPROX,[])], self)
             self.control.configuration.solve.project = 'project'
-        # solve
-        prev_opt_models = 0
-        result = self.__do_solve_approx()
         # loop
-        while result.satisfiable:
-            # break if computed all
-            if self.options.max_models == self.opt_models:
+        while True:
+            # solve
+            prev_opt_models, self.approx_opt_models = self.opt_models, [[]]
+            self.set_control_models()
+            result = self.control.solve(on_model=self.on_model_approx)
+            # break if unsat or computed all
+            if not result.satisfiable or \
+                self.options.max_models == self.opt_models:
                 break
             # add programs
             parts = []
             for mm in range(1, len(self.approx_opt_models)):
                 m = mm + prev_opt_models
-                if self.options.total_order and m>1:
-                    break
                 parts += [(DELETE_MODEL_APPROX, [mm]),
-                          (DO_HOLDS_APPROX,   [m,mm]),
-                          (PREFP,              [m,0]),
-                          (UNSAT_PRG,          [m,0]),
-                          (VOLATILE_FACT,      [m,0])]
+                          (DO_HOLDS_APPROX,   [m,mm])]
+                if self.options.total_order and m>1:
+                    continue
+                parts += self.get_preference_parts(m, 0, False, False)
                 if self.options.delete_better:
-                    parts += [(PREFP,              [0,m]),
-                              (UNSAT_PRG,          [0,m]),
-                              (VOLATILE_FACT,      [0,m])]
+                    parts += self.get_preference_parts(0, m, False, False)
             self.control.ground(parts, self)
-            # solve
-            prev_opt_models = self.opt_models
-            result = self.__do_solve_approx()
         # end
-        self.more_models = False
+        self.more_models = True if result.satisfiable else False
         self.end() 
 
-    def __symbol2str(self,symbol):
+    #
+    # end of approximation
+    #
+
+    def symbol2str(self,symbol):
         if symbol.name == CSP:
             return str(symbol.arguments[0]) + "=" + str(symbol.arguments[1])
         return str(symbol)
 
     def print_shown(self):
-        self.printer.do_print(" ".join(map(self.__symbol2str, self.shown)))
+        self.printer.do_print(" ".join(map(self.symbol2str, self.shown)))
 
     def print_str_answer(self):
         self.printer.do_print(STR_ANSWER.format(self.models))
 
     def print_answer(self):
         self.printer.do_print(STR_ANSWER.format(self.models))
-        self.printer.do_print(" ".join(map(self.__symbol2str, self.shown)))
+        self.printer.do_print(" ".join(map(self.symbol2str, self.shown)))
 
     def print_optimum_string(self):
         self.printer.do_print(self.str_found)
@@ -470,7 +479,7 @@ class Solver:
         # models
         control    = self.control
         old_models = self.control.configuration.solve.models
-        self.__set_control_models()
+        self.set_control_models()
         # assumptions
         h = self.holds_str
         ass  = [ (clingo.Function(h, [x,0]), True)  for x in self.holds ]
@@ -492,13 +501,10 @@ class Solver:
     def handle_optimal_model(self, step, delete_worse, delete_better):
         parts = [(DELETE_MODEL, [])]
         if delete_worse:
-            parts += [(PREFP,         [step,0]),
-                      (UNSAT_PRG,     [step,0]),
-                      (VOLATILE_FACT, [step,0])]
+            parts += self.get_preference_parts(step, 0, False, False)
         if delete_better:
-            parts += [(PREFP,         [MODEL_DELETE_BETTER,step]),
-                      (UNSAT_PRG,     [MODEL_DELETE_BETTER,step]),
-                      (VOLATILE_FACT, [MODEL_DELETE_BETTER,step])]
+            parts += self.get_preference_parts(MODEL_DELETE_BETTER, step,
+                                               False, False)
         self.control.ground(parts, self)
 
     def end(self):

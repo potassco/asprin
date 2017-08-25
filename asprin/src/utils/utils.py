@@ -51,7 +51,8 @@ HOLDSP     = "holds'"
 PREFERENCE = "preference"
 OPTIMIZE   = "optimize"
 UNSAT      = "unsat"
-ERROR      = "error"
+ERROR_PRED = "error"
+WARN_PRED  = "warning"
 SHOW       = "show"
 
 # translation tokens

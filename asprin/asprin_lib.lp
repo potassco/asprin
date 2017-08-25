@@ -822,7 +822,9 @@ map(P,P1,L1,L,O) :- preference(P,lexico),
 map(P,P2,L2,L3,O3+M1) :- preference(P,lexico),
                          order(P,P1,L1,O1), order(P,P2,L2,O1+1),
                          named_order(P,P2,L3,O3),
-                         M1 = #max {OO1: map(P,P1,L1,LL1,OO1)}.
+                         map(P,P1,L1,LL1,M1),
+                         not map(P,P1,L1,_,M1+1).
+                         %M1 = #max {OO1: map(P,P1,L1,LL1,OO1)}.
 
 % minimize
 minimize(P,W,LL,T,X) :- preference(P,lexico),
