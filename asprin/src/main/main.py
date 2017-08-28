@@ -62,6 +62,8 @@ HELP_DELETE_BETTER = """R|: After computing an optimal model,
 HELP_TOTAL_ORDER = """R|: Do not add programs for optimal models after the \
 first one
   Use only if the preference specification represents a total order"""
+HELP_GROUND_ONCE = """R|: Ground preference program only once \
+(for improving a model)"""
 
 
 #
@@ -222,6 +224,9 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
                              action='store_true')
         solving.add_argument('--total-order', dest='total_order', 
                              help=HELP_TOTAL_ORDER,
+                             action='store_true')
+        solving.add_argument('--ground-once', dest='ground_once', 
+                             help=HELP_GROUND_ONCE,
                              action='store_true')
 
         options, unknown = cmd_parser.parse_known_args(args=args)

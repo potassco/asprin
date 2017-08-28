@@ -182,8 +182,9 @@ class Solver:
         self.store_nholds = True
         self.holds_domain = set()
         self.approx_opt_models = []
+        self.assumptions = []
+        self.last_model = None
         # for GeneralController
-        self.normal_solve = True
         self.normal_sat   = True
         # strings
         self.str_found      = STR_OPTIMUM_FOUND
@@ -217,6 +218,9 @@ class Solver:
 
     def get_nholds(self):
         return self.nholds
+
+    def get_holds_function(self, term, y):
+        return clingo.Function(self.holds_str, [term, clingo.Number(y)]) 
 
     def get(self, atuple, index):
         try:
@@ -268,9 +272,8 @@ class Solver:
     def ground_preference_base(self):
         self.control.ground([(PBASE, [])], self)
 
-    def ground_holds(self):
-        control, prev_step = self.control, self.step-1
-        control.ground([(DO_HOLDS, [prev_step])], self)
+    def ground_holds(self, step):
+        self.control.ground([(DO_HOLDS, [step])], self)
 
     def get_preference_parts(self, x, y, better, volatile):
         parts = [(PREFP, [x, y])]
@@ -283,11 +286,6 @@ class Solver:
         else:
             parts.append((VOLATILE_FACT, [x,y]))
         return parts
-
-    def ground_open_preference_program(self):
-        parts = self.get_preference_parts(0, 1, True, True)
-        parts.append((OPEN_HOLDS, [1]))
-        self.control.ground(parts, self)
 
     def ground_preference_program(self, volatile):
         control, prev_step = self.control, self.step-1
@@ -326,7 +324,8 @@ class Solver:
             self.solving_result = UNSATISFIABLE
 
     def solve(self):
-        result = self.control.solve(on_model=self.on_model)
+        result = self.control.solve(assumptions=self.assumptions,
+                                    on_model=self.on_model)
         self.set_solving_result(result)
 
     def solve_unsat(self):
@@ -338,6 +337,127 @@ class Solver:
             solve_conf.models = 0
         else:
             solve_conf.models = self.options.max_models - self.opt_models
+
+    def symbol2str(self,symbol):
+        if symbol.name == CSP:
+            return str(symbol.arguments[0]) + "=" + str(symbol.arguments[1])
+        return str(symbol)
+
+    def print_shown(self):
+        self.printer.do_print(" ".join(map(self.symbol2str, self.shown)))
+
+    def print_str_answer(self):
+        self.printer.do_print(STR_ANSWER.format(self.models))
+
+    def print_answer(self):
+        self.printer.do_print(STR_ANSWER.format(self.models))
+        self.printer.do_print(" ".join(map(self.symbol2str, self.shown)))
+
+    def print_optimum_string(self):
+        self.printer.do_print(self.str_found)
+
+    def print_unsat(self):
+        self.printer.do_print(STR_UNSATISFIABLE)
+
+    def check_last_model(self):
+        if self.old_holds  == self.holds and (
+           self.old_nholds == self.nholds):
+                self.printer.do_print()
+                raise Exception(SAME_MODEL)
+        self.old_holds  = self.holds
+        self.old_nholds = self.nholds
+
+    def relax_previous_model(self):
+        self.control.release_external(self.get_external(0,self.step-1))
+
+    def same_shown(self):
+        if set(self.old_shown) == set(self.shown):
+            self.enumerate_flag = True
+            return True
+        return False
+
+    def same_shown_underscores(self):
+        u = self.underscores
+        s1 = set([i for i in self.old_shown if not str(i).startswith(u)])
+        s2 = set([i for i in     self.shown if not str(i).startswith(u)])
+        if s1 == s2:
+            self.enumerate_flag = True
+            return True
+        return False
+
+    def on_model_enumerate(self,model):
+        true = model.symbols(shown=True)
+        self.shown = [ i for i in true if i.name != self.holds_at_zero_str ]
+        # self.same_shown_function is modified by EnumerationController 
+        # at controller.py
+        if self.enumerate_flag or not self.same_shown_function():
+            self.models     += 1
+            self.opt_models += 1
+            if self.options.quiet in {0,1}:
+                self.print_answer()
+            else:
+                self.print_str_answer()
+            self.printer.do_print(self.str_found_star)
+
+    def enumerate(self):
+        # models
+        control    = self.control
+        old_models = self.control.configuration.solve.models
+        self.set_control_models()
+        # assumptions
+        ass  = [ (self.get_holds_function(x,0), True)  for x in self.holds ]
+        ass += [ (self.get_holds_function(x,0), False) for x in self.nholds]
+        # solve
+        self.old_shown, self.enumerate_flag = self.shown, False
+        control.solve(assumptions = ass + self.assumptions,
+                         on_model = self.on_model_enumerate)
+        self.shown = self.old_shown
+        control.configuration.solve.models = old_models
+
+    def relax_previous_models(self):
+        for i in self.improving:
+            self.control.release_external(self.get_external(0, i))
+        self.improving = []
+
+    def ground_holds_delete_better(self):
+        self.control.ground([(DO_HOLDS_DELETE_BETTER, [])], self)
+
+    def handle_optimal_model(self, step, delete_worse, delete_better):
+        parts = [(DELETE_MODEL, [])]
+        if delete_worse:
+            parts += self.get_preference_parts(step, 0, False, False)
+        if delete_better:
+            parts += self.get_preference_parts(MODEL_DELETE_BETTER, step,
+                                               False, False)
+        self.control.ground(parts, self)
+
+    def end(self):
+        self.printer.print_stats(self.control,             self.models,
+                                 self.more_models,         self.opt_models,
+                                 self.options.non_optimal, self.options.stats)
+        raise EndException
+
+    #
+    # ground once method
+    #
+
+    def ground_open_preference_program(self):
+        parts = self.get_preference_parts(0, -1, True, True)
+        parts.append((OPEN_HOLDS, [-1]))
+        self.control.ground(parts, self)
+
+    def turn_off_preference_program(self):
+        self.control.assign_external(self.get_external(0,-1), False)
+        self.assumptions = (
+            [(self.get_holds_function(i,-1),False) for i in  self.holds_domain]
+        )
+
+    def turn_on_preference_program(self):
+        self.control.assign_external(self.get_external(0,-1), True)
+        self.assumptions = (
+            [(self.get_holds_function(i,-1),True)  for i in  self.holds] +
+            [(self.get_holds_function(i,-1),False) for i in self.nholds]
+        )
 
     #
     # approximation
@@ -409,110 +529,6 @@ class Solver:
         # end
         self.more_models = True if result.satisfiable else False
         self.end() 
-
-    #
-    # end of approximation
-    #
-
-    def symbol2str(self,symbol):
-        if symbol.name == CSP:
-            return str(symbol.arguments[0]) + "=" + str(symbol.arguments[1])
-        return str(symbol)
-
-    def print_shown(self):
-        self.printer.do_print(" ".join(map(self.symbol2str, self.shown)))
-
-    def print_str_answer(self):
-        self.printer.do_print(STR_ANSWER.format(self.models))
-
-    def print_answer(self):
-        self.printer.do_print(STR_ANSWER.format(self.models))
-        self.printer.do_print(" ".join(map(self.symbol2str, self.shown)))
-
-    def print_optimum_string(self):
-        self.printer.do_print(self.str_found)
-
-    def print_unsat(self):
-        self.printer.do_print(STR_UNSATISFIABLE)
-
-    def check_last_model(self):
-        if self.old_holds  == self.holds and (
-           self.old_nholds == self.nholds):
-                self.printer.do_print()
-                raise Exception(SAME_MODEL)
-        self.old_holds  = self.holds
-        self.old_nholds = self.nholds
-
-    def relax_previous_model(self):
-        self.control.release_external(self.get_external(0,self.step-1))
-
-    def same_shown(self):
-        if set(self.old_shown) == set(self.shown):
-            self.enumerate_flag = True
-            return True
-        return False
-
-    def same_shown_underscores(self):
-        u = self.underscores
-        s1 = set([i for i in self.old_shown if not str(i).startswith(u)])
-        s2 = set([i for i in     self.shown if not str(i).startswith(u)])
-        if s1 == s2:
-            self.enumerate_flag = True
-            return True
-        return False
-
-    def on_model_enumerate(self,model):
-        true = model.symbols(shown=True)
-        self.shown = [ i for i in true if i.name != self.holds_at_zero_str ]
-        # self.same_shown_function is modified by EnumerationController 
-        # at controller.py
-        if self.enumerate_flag or not self.same_shown_function():
-            self.models     += 1
-            self.opt_models += 1
-            if self.options.quiet in {0,1}:
-                self.print_answer()
-            else:
-                self.print_str_answer()
-            self.printer.do_print(self.str_found_star)
-
-    def enumerate(self):
-        # models
-        control    = self.control
-        old_models = self.control.configuration.solve.models
-        self.set_control_models()
-        # assumptions
-        h = self.holds_str
-        ass  = [ (clingo.Function(h, [x,0]), True)  for x in self.holds ]
-        ass += [ (clingo.Function(h, [x,0]), False) for x in self.nholds]
-        # solve
-        self.old_shown, self.enumerate_flag = self.shown, False
-        control.solve(assumptions=ass, on_model=self.on_model_enumerate)
-        self.shown = self.old_shown
-        control.configuration.solve.models = old_models
-
-    def relax_previous_models(self):
-        for i in self.improving:
-            self.control.release_external(self.get_external(0, i))
-        self.improving = []
-
-    def ground_holds_delete_better(self):
-        self.control.ground([(DO_HOLDS_DELETE_BETTER, [])], self)
-
-    def handle_optimal_model(self, step, delete_worse, delete_better):
-        parts = [(DELETE_MODEL, [])]
-        if delete_worse:
-            parts += self.get_preference_parts(step, 0, False, False)
-        if delete_better:
-            parts += self.get_preference_parts(MODEL_DELETE_BETTER, step,
-                                               False, False)
-        self.control.ground(parts, self)
-
-    def end(self):
-        self.printer.print_stats(self.control,             self.models,
-                                 self.more_models,         self.opt_models,
-                                 self.options.non_optimal, self.options.stats)
-        raise EndException
-
     #
     # OPTIONS
     #
@@ -539,8 +555,10 @@ class Solver:
         elif self.options.solving_mode == "heuristic":
             method = controller.HeurMethodController(self)
         else:
-            method = controller.GroundManyMethodController(self)
-
+            if self.options.ground_once:
+                method = controller.GroundOnceMethodController(self)
+            else:
+                method = controller.GroundManyMethodController(self)
         # loop
         try:
             # START
@@ -552,11 +570,9 @@ class Solver:
             self.printer.do_print("Solving...")
             while True:
                 # START_LOOP
-                general.start_loop()
                 method.start_loop()
                 # SOLVE
                 method.solve()
-                general.solve()
                 if self.solving_result == SATISFIABLE:
                     # SAT
                     general.sat()

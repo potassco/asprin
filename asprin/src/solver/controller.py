@@ -45,15 +45,6 @@ class GeneralController:
             for _solver in self.solver.control.configuration.solver:
                 _solver.heuristic="Domain"
 
-    def start_loop(self):
-        if not self.solver.last_unsat:
-            self.solver.ground_holds()
-
-    def solve(self):
-        if not self.solver.normal_solve:
-            return
-        self.solver.solve()
-
     def sat(self):
         if not self.solver.normal_sat:
             return
@@ -86,7 +77,7 @@ class GeneralController:
         self.solver.start_step = self.solver.step + 1
 
     def end_loop(self):
-        self.solver.step       = self.solver.step + 1
+        self.solver.step = self.solver.step + 1
         if self.solver.options.steps == (self.solver.step - 1):
             self.solver.end()
 
@@ -108,9 +99,10 @@ class GeneralControllerHandleOptimal:
         if self.total_order and not self.first:
             self.delete_worse  = False
             self.delete_better = False
-        self.solver.handle_optimal_model(self.solver.step-1,
-                                          self.delete_worse, self.delete_better)
         self.first = False
+        self.solver.handle_optimal_model(self.solver.last_model,
+                                         self.delete_worse,
+                                         self.delete_better)
 
 
 class MethodController:
@@ -138,8 +130,14 @@ class GroundManyMethodController(MethodController):
         self.volatile = True if (self.solver.options.max_models != 1) else False
 
     def start_loop(self):
+        if not self.solver.last_unsat:
+            self.solver.last_model = self.solver.step - 1
+            self.solver.ground_holds(self.solver.last_model)
         if self.solver.step > self.solver.start_step:
             self.solver.ground_preference_program(self.volatile)
+
+    def solve(self):
+        self.solver.solve()
 
     def unsat(self):
         self.solver.relax_previous_models()
@@ -149,10 +147,23 @@ class GroundOnceMethodController(MethodController):
 
     def __init__(self, solver):
         MethodController.__init__(self, solver)
+        solver.store_nholds = True
 
     def start(self):
         self.solver.ground_open_preference_program()
-    ### TODO: implement this!
+        self.solver.turn_off_preference_program()
+
+    def start_loop(self):
+        if self.solver.step > self.solver.start_step:
+            self.solver.turn_on_preference_program()
+
+    def solve(self):
+        self.solver.solve()
+
+    def unsat(self):
+        self.solver.last_model = self.solver.step - 1
+        self.solver.ground_holds(self.solver.last_model)
+        self.solver.turn_off_preference_program()
 
 
 class ApproxMethodController(MethodController):
@@ -169,10 +180,14 @@ class HeurMethodController(MethodController):
 
     def __init__(self, solver):
         MethodController.__init__(self, solver)
-        self.solver.normal_solve = False
 
     def start(self):
         self.solver.ground_heuristic()
+
+    def start_loop(self):
+        if not self.solver.last_unsat:
+            self.solver.last_model = self.solver.step - 1
+            self.solver.ground_holds(self.solver.last_model)
 
     def solve(self):
         if self.solver.last_unsat:
@@ -225,7 +240,7 @@ class NonOptimalController:
     def start(self):
         if self.solver.no_optimize():
             # modifying options
-            self.solver.options.non_optimal = True 
+            self.solver.options.non_optimal = True
         if self.solver.options.non_optimal:
             import solver as _solver
             self.solver.str_found      = _solver.STR_MODEL_FOUND
