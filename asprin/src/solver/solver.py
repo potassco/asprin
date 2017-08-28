@@ -292,8 +292,10 @@ class Solver:
         parts = self.get_preference_parts(0, prev_step, True, volatile)
         control.ground(parts, self)
         if volatile:
+            if self.options.release_last:
+                self.relax_previous_models()
             control.assign_external(self.get_external(0,prev_step), True)
-        self.improving.append(prev_step)
+            self.improving.append(prev_step)
 
     def check_errors(self):
         pr, control, u = self.printer, self.control, self.underscores
@@ -366,9 +368,6 @@ class Solver:
                 raise Exception(SAME_MODEL)
         self.old_holds  = self.holds
         self.old_nholds = self.nholds
-
-    def relax_previous_model(self):
-        self.control.release_external(self.get_external(0,self.step-1))
 
     def same_shown(self):
         if set(self.old_shown) == set(self.shown):

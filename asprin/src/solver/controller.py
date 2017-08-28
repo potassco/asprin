@@ -127,7 +127,10 @@ class GroundManyMethodController(MethodController):
 
     def __init__(self, solver):
         MethodController.__init__(self, solver)
-        self.volatile = True if (self.solver.options.max_models != 1) else False
+        self.volatile = False
+        if (self.solver.options.max_models != 1 or
+            self.solver.options.release_last):
+            self.volatile = True 
 
     def start_loop(self):
         if not self.solver.last_unsat:

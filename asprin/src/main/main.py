@@ -38,6 +38,7 @@ from ..program_parser import program_parser
 from ..solver         import         solver
 from ..utils          import        printer
 from ..utils          import          utils
+from .                import    clingo_help
 import errno
 import signal
 
@@ -64,7 +65,10 @@ first one
   Use only if the preference specification represents a total order"""
 HELP_GROUND_ONCE = """R|: Ground preference program only once \
 (for improving a model)"""
-
+HELP_CLINGO_HELP = ": Print {1=basic|2=more|3=full} clingo help and exit"
+HELP_RELEASE_LAST = """R|: When improving a model, release preference program \
+for last model 
+  as soon as possible"""
 
 #
 # VERSION
@@ -167,6 +171,10 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
         basic = cmd_parser.add_argument_group('Basic Options')
         basic.add_argument('--help', '-h', action='help',
                            help=': Print help and exit')
+        basic.add_argument('--clingo-help',
+                           help=HELP_CLINGO_HELP,
+                           type=int, dest='clingo_help', metavar='<n>', 
+                           default=0, choices=[0,1,2,3])
         basic.add_argument('--version', '-v', dest='version',
                            action='store_true',
                            help=': Print version information and exit')
@@ -188,9 +196,11 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
                            help=': Do not include asprin_lib.lp',
                            action='store_false')
         basic.add_argument('-c', '--const', dest='constants', 
-                           action="append", help=argparse.SUPPRESS,default=[])
+                           action="append", help=argparse.SUPPRESS, default=[])
         basic.add_argument(DEBUG, dest='debug', action='store_true',
                            help=argparse.SUPPRESS)
+        basic.add_argument('--to-clingo', dest='to_clingo', 
+                           action="append", help=argparse.SUPPRESS, default=[])
 
         # Solving Options
         solving = cmd_parser.add_argument_group('Solving Options')
@@ -198,9 +208,9 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
                              help=": Compute at most <n> models (0 for all)",
                              type=int, dest='max_models', metavar='<n>',
                              default=1)
-        solving.add_argument('--steps', '-s', 
-                             help=": Execute at most <s> steps", type=int,
-                             dest='steps', metavar='<s>', default=0)
+        solving.add_argument('--non-optimal', dest='non_optimal', 
+                             help=": Compute also non optimal models", 
+                             action='store_true')
         solving.add_argument('--project', dest='project', help=HELP_PROJECT,
                              action='store_true')
         solving.add_argument('--solving-mode', dest='solving_mode', 
@@ -213,12 +223,12 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
         solving.add_argument('--dom-heur', dest='cmd_heuristic',
                               nargs=2, metavar=('<v>','<m>'),
                               help=HELP_HEURISTIC)
-        solving.add_argument('--non-optimal', dest='non_optimal', 
-                             help=": Compute also non optimal models", 
-                             action='store_true')
         
         # Additional Solving Options  
         solving = cmd_parser.add_argument_group('Additional Solving Options')
+        solving.add_argument('--steps', '-s', 
+                             help=": Execute at most <s> steps", type=int,
+                             dest='steps', metavar='<s>', default=0)
         solving.add_argument('--delete-better', dest='delete_better', 
                              help=HELP_DELETE_BETTER,
                              action='store_true')
@@ -227,6 +237,9 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
                              action='store_true')
         solving.add_argument('--ground-once', dest='ground_once', 
                              help=HELP_GROUND_ONCE,
+                             action='store_true')
+        solving.add_argument('--release-last', dest='release_last', 
+                             help=HELP_RELEASE_LAST,
                              action='store_true')
 
         options, unknown = cmd_parser.parse_known_args(args=args)
@@ -308,6 +321,17 @@ class Asprin:
         aap = AsprinArgumentParser()
         self.options, clingo_options, u, prologue, warnings = aap.run(args)
 
+        # clingo help
+        if self.options["clingo_help"] > 0:
+            if self.options["clingo_help"] == 1:
+                out = clingo_help.HELP_1
+            if self.options["clingo_help"] == 2:
+                out = clingo_help.HELP_2
+            if self.options["clingo_help"] == 3:
+                out = clingo_help.HELP_3
+            printer.Printer().do_print(out)
+            sys.exit(0)
+
         # create Control object
         self.control = self.__get_control(clingo_options)
 
@@ -316,6 +340,10 @@ class Asprin:
         for i in warnings:
             printer.Printer().warning_included_file(i)
 
+        # load --to-clingo files
+        for i in self.options["to_clingo"]:
+            self.control.load(i)
+
         # specification parsing
         sp = spec_parser.Parser(u)
         programs, utils.underscores, base_constants, self.options['show'] = \
@@ -323,7 +351,7 @@ class Asprin:
         self.__update_constants(self.options, base_constants)
 
         # preference programs parsing
-        program_parser.Parser(self.control, programs, self.options).parse()
+        program_parser.Parser(self.control, programs, self.options).parse() 
 
         # solving
         self.solver = solver.Solver(self.control)
