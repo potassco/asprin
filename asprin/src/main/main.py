@@ -69,6 +69,11 @@ HELP_CLINGO_HELP = ": Print {1=basic|2=more|3=full} clingo help and exit"
 HELP_RELEASE_LAST = """R|: When improving a model, release preference program \
 for last model 
   as soon as possible"""
+HELP_NO_OPT_IMPROVING = """R|: When improving a model, do not use optimal models"""
+HELP_VOLATILE_IMPROVING = """R|: Use volatile preference programs \
+for improving a model"""
+HELP_VOLATILE_OPTIMAL = """R|: Use volatile preference programs \
+for optimal models"""
 
 #
 # VERSION
@@ -240,6 +245,15 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
                              action='store_true')
         solving.add_argument('--release-last', dest='release_last', 
                              help=HELP_RELEASE_LAST,
+                             action='store_true')
+        solving.add_argument('--no-opt-improving', dest='no_opt_improving', 
+                             help=HELP_NO_OPT_IMPROVING,
+                             action='store_true')
+        solving.add_argument('--volatile-improving', dest='volatile_improving', 
+                             help=HELP_VOLATILE_IMPROVING,
+                             action='store_true')
+        solving.add_argument('--volatile-optimal', dest='volatile_optimal', 
+                             help=HELP_VOLATILE_OPTIMAL,
                              action='store_true')
 
         options, unknown = cmd_parser.parse_known_args(args=args)

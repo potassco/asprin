@@ -179,6 +179,7 @@ class Solver:
         self.solving_result    = None
         self.externals  = dict()
         self.improving  = []
+        self.not_improving  = []
         self.store_nholds = True
         self.holds_domain = set()
         self.approx_opt_models = []
@@ -421,14 +422,31 @@ class Solver:
     def ground_holds_delete_better(self):
         self.control.ground([(DO_HOLDS_DELETE_BETTER, [])], self)
 
-    def handle_optimal_model(self, step, delete_worse, delete_better):
+    def relax_optimal_models(self):
+        for x,y in self.not_improving:
+            self.control.assign_external(self.get_external(x,y),False)
+
+    def volatile_optimal_model(self, step, delete_worse, delete_better):
+        if delete_worse:
+            self.not_improving.append((step,0))
+        if delete_better:
+            self.not_improving.append((MODEL_DELETE_BETTER,step))
+        for x,y in self.not_improving:        #activate
+            self.control.assign_external(self.get_external(x,y),True)
+        if not self.options.no_opt_improving: #reset
+            self.not_improving = []
+
+    def handle_optimal_model(self, step, delete_worse, delete_better, volatile):
         parts = [(DELETE_MODEL, [])]
         if delete_worse:
-            parts += self.get_preference_parts(step, 0, False, False)
+            parts += self.get_preference_parts(step, 0, False, volatile)
         if delete_better:
             parts += self.get_preference_parts(MODEL_DELETE_BETTER, step,
-                                               False, False)
+                                               False, volatile)
         self.control.ground(parts, self)
+        if volatile:
+            self.volatile_optimal_model(step, delete_worse, delete_better)
+
 
     def end(self):
         self.printer.print_stats(self.control,             self.models,
@@ -575,6 +593,7 @@ class Solver:
                 if self.solving_result == SATISFIABLE:
                     # SAT
                     general.sat()
+                    optimal.sat()
                 elif self.solving_result == UNSATISFIABLE:
                     # UNSAT
                     general.unsat()

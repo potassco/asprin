@@ -90,10 +90,22 @@ class GeneralControllerHandleOptimal:
         self.delete_worse  = True
         self.delete_better = self.solver.options.delete_better
         self.total_order   = self.solver.options.total_order
+        self.no_opt_improving, self.volatile = False, False
+        if solver.options.no_opt_improving:
+            if solver.options.max_models != 1:
+                self.no_opt_improving = True
+            self.volatile = True
+        if solver.options.volatile_optimal:
+            self.volatile = True
 
     def start(self):
         if self.delete_better:
             self.solver.ground_holds_delete_better()
+
+    def sat(self):
+        if self.no_opt_improving and \
+           self.solver.step == self.solver.start_step:
+            self.solver.relax_optimal_models()
 
     def unsat(self):
         if self.total_order and not self.first:
@@ -102,7 +114,8 @@ class GeneralControllerHandleOptimal:
         self.first = False
         self.solver.handle_optimal_model(self.solver.last_model,
                                          self.delete_worse,
-                                         self.delete_better)
+                                         self.delete_better,
+                                         self.volatile)
 
 
 class MethodController:
@@ -129,7 +142,8 @@ class GroundManyMethodController(MethodController):
         MethodController.__init__(self, solver)
         self.volatile = False
         if (self.solver.options.max_models != 1 or
-            self.solver.options.release_last):
+            self.solver.options.release_last or 
+            self.solver.options.volatile_improving):
             self.volatile = True 
 
     def start_loop(self):
