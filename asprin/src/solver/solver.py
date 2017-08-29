@@ -199,8 +199,8 @@ class Solver:
     def get_external(self, m1, m2):
         external = self.externals.get((m1,m2))
         if external is None:
-            f1 = clingo.Function(self.model_str, [int(m1)])
-            f2 = clingo.Function(self.model_str, [int(m2)])
+            f1 = clingo.Function(self.model_str, [m1])
+            f2 = clingo.Function(self.model_str, [m2])
             external = clingo.Function(self.volatile_str, [f1, f2])
             self.externals[(m1,m2)] = external
         return external

@@ -37,6 +37,9 @@ class GeneralController:
         self.solver         = solver
 
     def start(self):
+        if self.solver.options.trans_ext is not None:
+            self.solver.control.configuration.asp.trans_ext = \
+                self.solver.options.trans_ext
         self.solver.set_holds_domain()
         self.solver.add_encodings()
         self.solver.ground_preference_base()

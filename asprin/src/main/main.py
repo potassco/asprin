@@ -74,6 +74,9 @@ HELP_VOLATILE_IMPROVING = """R|: Use volatile preference programs \
 for improving a model"""
 HELP_VOLATILE_OPTIMAL = """R|: Use volatile preference programs \
 for optimal models"""
+HELP_TRANS_EXT = """R|: Configure handling of extended rules \
+for non base programs
+  (<m> should be as in clingo --trans-ext option)"""
 
 #
 # VERSION
@@ -255,6 +258,8 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
         solving.add_argument('--volatile-optimal', dest='volatile_optimal', 
                              help=HELP_VOLATILE_OPTIMAL,
                              action='store_true')
+        solving.add_argument('--pref-trans-ext', dest='trans_ext',
+                             help=HELP_TRANS_EXT, metavar="<m>", default=None)
 
         options, unknown = cmd_parser.parse_known_args(args=args)
         options = vars(options)
