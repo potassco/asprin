@@ -42,6 +42,13 @@ GENERATE  = utils.GENERATE
 PREFP     = utils.PREFP
 APPROX    = utils.APPROX
 HEURISTIC = utils.HEURISTIC
+UNSATP    = utils.UNSATP
+
+# underscores
+U_PREFP     = utils.U_PREFP
+U_APPROX    = utils.U_APPROX
+U_HEURISTIC = utils.U_HEURISTIC
+U_UNSATP    = utils.U_UNSATP
 
 # predicate names
 DOM        = utils.DOM
@@ -133,6 +140,8 @@ ERROR_NO_HEURISTIC_PROGRAM  = "preference:{}: " + ERROR_SPEC + """\
 preference type '{}' has no heuristic program\n"""
 ERROR_NO_APPROX_PROGRAM  = "preference:{}: " + ERROR_SPEC + """\
 preference type '{}' has no approximation program\n"""
+ERROR_NO_UNSATP_PROGRAM  = "preference:{}: " + ERROR_SPEC + """\
+preference type '{}' has no """ + UNSATP + """ program\n"""
 
 
 class BuilderProxy:
@@ -228,6 +237,8 @@ class Parser:
             programs.append((HEURISTIC, ERROR_NO_HEURISTIC_PROGRAM))
         elif self.__options['solving_mode'] == 'approx':
             programs.append((APPROX, ERROR_NO_APPROX_PROGRAM))
+        if self.__options['preference_unsat']:
+            programs.append((UNSATP, ERROR_NO_UNSATP_PROGRAM))
         # arguments of atom
         arg1 = str(atom.symbol.arguments[0])
         arg2 = str(atom.symbol.arguments[1])
@@ -238,9 +249,6 @@ class Parser:
                 printer.Printer().print_spec_error(error.format(arg1, arg2))
                 ok = False
         return ok
-
-
-        return self.__do_program_exists(atom, PREFERENCE, ERROR_NO_PREF_PROGRAM)
     
     def do_spec(self):
 
@@ -312,14 +320,18 @@ class Parser:
         self.__add_and_ground(SHOW,[],show,[(SHOW,[])])
 
     def add_programs(self, types, builder):
-        # visitors 
-        visitors = [(PREFP, preference.PreferenceProgramVisitor(builder))]
-        if self.__options['solving_mode'] == 'heuristic':
-            v = (HEURISTIC, basic.HeuristicProgramVisitor(builder, HEURISTIC,3))
-            visitors.append(v)
-        elif self.__options['solving_mode'] == 'approx':
-            v = (APPROX, basic.BasicProgramVisitor(builder, APPROX, 2))
-            visitors.append(v)
+        # visitors
+        v = preference.PreferenceProgramVisitor(builder, PREFP, U_PREFP)
+        visitors = [(PREFP, v)]
+        if self.__options['solving_mode'] == 'approx':
+            v = basic.BasicProgramVisitor(builder, APPROX, U_APPROX)
+            visitors.append((APPROX,v))
+        elif self.__options['solving_mode'] == 'heuristic':
+            v = basic.HeuristicProgramVisitor(builder, HEURISTIC, U_HEURISTIC)
+            visitors.append((HEURISTIC,v))
+        if self.__options['preference_unsat']:
+            v = preference.PreferenceProgramVisitor(builder, UNSATP, U_UNSATP)
+            visitors.append((UNSATP,v))
         # add programs
         for name, visitor in visitors:
             for type_, program in self.__programs[name].items():

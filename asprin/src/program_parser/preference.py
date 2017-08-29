@@ -31,10 +31,6 @@ from ..program_parser import visitor
 # DEFINES
 #
 
-# programs
-PREFP = utils.PREFP
-PBASE = utils.PBASE
-
 # predicates
 HOLDS      = utils.HOLDS
 HOLDSP     = utils.HOLDSP
@@ -72,14 +68,15 @@ NONDET = 3 # add nondeterministic part
 
 class PreferenceTermTransformer(visitor.TermTransformer):
 
-    def __init__(self, type):
+    def __init__(self, type, underscores):
         visitor.TermTransformer.__init__(self)
         self.__type = type
+        self.__underscores = underscores
 
     def set_predicates_info(self, open):
         self.predicates_info = dict()
         PredicateInfo = visitor.PredicateInfo
-        info = PredicateInfo(None, 1, M1_M2, 2)
+        info = PredicateInfo(None, self.__underscores, M1_M2, 2)
         for i in open:
             self.predicates_info[i] = info
         # HOLDS and HOLDS' appear always in open, and should be always overriden
@@ -92,7 +89,7 @@ class PreferenceTermTransformer(visitor.TermTransformer):
                 visitor.Helper().raise_exception(string)
             else:
                 self.predicates_info[i] = info
-        self.default = PredicateInfo(None, 1, None, 0)
+        self.default = PredicateInfo(None, self.__underscores, None, 0)
 
 
 class Graph:
@@ -169,15 +166,16 @@ class Condition:
 
 class PreferenceProgramVisitor(visitor.Visitor):
 
-    def __init__(self, builder):
+    def __init__(self, builder, type, underscores):
         visitor.Visitor.__init__(self)
         self.__builder    = builder
-        self.__type       = PREFP
+        self.__type       = type
         self.__statements = []
         self.__conditions = []
         self.__graph      = Graph()
         self.__helper     = visitor.Helper()
-        self.__term_transformer = PreferenceTermTransformer(self.__type)
+        self.__term_transformer = PreferenceTermTransformer(self.__type,
+                                                            underscores)
         # tracing position
         self.in_Head, self.in_Body, self.in_Condition = False, False, False
         self.in_Literal_ConditionalLiteral = False
@@ -185,7 +183,7 @@ class PreferenceProgramVisitor(visitor.Visitor):
     #
     # AUXILIARY FUNCTIONS
     #
-    
+
     def __visit_body(self, body):
         self.in_Body = True
         self.visit(body)
@@ -214,8 +212,8 @@ class PreferenceProgramVisitor(visitor.Visitor):
 
     def __get_program(self, deterministic_type, loc):
         if deterministic_type == DET:
-            return clingo.ast.Program(loc, PBASE,[])
-        return clingo.ast.Program(loc, PREFP, self.__get_params(loc))
+            return clingo.ast.Program(loc, utils.mapbase[self.__type], [])
+        return clingo.ast.Program(loc, self.__type, self.__get_params(loc))
 
     #
     # finish() after visiting all

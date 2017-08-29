@@ -77,6 +77,8 @@ for optimal models"""
 HELP_TRANS_EXT = """R|: Configure handling of extended rules \
 for non base programs
   (<m> should be as in clingo --trans-ext option)"""
+HELP_PREFERENCE_UNSAT = """R|: Use """ + utils.UNSATP + """ programs \
+for optimal models"""
 
 #
 # VERSION
@@ -260,6 +262,10 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
                              action='store_true')
         solving.add_argument('--pref-trans-ext', dest='trans_ext',
                              help=HELP_TRANS_EXT, metavar="<m>", default=None)
+        solving.add_argument('--preference-unsat', dest='preference_unsat',
+                             help=argparse.SUPPRESS,
+                             #help=HELP_PREFERENCE_UNSAT,
+                             action='store_true')
 
         options, unknown = cmd_parser.parse_known_args(args=args)
         options = vars(options)

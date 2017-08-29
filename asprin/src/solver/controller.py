@@ -37,16 +37,19 @@ class GeneralController:
         self.solver         = solver
 
     def start(self):
-        if self.solver.options.trans_ext is not None:
-            self.solver.control.configuration.asp.trans_ext = \
-                self.solver.options.trans_ext
-        self.solver.set_holds_domain()
-        self.solver.add_encodings()
-        self.solver.ground_preference_base()
-        if self.solver.options.cmd_heuristic is not None:
-            self.solver.ground_cmd_heuristic()
-            for _solver in self.solver.control.configuration.solver:
+        solver, options = self.solver, self.solver.options
+        if options.trans_ext is not None:
+            solver.control.configuration.asp.trans_ext = options.trans_ext
+        solver.set_holds_domain()
+        solver.add_encodings()
+        solver.ground_preference_base()
+        if options.cmd_heuristic is not None:
+            solver.ground_cmd_heuristic()
+            for _solver in solver.control.configuration.solver:
                 _solver.heuristic="Domain"
+        if options.preference_unsat and options.max_models != 1:
+            solver.get_preference_parts_opt = solver.get_preference_parts_unsatp
+            solver.ground_unsatp_base()
 
     def sat(self):
         if not self.solver.normal_sat:

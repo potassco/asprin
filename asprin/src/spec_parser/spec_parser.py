@@ -45,6 +45,7 @@ GENERATE  = utils.GENERATE
 PREFP     = utils.PREFP
 HEURISTIC = utils.HEURISTIC
 APPROX    = utils.APPROX
+UNSATP    = utils.UNSATP
 
 # predicate names
 DOM        = utils.DOM
@@ -121,7 +122,7 @@ class Parser(object):
 
         # programs[name][type] is a Program
         self.p_statements, self.list = 0, []
-        l = [BASE, GENERATE, SPEC, PREFP, HEURISTIC, APPROX]
+        l = [BASE, GENERATE, SPEC, PREFP, HEURISTIC, APPROX, UNSATP]
         self.programs = dict([(i,dict()) for i in l])
 
         # base

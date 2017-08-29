@@ -81,6 +81,8 @@ PREFP = utils.PREFP
 PBASE = utils.PBASE
 APPROX = utils.APPROX
 HEURISTIC = utils.HEURISTIC
+UNSATP = utils.UNSATP
+UNSATPBASE = utils.UNSATPBASE
 
 # predicate and term names
 VOLATILE      = utils.VOLATILE
@@ -141,7 +143,8 @@ PROGRAMS_APPROX = \
    (PROJECT_APPROX,           [],"""
 #project  ##""" + HOLDS + """/2."""),
   ]
-UNSAT_PREFP = (PREFP, ["m1","m2"], "##" + UNSAT_ATOM +"(##m(m1),##m(m2)).")
+UNSAT_PREFP  = (PREFP,  ["m1","m2"], "##" + UNSAT_ATOM +"(##m(m1),##m(m2)).")
+UNSAT_UNSATP = (UNSATP, ["m1","m2"], "##" + UNSAT_ATOM +"(##m(m1),##m(m2)).")
 
 #
 # Auxiliary Classes (EndException, Options)
@@ -172,11 +175,11 @@ class Solver:
         self.holds             = []
         self.nholds            = []
         # others
-        self.options           = Options()
-        self.old_holds   = None
-        self.old_nholds  = None
-        self.shown             = []
-        self.solving_result    = None
+        self.options = Options()
+        self.old_holds = None
+        self.old_nholds = None
+        self.shown = []
+        self.solving_result = None
         self.externals  = dict()
         self.improving  = []
         self.not_improving  = []
@@ -185,6 +188,8 @@ class Solver:
         self.approx_opt_models = []
         self.assumptions = []
         self.last_model = None
+        # functions
+        self.get_preference_parts_opt = self.get_preference_parts
         # for GeneralController
         self.normal_sat   = True
         # strings
@@ -262,6 +267,9 @@ class Solver:
     def add_unsat_to_preference_program(self):
         self.control.add(UNSAT_PREFP[0], UNSAT_PREFP[1],
                          UNSAT_PREFP[2].replace(TOKEN, self.underscores))
+        if self.options.preference_unsat:
+            self.control.add(UNSAT_UNSATP[0], UNSAT_UNSATP[1],
+                             UNSAT_UNSATP[2].replace(TOKEN, self.underscores))
 
     def ground_heuristic(self):
         self.control.ground([(HEURISTIC, [])], self)
@@ -272,6 +280,9 @@ class Solver:
 
     def ground_preference_base(self):
         self.control.ground([(PBASE, [])], self)
+
+    def ground_unsatp_base(self):
+        self.control.ground([(UNSATPBASE, [])], self)
 
     def ground_holds(self, step):
         self.control.ground([(DO_HOLDS, [step])], self)
@@ -287,6 +298,11 @@ class Solver:
         else:
             parts.append((VOLATILE_FACT, [x,y]))
         return parts
+
+    def get_preference_parts_unsatp(self, x, y, better, volatile):
+        parts = self.get_preference_parts(x, y, better, volatile)
+        parts.append((UNSATP, [x,y]))
+        return parts[1:]
 
     def ground_preference_program(self, volatile):
         control, prev_step = self.control, self.step-1
@@ -438,11 +454,12 @@ class Solver:
 
     def handle_optimal_model(self, step, delete_worse, delete_better, volatile):
         parts = [(DELETE_MODEL, [])]
-        if delete_worse:
-            parts += self.get_preference_parts(step, 0, False, volatile)
+        if delete_worse: 
+            # note: get_preference_parts_opt defaults to get_preference_parts
+            parts += self.get_preference_parts_opt(step, 0, False, volatile)
         if delete_better:
-            parts += self.get_preference_parts(MODEL_DELETE_BETTER, step,
-                                               False, volatile)
+            parts += self.get_preference_parts_opt(MODEL_DELETE_BETTER, step,
+                                                   False, volatile)
         self.control.ground(parts, self)
         if volatile:
             self.volatile_optimal_model(step, delete_worse, delete_better)

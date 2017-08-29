@@ -31,15 +31,28 @@ import clingo
 #
 
 # programs
-EMPTY     = ""
-BASE      = "base"
-SPEC      = "specification"
-GENERATE  = "generate"
-PREFP     = "preference"
-PBASE     = "preference_base"
-HEURISTIC = "heuristic"
-APPROX    = "approximation"
-WARNINGS  = "warnings"
+EMPTY      = ""
+BASE       = "base"
+SPEC       = "specification"
+GENERATE   = "generate"
+PREFP      = "preference"
+PBASE      = "preference_base"
+HEURISTIC  = "heuristic"
+APPROX     = "approximation"
+WARNINGS   = "warnings"
+UNSATP     = "preference_unsat"
+UNSATPBASE = "preference_unsat_base"
+
+# map preference programs to their bases
+mapbase = { PREFP  : PBASE,
+            UNSATP : UNSATPBASE }
+
+# underscores for programs
+U_PREFP     = 1
+U_APPROX    = 2
+U_HEURISTIC = 3
+U_UNSATP    = 4
+
 
 # predicate names
 DOM        = "dom" 
