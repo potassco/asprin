@@ -530,10 +530,7 @@ class Solver:
         # set the domain of holds
         self.set_holds_domain()
         # opt_mode
-        if self.options.max_models == 1:
-            self.control.configuration.solve.opt_mode = 'opt'
-        else:
-            self.control.configuration.solve.opt_mode = 'optN'
+        self.control.configuration.solve.opt_mode = 'optN'
         # project
         if self.options.project:
             self.control.ground([(PROJECT_APPROX,[])], self)
