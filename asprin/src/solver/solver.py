@@ -501,13 +501,15 @@ class Solver:
         # for all models
         self.models += 1
         self.print_str_answer()
-        # for non optimal models
+        # for models not proved to be optimal
         if not model.optimality_proven:
             if self.options.quiet == 0:
                 self.on_model(model)
                 self.print_shown()
+            elif self.options.quiet == 1 and self.options.max_models == 1:
+                self.on_model(model)                            # one model
             return
-        # for optimal models
+        # for models proved to be optimal
         self.on_model(model)
         if self.options.quiet in {0,1}:
             self.print_shown()
@@ -531,19 +533,25 @@ class Solver:
         self.set_holds_domain()
         # opt_mode
         self.control.configuration.solve.opt_mode = 'optN'
+        if self.options.max_models == 1:                        # one model
+            self.control.configuration.solve.opt_mode = 'opt'
         # project
         if self.options.project:
             self.control.ground([(PROJECT_APPROX,[])], self)
             self.control.configuration.solve.project = 'project'
         # loop
+        self.printer.do_print("Solving...")
         while True:
             # solve
             prev_opt_models, self.approx_opt_models = self.opt_models, [[]]
             self.set_control_models()
+            if self.options.max_models == 1:                    # one model
+                self.control.configuration.solve.models = 0
             result = self.control.solve(on_model=self.on_model_approx)
-            # break if unsat or computed all
-            if not result.satisfiable or \
-                self.options.max_models == self.opt_models:
+            # break if unsat or computed all or one model
+            if not result.satisfiable                      or \
+                self.options.max_models == self.opt_models or \
+                self.options.max_models == 1:                   # one model
                 break
             # add programs
             parts = []
@@ -558,6 +566,13 @@ class Solver:
                     parts += self.get_preference_parts(0, m, False, False)
             self.control.ground(parts, self)
         # end
+        if self.options.max_models == 1 and result.satisfiable: # one model
+            if self.options.quiet == 1:
+                self.print_shown()
+            self.opt_models += 1
+            self.print_optimum_string()
+        if self.opt_models == 0:
+            self.print_unsat()
         self.more_models = True if result.satisfiable else False
         self.end() 
     #
