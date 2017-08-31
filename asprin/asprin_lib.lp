@@ -756,7 +756,7 @@ assigned(Y) :- poset(Y,_), not holds(Y).
 %
 % approximation programs:
 % - used with option --solving-mode=approx
-% - some preference types (aso, poset, maxmin, minmax, and) are missing 
+% - some preference types (aso, poset, maxmin, minmax, and) are missing
 %
 #program approximation.
 #minimize{ W@L,T : minimize(P,W,L,T,X), optimize(P), holds(X) }.
@@ -786,95 +786,128 @@ minimize(P,-W,L,T,X) :- preference(P,neg), preference(P,_,_,name(PP),_),
                         minimize(PP,W,L,T,X).
 
 #program approximation(lexico).
-
-% level(P,PP,L): (in P) PP is at level L
-level(P,PP,L) :- preference(P,lexico), 
-                 preference(P,_,_,name(PP),L).
-
-% order(P,PP,L,O): (in P) the order of PP (with level L) is O
-order(P,P1,L1,1) :- preference(P,lexico), 
-                    level(P,P1,L1), 
-                    L1 < L2 : level(P,_,L2), L2 != L1.
-order(P,P2,L2,O1+1) :- preference(P,lexico), 
-                       order(P,P1,L1,O1),
-                       level(P,P2,L2),
-                       L1 < L2, L2 < L3 : level(P,_,L3), L1 < L3, L3 != L2.
-
-% named_level(P,P1,L): (in P) P1 has a statement at level L
-named_level(P,P1,L) :- preference(P,lexico),
-                       level(P,P1,_), minimize(P1,_,L,_,_).
-
-% named_order(P,P1,L,O): (in P) P1 statement at level L has order O
-named_order(P,P1,L1,1) :- preference(P,lexico), 
-                          named_level(P,P1,L1), 
-                          L1 < L2 : named_level(P,_,L2), L2 != L1.
-named_order(P,P1,L2,O1+1) :- preference(P,lexico), 
-                             named_order(P,P1,L1,O1),
-                             named_level(P,P1,L2),
-                             L1 < L2,
-                             L2 < L3 : named_level(P,P1,L3), L1 < L3, L3 != L2.
-
-% map(P,P1,L1,L2,L3): P names P1 at L1 and maps L2 in P1 to L3 in P
-map(P,P1,L1,L,O) :- preference(P,lexico),
-                    order(P,P1,L1,1),
-                    named_order(P,P1,L,O).
-
-map(P,P2,L2,L3,O3+M1) :- preference(P,lexico),
-                         order(P,P1,L1,O1), order(P,P2,L2,O1+1),
-                         named_order(P,P2,L3,O3),
-                         map(P,P1,L1,LL1,M1),
-                         not map(P,P1,L1,_,M1+1).
-                         %M1 = #max {OO1: map(P,P1,L1,LL1,OO1)}.
-
-% minimize
-minimize(P,W,LL,T,X) :- preference(P,lexico),
-                        level(P,P1,L1), minimize(P1,W,L,T,X),
-                        map(P,P1,L1,L,LL).
+minimize(P,W,L+O,T,X) :- preference(P,lexico), 
+                         preference(P,_,_,name(P1),L1),
+                         minimize(P1,W,L,T,X),
+                         O = #sum{ L3,L2 : preference(P,_,_,name(P2),L2), L2 < L1,
+                                           minimize(P2,_,L3,_,_)}.
+                                          %minimize(P2,_,L3,_,_), not minimize(P2,_,L3+1,_,_)}.
 
 #program approximation(pareto).
+minimize(P,W,L+O,T,X) :- preference(P,pareto), 
+                         preference(P,_,_,name(P1),_),
+                         minimize(P1,W,L,T,X),
+                         O = #sum{ L3,P2 : preference(P,_,_,name(P2),_), P2 < P1,
+                                           minimize(P2,_,L3,_,_)}.
 
-% level(P,PP,L): (in P) PP is at level L
-level(P,PP,PP) :- preference(P,pareto), 
-                  preference(P,_,_,name(PP),_).
+#program approximation(and). % same as pareto
+minimize(P,W,L+O,T,X) :- preference(P,and), 
+                         preference(P,_,_,name(P1),_),
+                         minimize(P1,W,L,T,X),
+                         O = #sum{ L3,P2 : preference(P,_,_,name(P2),_), P2 < P1,
+                                           minimize(P2,_,L3,_,_)}.
 
-% order(P,PP,L,O): (in P) the order of PP (with level L) is O
-order(P,P1,L1,1) :- preference(P,pareto), 
-                    level(P,P1,L1), 
-                    L1 < L2 : level(P,_,L2), L2 != L1.
-order(P,P2,L2,O1+1) :- preference(P,pareto), 
-                       order(P,P1,L1,O1),
-                       level(P,P2,L2),
-                       L1 < L2, L2 < L3 : level(P,_,L3), L1 < L3, L3 != L2.
+#program approximation(minmax).
 
-% named_level(P,P1,L): (in P) P1 has a statement at level L
-named_level(P,P1,L) :- preference(P,pareto),
-                       level(P,P1,_), minimize(P1,_,L,_,_).
+% preprocess
+elem(P,@get(T,0),T,X) :- preference(P,minmax), preference(P,_,_,for(X),T).
+min(P,G,C) :- preference(P,minmax), elem(P,G,_,_),
+              C = #sum{ W,T : elem(P,G,T,_), W=@get(T,1), W<0 }.
+min(P,C)   :- preference(P,minmax),
+              C = #min{ CC : min(P,G,CC) }.
+max(P,G,C) :- preference(P,minmax), elem(P,G,_,_),
+              C = #sum{ W,T : elem(P,G,T,_), W=@get(T,1), W>0 }.
+max(P,C)   :- preference(P,minmax),
+              C = #max{ CC : max(P,G,CC) }.
 
-% named_order(P,P1,L,O): (in P) P1 statement at level L has order O
-named_order(P,P1,L1,1) :- preference(P,pareto), 
-                          named_level(P,P1,L1), 
-                          L1 < L2 : named_level(P,_,L2), L2 != L1.
-named_order(P,P1,L2,O1+1) :- preference(P,pareto), 
-                             named_order(P,P1,L1,O1),
-                             named_level(P,P1,L2),
-                             L1 < L2,
-                             L2 < L3 : named_level(P,P1,L3), L1 < L3, L3 != L2.
+% pos(itions)
+pos(P,G,1,T1)   :- preference(P,minmax),
+                   elem(P,G,T1,_), T1 <= T2 : elem(P,G,T2,_).
+pos(P,G,N+1,T2) :- preference(P,minmax),
+                   pos(P,G,N,T1),
+                   elem(P,G,T2,_), T1 < T2,
+                   T2 <= T3 : elem(P,G,T3,_), T1 < T3.
+% cost 
+cost(P,G,0,C)   :- preference(P,minmax),
+                   min(P,G,C).
+cost(P,G,N,C)   :- preference(P,minmax),
+                   cost(P,G,N-1,C),
+                   pos(P,G,N,_).
+cost(P,G,N,C+W) :- preference(P,minmax),
+                   cost(P,G,N-1,C),
+                   pos(P,G,N,T), W=@get(T,1), W>0,
+                   elem(P,G,T,X), holds(X).
+cost(P,G,N,C-W) :- preference(P,minmax),
+                   cost(P,G,N-1,C),
+                   pos(P,G,N,T), W=@get(T,1), W<0,
+                   elem(P,G,T,X), not holds(X).
 
-% map(P,P1,L1,L2,L3): P names P1 at L1 and maps L2 in P1 to L3 in P
-map(P,P1,L1,L,O) :- preference(P,pareto),
-                    order(P,P1,L1,1),
-                    named_order(P,P1,L,O).
+% minmax
+holds(minmax(P,C))   :- preference(P,minmax),
+                        pos(P,G,N,_), not pos(P,G,N+1,_),
+                        cost(P,G,N,C).
+holds(minmax(P,C-1)) :- preference(P,minmax),
+                        holds(minmax(P,C)), min(P,MIN), C > MIN.
 
-map(P,P2,L2,L3,O3+M1) :- preference(P,pareto),
-                         order(P,P1,L1,O1), order(P,P2,L2,O1+1),
-                         named_order(P,P2,L3,O3),
-                         M1 = #max {OO1: map(P,P1,L1,LL1,OO1)}.
+% domain(minmax)
+domain(minmax(P,C))   :- preference(P,minmax),
+                         max(P,C).
+domain(minmax(P,C-1)) :- preference(P,minmax),
+                         domain(minmax(P,C)), min(P,MIN), C > MIN.
 
 % minimize
-minimize(P,W,LL,T,X) :- preference(P,pareto),
-                        level(P,P1,L1), minimize(P1,W,L,T,X),
-                        map(P,P1,L1,L,LL).
+minimize(P,C-MIN,1,0,minmax(P,C)) :- preference(P,minmax), 
+                                     domain(minmax(P,C)), min(P,MIN).
 
+#program approximation(maxmin).
 
+% preprocess
+elem(P,@get(T,0),T,X) :- preference(P,maxmin), preference(P,_,_,for(X),T).
+min(P,G,C) :- preference(P,maxmin), elem(P,G,_,_),
+              C = #sum{ W,T : elem(P,G,T,_), W=-@get(T,1), W<0 }.
+min(P,C)   :- preference(P,maxmin),
+              C = #min{ CC : min(P,G,CC) }.
+max(P,G,C) :- preference(P,maxmin), elem(P,G,_,_),
+              C = #sum{ W,T : elem(P,G,T,_), W=-@get(T,1), W>0 }.
+max(P,C)   :- preference(P,maxmin),
+              C = #max{ CC : max(P,G,CC) }.
 
+% pos(itions)
+pos(P,G,1,T1)   :- preference(P,maxmin),
+                   elem(P,G,T1,_), T1 <= T2 : elem(P,G,T2,_).
+pos(P,G,N+1,T2) :- preference(P,maxmin),
+                   pos(P,G,N,T1),
+                   elem(P,G,T2,_), T1 < T2,
+                   T2 <= T3 : elem(P,G,T3,_), T1 < T3.
+% cost 
+cost(P,G,0,C)   :- preference(P,maxmin),
+                   min(P,G,C).
+cost(P,G,N,C)   :- preference(P,maxmin),
+                   cost(P,G,N-1,C),
+                   pos(P,G,N,_).
+cost(P,G,N,C+W) :- preference(P,maxmin),
+                   cost(P,G,N-1,C),
+                   pos(P,G,N,T), W=-@get(T,1), W>0,
+                   elem(P,G,T,X), holds(X).
+cost(P,G,N,C-W) :- preference(P,maxmin),
+                   cost(P,G,N-1,C),
+                   pos(P,G,N,T), W=-@get(T,1), W<0,
+                   elem(P,G,T,X), not holds(X).
+
+% maxmin
+holds(maxmin(P,C))   :- preference(P,maxmin),
+                        pos(P,G,N,_), not pos(P,G,N+1,_),
+                        cost(P,G,N,C).
+holds(maxmin(P,C-1)) :- preference(P,maxmin),
+                        holds(maxmin(P,C)), min(P,MIN), C > MIN.
+
+% domain(maxmin)
+domain(maxmin(P,C))   :- preference(P,maxmin),
+                         max(P,C).
+domain(maxmin(P,C-1)) :- preference(P,maxmin),
+                         domain(maxmin(P,C)), min(P,MIN), C > MIN.
+
+% minimize
+minimize(P,C-MIN,1,0,maxmin(P,C)) :- preference(P,maxmin), 
+                                     domain(maxmin(P,C)), min(P,MIN).
 
