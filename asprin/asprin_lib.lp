@@ -90,28 +90,28 @@ error(("preference:",P,": error: preference specification error, type '",T,"' re
 
 required(Q,better) :- preference(P,and), required(P,better), preference(P,_,_,name(Q),_).
 better(P) :- preference(P,and), required(P,better); 
-	            better(Q) : preference(P,_,_,name(Q),_).
-            
+             better(Q) : preference(P,_,_,name(Q),_).
+
 required(P,better) :- preference(P,and), required(P,bettereq). 
 required(P,eq)        :- preference(P,and), required(P,bettereq). 
 bettereq(P) :- preference(P,and), required(P,bettereq),
-                  1 #sum { 1: better(P); 1: eq(P) }.
+               1 #sum { 1: better(P); 1: eq(P) }.
 
 required(Q,eq) :- preference(P,and), required(P,eq), preference(P,_,_,name(Q),_).
-eq(P) :- preference(P,and), required(P,eq); 
-	     eq(Q) : preference(P,_,_,name(Q),_).
+eq(P) :- preference(P,and), required(P,eq);
+         eq(Q) : preference(P,_,_,name(Q),_).
 
-required(P,worse) :- preference(P,and), required(P,worseeq). 
-required(P,eq)    :- preference(P,and), required(P,worseeq). 
+required(P,worse) :- preference(P,and), required(P,worseeq).
+required(P,eq)    :- preference(P,and), required(P,worseeq).
 worseeq(P) :- preference(P,and), required(P,worseeq),
               1 #sum { 1: worse(P); 1: eq(P) }.
 
 required(Q,worse) :- preference(P,and), required(P,worse), preference(P,_,_,name(Q),_).
-worse(P) :- preference(P,and), required(P,worse); 
-	        worse(Q) : preference(P,_,_,name(Q),_).
+worse(P) :- preference(P,and), required(P,worse);
+            worse(Q) : preference(P,_,_,name(Q),_).
 
-required(P,bettereq) :- preference(P,and), required(P,unc). 
-required(P,worseeq)     :- preference(P,and), required(P,unc). 
+required(P,bettereq) :- preference(P,and), required(P,unc).
+required(P,worseeq)     :- preference(P,and), required(P,unc).
 unc(P) :- preference(P,and); required(P,unc); 
           not bettereq(P); not worseeq(P).
 
@@ -125,75 +125,61 @@ error_type(and,no_sets).
 
 #program preference(aso).
 
-required(P,aso) :- preference(P,aso), required(P,_).
-preference(P,aso,Id) :- preference(P,aso), required(P,aso), preference(P,Id,_,_,_).
+rule(P,Id,L) :- preference(P,aso), required(P,_),
+                preference(P,Id,_,_,_),
+                L = #max{ H : preference(P,Id,H,_,_)}.
 
-nohead(P,Id) :- preference(P,aso,Id), 
-                not holds(X) : preference(P,Id,H,for(X),_), H!=0.
+index(P,Id,1..L) :- preference(P,aso), required(P,_),
+                    preference(P,Id,_,_,_),
+                    L = #max{ H : preference(P,Id,H,_,_) }.
 
-nohead'(P,Id) :- preference(P,aso,Id), 
+nohead(P,Id)  :- preference(P,aso), required(P,_),
+                 rule(P,Id,_),
+                 not holds(X) : preference(P,Id,H,for(X),_), H!=0.
+nohead'(P,Id) :- preference(P,aso), required(P,_),
+                 rule(P,Id,_),
                  not holds'(X) : preference(P,Id,H,for(X),_), H!=0.
 
-value'(P,Id,V) :- preference(P,aso,Id),
-                  V = #min { 1   : not holds'(X), preference(P,Id,0,for(X),_);
-                             1   : nohead'(P,Id);
-                             Pos : holds'(X), preference(P,Id,Pos,for(X),_), Pos != 0}.
- 
-better(P,Id) :- preference(P,aso,Id), value'(P,Id,V), required(P,aso,better), 
-                   V > #min { 1   : not holds(X), preference(P,Id,0,for(X),_);
-                              1   : nohead(P,Id);
-                              Pos : holds(X), preference(P,Id,Pos,for(X),_), Pos != 0}.
- 
-bettereq(P,Id) :- preference(P,aso,Id), value'(P,Id,V), required(P,aso,bettereq),
-                     V >= #min { 1   : not holds(X), preference(P,Id,0,for(X),_);
-                                 1   : nohead(P,Id);
-                                 Pos : holds(X), preference(P,Id,Pos,for(X),_), Pos != 0}.
+aso(P,Id,R) :- preference(P,aso),
+               rule(P,Id,_),
+               required(P,R,L,U),
+               L #sum{  1,Idx : not holds(X), preference(P,Id,0,for(X),_), index(P,Id,Idx);
+                        1,Idx : nohead(P,Id), index(P,Id,Idx);
+                        1,Idx : holds(X), preference(P,Id,Pos,for(X),_), Pos != 0, index(P,Id,Idx), Idx>=Pos;
+                       -1,Idx : not holds'(X), preference(P,Id,0,for(X),_), index(P,Id,Idx);
+                       -1,Idx : nohead'(P,Id), index(P,Id,Idx);
+                       -1,Idx : holds'(X), preference(P,Id,Pos,for(X),_), Pos != 0, index(P,Id,Idx), Idx>=Pos} U.
 
-required(P,aso,better)   :- preference(P,aso), required(P,better).                             
-required(P,aso,bettereq) :- preference(P,aso), required(P,better).                             
+% WARNING: siwtch #inf and #sup when clingo bug is fixed!
+required(P,  better,   1,#inf) :- preference(P,aso), required(P,aso,  better).
+required(P,bettereq,   0,#inf) :- preference(P,aso), required(P,aso,bettereq).
+required(P,      eq,   0,   0) :- preference(P,aso), required(P,aso,      eq).
+required(P, worseeq,#sup,   0) :- preference(P,aso), required(P,aso, worseeq).
+required(P,   worse,#sup,  -1) :- preference(P,aso), required(P,aso,   worse).
+
+required(P,aso,better)   :- preference(P,aso), required(P,better).
+required(P,aso,bettereq) :- preference(P,aso), required(P,better).
 better(P) :- preference(P,aso), required(P,better),
-                bettereq(P,Id1) : preference(P,aso,Id1);
-                better(P,Id2), preference(P,aso,Id2).
+             aso(P,Id1,bettereq) : rule(P,Id1,_);
+             aso(P,Id2,  better),  rule(P,Id2,_).
 
-required(P,aso,bettereq) :- preference(P,aso), required(P,bettereq).                            
+required(P,aso,bettereq) :- preference(P,aso), required(P,bettereq).
 bettereq(P) :- preference(P,aso), required(P,bettereq),
-                  bettereq(P,Id) : preference(P,aso,Id).
+               aso(P,Id,bettereq) : rule(P,Id,_).
 
-              
-eq(P,Id) :- preference(P,aso,Id), value'(P,Id,V), required(P,aso,eq),
-            V = #min { 1   : not holds(X), preference(P,Id,0,for(X),_);
-                       1   : nohead(P,Id);
-                       Pos : holds(X), preference(P,Id,Pos,for(X),_), Pos != 0}.
- 
-worseeq(P,Id) :- preference(P,aso,Id), value'(P,Id,V), required(P,aso,worseeq),
-                 V <= #min { 1   : not holds(X), preference(P,Id,0,for(X),_);
-                             1   : nohead(P,Id);
-                             Pos : holds(X), preference(P,Id,Pos,for(X),_), Pos != 0}.
- 
-worse(P,Id) :- preference(P,aso,Id), value'(P,Id,V), required(P,aso,worse),
-               V < #min { 1   : not holds(X), preference(P,Id,0,for(X),_);
-                          1   : nohead(P,Id);
-                          Pos : holds(X), preference(P,Id,Pos,for(X),_), Pos != 0}.
-
-required(P,aso,eq) :- preference(P,aso), required(P,eq).                             
+required(P,aso,eq) :- preference(P,aso), required(P,eq).
 eq(P) :- preference(P,aso), required(P,eq),
-         eq(P,Id) : preference(P,aso,Id).
+         aso(P,Id,eq) : rule(P,Id,_).
 
-required(P,aso,worseeq) :- preference(P,aso), required(P,worseeq).                             
+required(P,aso,worseeq) :- preference(P,aso), required(P,worseeq).
 worseeq(P) :- preference(P,aso), required(P,worseeq),
-              worseeq(P,Id) : preference(P,aso,Id).
+              aso(P,Id,worseeq) : rule(P,Id,_).
 
-required(P,aso,worseeq) :- preference(P,aso), required(P,worse).                             
-required(P,aso,worse)   :- preference(P,aso), required(P,worse).                             
+required(P,aso,worseeq) :- preference(P,aso), required(P,worse).
+required(P,aso,worse)   :- preference(P,aso), required(P,worse).
 worse(P) :- preference(P,aso), required(P,worse),
-            worseeq(P,Id1) : preference(P,aso,Id1);
-            worse(P,Id2); preference(P,aso,Id2).
-
-required(P,bettereq) :- preference(P,aso), required(P,unc). 
-required(P,worseeq)     :- preference(P,aso), required(P,unc). 
-unc(P) :- preference(P,aso); required(P,unc); 
-          not bettereq(P); not worseeq(P).
-
+            aso(P,Id1,worseeq) : rule(P,Id1,_);
+            aso(P,Id2,  worse),  rule(P,Id2,_).
 
 % errors
 error_type(aso,no_naming).
@@ -234,8 +220,6 @@ error_type(less(cardinality),no_weights).
 error_type(less(cardinality),no_sets).
 
 #program preference(less(weight)).
-
-
 better(P) :- preference(P,less(weight)), required(P,better),
              1 #sum { -W,T : holds(X),  preference(P,_,_,for(X),T), W = @get(T,0); 
                        W,T : holds'(X), preference(P,_,_,for(X),T), W = @get(T,0)}.
@@ -470,7 +454,7 @@ notbetter(P) :- preference(P,poset), required(P,better),
                 not better(P,Y) : poset(P,Y,X).
 
 better(P) :- preference(P,poset), required(P,better),
-             1 #sum { 1: better(P,X) }, not notbetter(P).
+             better(P,_), not notbetter(P).
 
 % bettereq
 required(P,eq)        :- preference(P,poset), required(P,bettereq).
@@ -513,6 +497,11 @@ error_type(poset,no_naming).
 error_type(poset,no_weights).
 error_type(poset,no_sets).
 error_type(poset,no_condition).
+%%% poset relation must be strict
+error(("preference:",P,
+  ": error: preference specification error, type 'poset', ",
+  "the order relation defined by the preference elements must be acyclic.")) :-
+  preference(P,poset), poset(P,X,X).
 
 #program preference(subset).
 
@@ -781,32 +770,6 @@ minimize(P,W,1,T,X) :- preference(P,less(weight)), preference(P,_,_,for(X),T),
 minimize(P,W,1,T,X) :- preference(P,more(weight)), preference(P,_,_,for(X),T),
                        W=@get(T,0).
 
-#program approximation(neg).
-minimize(P,-W,L,T,X) :- preference(P,neg), preference(P,_,_,name(PP),_),
-                        minimize(PP,W,L,T,X).
-
-#program approximation(lexico).
-minimize(P,W,L+O,T,X) :- preference(P,lexico), 
-                         preference(P,_,_,name(P1),L1),
-                         minimize(P1,W,L,T,X),
-                         O = #sum{ L3,L2 : preference(P,_,_,name(P2),L2), L2 < L1,
-                                           minimize(P2,_,L3,_,_)}.
-                                          %minimize(P2,_,L3,_,_), not minimize(P2,_,L3+1,_,_)}.
-
-#program approximation(pareto).
-minimize(P,W,L+O,T,X) :- preference(P,pareto), 
-                         preference(P,_,_,name(P1),_),
-                         minimize(P1,W,L,T,X),
-                         O = #sum{ L3,P2 : preference(P,_,_,name(P2),_), P2 < P1,
-                                           minimize(P2,_,L3,_,_)}.
-
-#program approximation(and). % same as pareto
-minimize(P,W,L+O,T,X) :- preference(P,and), 
-                         preference(P,_,_,name(P1),_),
-                         minimize(P1,W,L,T,X),
-                         O = #sum{ L3,P2 : preference(P,_,_,name(P2),_), P2 < P1,
-                                           minimize(P2,_,L3,_,_)}.
-
 #program approximation(minmax).
 
 % preprocess
@@ -910,4 +873,73 @@ domain(maxmin(P,C-1)) :- preference(P,maxmin),
 % minimize
 minimize(P,C-MIN,1,0,maxmin(P,C)) :- preference(P,maxmin), 
                                      domain(maxmin(P,C)), min(P,MIN).
+
+#program approximation(aso).
+
+rule(P,Id,L) :- preference(P,aso),
+                preference(P,Id,_,_,_),
+                L = #max{ H : preference(P,Id,H,_,_)}.
+index(P,Id,1..L) :- rule(P,Id,L).
+
+pos(P,1,Id1)   :- preference(P,aso),
+                  rule(P,Id1,_), Id1 <= Id2 : rule(P,Id2,_).
+pos(P,N+1,Id2) :- preference(P,aso),
+                  pos(P,N,Id1), rule(P,Id2,_), Id1 < Id2,
+                  Id2 <= Id3 : rule(P,Id3,_), Id1 < Id3.
+
+holds(aso(P,Id,Idx)) :- preference(P,aso),
+                        index(P,Id,Idx),
+                        not holds(X), preference(P,Id,0,for(X),_).
+holds(aso(P,Id,Idx)) :- preference(P,aso),
+                        index(P,Id,Idx),
+                        not holds(X) : preference(P,Id,H,for(X),_), H!=0.
+holds(aso(P,Id,Idx)) :- preference(P,aso),
+                        index(P,Id,Idx), Idx>=Pos,
+                        holds(X), preference(P,Id,Pos,for(X),_), Pos != 0.
+
+minimize(P,-1,N,Idx,aso(P,Id,Idx)) :- preference(P,aso),
+                                      index(P,Id,Idx), pos(P,N,Id).
+
+#program approximation(poset).
+
+poset(P,X) :- preference(P,poset),
+              preference(P,_,_,for(X),_).
+
+poset(P,X,Y) :- preference(P,poset),
+                preference(P,I,1,for(X),_), preference(P,I,2,for(Y),_).
+poset(P,X,Y) :- preference(P,poset),
+                poset(P,X,Z), poset(P,Z,Y).
+
+step(P,X,0)   :- preference(P,poset),
+                 poset(P,X).
+step(P,X,S+1) :- preference(P,poset),
+                 step(P,X,S), step(P,Y,S), poset(P,Y,X).
+
+minimize(P,-1,-S,X,X) :- preference(P,poset), step(P,X,S), not step(P,X,S+1).
+
+#program approximation(neg).
+minimize(P,-W,L,T,X) :- preference(P,neg), preference(P,_,_,name(PP),_),
+                        minimize(PP,W,L,T,X).
+
+#program approximation(lexico).
+minimize(P,W,L+O,T,X) :- preference(P,lexico), 
+                         preference(P,_,_,name(P1),L1),
+                         minimize(P1,W,L,T,X),
+                         O = #sum{ L3,L2 : preference(P,_,_,name(P2),L2), L2 < L1,
+                                           minimize(P2,_,L3,_,_)}.
+                                          %minimize(P2,_,L3,_,_), not minimize(P2,_,L3+1,_,_)}.
+
+#program approximation(pareto).
+minimize(P,W,L+O,T,X) :- preference(P,pareto), 
+                         preference(P,_,_,name(P1),_),
+                         minimize(P1,W,L,T,X),
+                         O = #sum{ L3,P2 : preference(P,_,_,name(P2),_), P2 < P1,
+                                           minimize(P2,_,L3,_,_)}.
+
+#program approximation(and). % same as pareto
+minimize(P,W,L+O,T,X) :- preference(P,and), 
+                         preference(P,_,_,name(P1),_),
+                         minimize(P1,W,L,T,X),
+                         O = #sum{ L3,P2 : preference(P,_,_,name(P2),_), P2 < P1,
+                                           minimize(P2,_,L3,_,_)}.
 
