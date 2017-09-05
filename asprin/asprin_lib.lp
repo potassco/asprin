@@ -127,11 +127,11 @@ error_type(and,no_sets).
 
 rule(P,Id,L) :- preference(P,aso), required(P,_),
                 preference(P,Id,_,_,_),
-                L = #max{ H : preference(P,Id,H,_,_)}.
+                L = #max{ H : preference(P,Id,H,_,_)}, L>1.
 
-index(P,Id,1..L) :- preference(P,aso), required(P,_),
-                    preference(P,Id,_,_,_),
-                    L = #max{ H : preference(P,Id,H,_,_) }.
+index(P,Id,1..L-1) :- preference(P,aso), required(P,_),
+                      preference(P,Id,_,_,_),
+                      L = #max{ H : preference(P,Id,H,_,_) }.
 
 nohead(P,Id)  :- preference(P,aso), required(P,_),
                  rule(P,Id,_),
@@ -140,17 +140,18 @@ nohead'(P,Id) :- preference(P,aso), required(P,_),
                  rule(P,Id,_),
                  not holds'(X) : preference(P,Id,H,for(X),_), H!=0.
 
-aso(P,Id,R) :- preference(P,aso),
-               rule(P,Id,_),
-               required(P,R,L,U),
-               L #sum{  1,Idx : not holds(X), preference(P,Id,0,for(X),_), index(P,Id,Idx);
-                        1,Idx : nohead(P,Id), index(P,Id,Idx);
-                        1,Idx : holds(X), preference(P,Id,Pos,for(X),_), Pos != 0, index(P,Id,Idx), Idx>=Pos;
-                       -1,Idx : not holds'(X), preference(P,Id,0,for(X),_), index(P,Id,Idx);
-                       -1,Idx : nohead'(P,Id), index(P,Id,Idx);
-                       -1,Idx : holds'(X), preference(P,Id,Pos,for(X),_), Pos != 0, index(P,Id,Idx), Idx>=Pos} U.
+aso(P,Id,R) :- 
+  preference(P,aso),
+  rule(P,Id,_),
+  required(P,R,L,U),
+  L #sum{  1,Idx : not holds(X), preference(P,Id,0,for(X),_), index(P,Id,Idx);
+           1,Idx : nohead(P,Id), index(P,Id,Idx);
+           1,Idx : holds(X), preference(P,Id,Pos,for(X),_), Pos != 0, index(P,Id,Idx), Idx>=Pos;
+          -1,Idx : not holds'(X), preference(P,Id,0,for(X),_), index(P,Id,Idx);
+          -1,Idx : nohead'(P,Id), index(P,Id,Idx);
+          -1,Idx : holds'(X), preference(P,Id,Pos,for(X),_), Pos != 0, index(P,Id,Idx), Idx>=Pos} U.
 
-% WARNING: siwtch #inf and #sup when clingo bug is fixed!
+% WARNING: switch #inf and #sup when clingo bug is fixed!
 required(P,  better,   1,#inf) :- preference(P,aso), required(P,aso,  better).
 required(P,bettereq,   0,#inf) :- preference(P,aso), required(P,aso,bettereq).
 required(P,      eq,   0,   0) :- preference(P,aso), required(P,aso,      eq).
@@ -721,31 +722,341 @@ error_type(X,Y) :- #false, error_type(X,Y).
 %
 % heuristic programs:
 % - used with option --solving-mode=heuristic
-%   only preference types subset, superset and poset are implemented
 %
 
 #program heuristic.
-#heuristic holds(X) : heuristic(X,V,M). [V,M]
+#heuristic holds(X) : heuristic(P,X,V,M), optimize(P). [V,M]
+
+%
+% generate heuristic/4 from minimize/5
+%
+
+minimize(P) :- minimize(P,_,_,_,_).
+
+% pos(itions)
+pos(P,L,1,T1)   :- minimize(P),
+                   minimize(P,_,L,T1,_), T1 <= T2 : minimize(P,_,L,T2,_).
+pos(P,L,N+1,T2) :- minimize(P),
+                   pos(P,L,N,T1),
+                   minimize(P,_,L,T2,_), T1 < T2,
+                   T2 <= T3 : minimize(P,_,L,T3,_), T1 < T3.
+max_pos(P,L,N) :- minimize(P),
+                  pos(P,L,N,_), not pos(P,L,N+1,_).
+
+% cost/3
+cost(P,L,0,0)   :- minimize(P), minimize(P,_,L,_,_).
+cost(P,L,N,C)   :- minimize(P),
+                   cost(P,L,N-1,C),
+                   pos(P,L,N,_).
+cost(P,L,N,C+W) :- minimize(P),
+                   cost(P,L,N-1,C),
+                   pos(P,L,N,T),
+                   minimize(P,W,L,T,X), W>0, holds(X).
+cost(P,L,N,C-W) :- minimize(P),
+                   cost(P,L,N-1,C),
+                   pos(P,L,N,T),
+                   minimize(P,W,L,T,X), W<0, not holds(X).
+
+% holds/1 and domain/1
+holds(minimize(P,L,C))   :- minimize(P),
+                            cost(P,L,N,C), max_pos(P,L,N).
+holds(minimize(P,L,C-1)) :- minimize(P),
+                            holds(minimize(P,L,C)), C > 0.
+
+domain(minimize(P,L,C)) :- minimize(P),
+                           minimize(P,_,L,_,_),
+                           M = #sum {  W,T : minimize(P,W,L,T,_), W > 0;
+                                      -W,T : minimize(P,W,L,T,_), W < 0},
+                           C = 0..M.
+
+% heuristic
+heuristic(P,minimize(P,L,C),L+1-M,false) :- minimize(P),
+                                            domain(minimize(P,L,C)),
+                                            M = #min{ LL : minimize(P,_,LL,_,_) }.
 
 #program heuristic(subset).
-heuristic(X,1,false) :- preference(P,subset), preference(P,_,_,for(X),_).
+heuristic(P,X,1,false) :- preference(P,subset), preference(P,_,_,for(X),_).
 
 #program heuristic(superset).
-heuristic(X,1,true) :- preference(P,superset), preference(P,_,_,for(X),_).
+heuristic(P,X,1,true) :- preference(P,superset), preference(P,_,_,for(X),_).
+
+#program heuristic(less(cardinality)).
+minimize(P,1,1,X,X) :- preference(P,less(cardinality)),
+                       preference(P,_,_,for(X),_).
+
+#program heuristic(more(cardinality)).
+minimize(P,-1,1,X,X) :- preference(P,less(cardinality)),
+                        preference(P,_,_,for(X),_).
+
+#program heuristic(less(weight)).
+minimize(P,@get(T,0),1,T,X) :- preference(P,less(weight)),
+                               preference(P,_,_,for(X),T).
+
+#program heuristic(more(weight)).
+minimize(P,-@get(T,0),1,T,X) :- preference(P,more(weight)),
+                                preference(P,_,_,for(X),T).
 
 #program heuristic(poset).
-heuristic(X,1,true) :- preference(P,poset),
-                       preference(P,_,_,for(X),_),
-                       assigned(Y) : poset(Y,X).
-poset(Y,X)  :- preference(P,I,1,for(Y),_), preference(P,I,2,for(X),_).
-poset(Y,X)  :- poset(Y,Z), poset(Z,X).
-assigned(Y) :- poset(Y,_),     holds(Y).
-assigned(Y) :- poset(Y,_), not holds(Y).
+
+poset(P,X) :- preference(P,poset),
+              preference(P,_,_,for(X),_).
+
+poset(P,X,Y) :- preference(P,poset),
+                preference(P,I,1,for(X),_), preference(P,I,2,for(Y),_).
+poset(P,X,Y) :- preference(P,poset),
+                poset(P,X,Z), poset(P,Z,Y).
+
+% 3 options
+#const heuristic_poset=1.
+
+% option 1
+
+heuristic(P,X,1,true) :- preference(P,poset), heuristic_poset=1,
+                         poset(P,X),
+                         assigned(Y) : poset(Y,X).
+
+assigned(P,X) :- preference(P,poset), heuristic_poset=1,
+                 poset(P,X),     holds(X).
+assigned(P,X) :- preference(P,poset), heuristic_poset=1,
+                 poset(P,X), not holds(X).
+
+% option 2
+
+step(P,X,1)   :- preference(P,poset), heuristic_poset=2,
+                 poset(P,X).
+step(P,X,S+1) :- preference(P,poset), heuristic_poset=2,
+                 step(P,X,S), step(P,Y,S), poset(P,Y,X).
+
+max_step(P,S) :- preference(P,poset), heuristic_poset=2,
+                 step(P,_,S), not step(P,_,S+1).
+
+heuristic(P,X,M-S+1,true) :- preference(P,poset), heuristic_poset=2,
+                             max_step(P,M),
+                             step(P,X,S), not step(P,X,S+1).
+
+% option 3
+
+cost(P,X,C+1) :- preference(P,poset), heuristic_poset=3,
+                 poset(P,X),
+                 C = #sum{ CC,Y : poset(P,X,Y), cost(P,Y,CC) }.
+
+minimize(P,-C,1,X,X) :- cost(P,X,C), heuristic_poset=3.
+
+#program heuristic(aso).
+
+rule(P,Id,L) :- preference(P,aso),
+                preference(P,Id,_,_,_),
+                L = #max{ H : preference(P,Id,H,_,_)}, L>1.
+index(P,Id,1..L-1) :- rule(P,Id,L).
+
+% 3 options
+#const heuristic_aso=1.
+
+% options 1 and 2
+
+opt12(P) :- preference(P,aso), heuristic_aso=1.
+opt12(P) :- preference(P,aso), heuristic_aso=2.
+
+holds(aso(P,Id,Idx)) :- preference(P,aso), opt12(P),
+                        index(P,Id,Idx),
+                        not holds(X), preference(P,Id,0,for(X),_).
+holds(aso(P,Id,Idx)) :- preference(P,aso), opt12(P),
+                        index(P,Id,Idx),
+                        not holds(X) : preference(P,Id,H,for(X),_), H!=0.
+holds(aso(P,Id,Idx)) :- preference(P,aso), opt12(P),
+                        index(P,Id,Idx), Idx>=Pos,
+                        holds(X), preference(P,Id,Pos,for(X),_), Pos != 0.
+
+% option 1
+heuristic(P,aso(P,Id,Idx),1,true) :- preference(P,aso), heuristic_aso=1,
+                                     index(P,Id,Idx).
+% option 2
+pos(P,1,Id1)   :- preference(P,aso), heuristic_aso=2,
+                  rule(P,Id1,_), Id1 <= Id2 : rule(P,Id2,_).
+pos(P,N+1,Id2) :- preference(P,aso), heuristic_aso=2,
+                  pos(P,N,Id1), rule(P,Id2,_), Id1 < Id2,
+                  Id2 <= Id3 : rule(P,Id3,_), Id1 < Id3.
+
+heuristic(P,aso(P,Id,Idx),N,true) :- preference(P,aso), heuristic_aso=2,
+                                     index(P,Id,Idx), pos(P,N,Id).
+
+
+% option 3
+holds(aso(P,Id,1))   :- preference(P,aso), heuristic_aso=3,
+                        rule(P,Id,L),
+                        not holds(X), preference(P,Id,0,for(X),_).
+holds(aso(P,Id,1))   :- preference(P,aso), heuristic_aso=3,
+                        rule(P,Id,L),
+                        not holds(X) : preference(P,Id,H,for(X),_), H!=0.
+holds(aso(P,Id,Idx)) :- preference(P,aso), heuristic_aso=3,
+                        rule(P,Id,L), L>Idx,
+                        holds(X), preference(P,Id,Idx,for(X),_), H!=0,
+                        not holds(aso(P,Id,Idx')) : Idx'=1..(Idx-1).
+
+max_index(P,I) :- preference(P,aso), heuristic_aso=3,
+                  rule(P,_,I), not rule(P,_,I+1).
+
+heuristic(P,aso(P,Id,Idx),I-Idx+1,true) :- preference(P,aso), heuristic_aso=3,
+                                           index(P,Id,Idx), max_index(P,I).
+
+#program heuristic(minmax).
+
+% preprocess
+elem(P,@get(T,0),T,X) :- preference(P,minmax), preference(P,_,_,for(X),T).
+min(P,G,C) :- preference(P,minmax), elem(P,G,_,_),
+              C = #sum{ W,T : elem(P,G,T,_), W=@get(T,1), W<0 }.
+min(P,C)   :- preference(P,minmax),
+              C = #min{ CC : min(P,G,CC) }.
+max(P,G,C) :- preference(P,minmax), elem(P,G,_,_),
+              C = #sum{ W,T : elem(P,G,T,_), W=@get(T,1), W>0 }.
+max(P,C)   :- preference(P,minmax),
+              C = #max{ CC : max(P,G,CC) }.
+
+% pos(itions)
+pos(P,G,1,T1)   :- preference(P,minmax),
+                   elem(P,G,T1,_), T1 <= T2 : elem(P,G,T2,_).
+pos(P,G,N+1,T2) :- preference(P,minmax),
+                   pos(P,G,N,T1),
+                   elem(P,G,T2,_), T1 < T2,
+                   T2 <= T3 : elem(P,G,T3,_), T1 < T3.
+% cost 
+cost(P,G,0,C)   :- preference(P,minmax),
+                   min(P,G,C).
+cost(P,G,N,C)   :- preference(P,minmax),
+                   cost(P,G,N-1,C),
+                   pos(P,G,N,_).
+cost(P,G,N,C+W) :- preference(P,minmax),
+                   cost(P,G,N-1,C),
+                   pos(P,G,N,T), W=@get(T,1), W>0,
+                   elem(P,G,T,X), holds(X).
+cost(P,G,N,C-W) :- preference(P,minmax),
+                   cost(P,G,N-1,C),
+                   pos(P,G,N,T), W=@get(T,1), W<0,
+                   elem(P,G,T,X), not holds(X).
+
+% minmax
+holds(minmax(P,C))   :- preference(P,minmax),
+                        pos(P,G,N,_), not pos(P,G,N+1,_),
+                        cost(P,G,N,C).
+holds(minmax(P,C-1)) :- preference(P,minmax),
+                        holds(minmax(P,C)), min(P,MIN), C > MIN.
+
+% domain(minmax)
+domain(minmax(P,C))   :- preference(P,minmax),
+                         max(P,C).
+domain(minmax(P,C-1)) :- preference(P,minmax),
+                         domain(minmax(P,C)), min(P,MIN), C > MIN.
+
+% heuristic
+heuristic(P,minmax(P,C),1,false) :- preference(P,minmax),
+                                    domain(minmax(P,C)), min(P,MIN).
+
+#program heuristic(maxmin).
+
+% preprocess
+elem(P,@get(T,0),T,X) :- preference(P,maxmin), preference(P,_,_,for(X),T).
+min(P,G,C) :- preference(P,maxmin), elem(P,G,_,_),
+              C = #sum{ W,T : elem(P,G,T,_), W=-@get(T,1), W<0 }.
+min(P,C)   :- preference(P,maxmin),
+              C = #min{ CC : min(P,G,CC) }.
+max(P,G,C) :- preference(P,maxmin), elem(P,G,_,_),
+              C = #sum{ W,T : elem(P,G,T,_), W=-@get(T,1), W>0 }.
+max(P,C)   :- preference(P,maxmin),
+              C = #max{ CC : max(P,G,CC) }.
+
+% pos(itions)
+pos(P,G,1,T1)   :- preference(P,maxmin),
+                   elem(P,G,T1,_), T1 <= T2 : elem(P,G,T2,_).
+pos(P,G,N+1,T2) :- preference(P,maxmin),
+                   pos(P,G,N,T1),
+                   elem(P,G,T2,_), T1 < T2,
+                   T2 <= T3 : elem(P,G,T3,_), T1 < T3.
+% cost 
+cost(P,G,0,C)   :- preference(P,maxmin),
+                   min(P,G,C).
+cost(P,G,N,C)   :- preference(P,maxmin),
+                   cost(P,G,N-1,C),
+                   pos(P,G,N,_).
+cost(P,G,N,C+W) :- preference(P,maxmin),
+                   cost(P,G,N-1,C),
+                   pos(P,G,N,T), W=-@get(T,1), W>0,
+                   elem(P,G,T,X), holds(X).
+cost(P,G,N,C-W) :- preference(P,maxmin),
+                   cost(P,G,N-1,C),
+                   pos(P,G,N,T), W=-@get(T,1), W<0,
+                   elem(P,G,T,X), not holds(X).
+
+% maxmin
+holds(maxmin(P,C))   :- preference(P,maxmin),
+                        pos(P,G,N,_), not pos(P,G,N+1,_),
+                        cost(P,G,N,C).
+holds(maxmin(P,C-1)) :- preference(P,maxmin),
+                        holds(maxmin(P,C)), min(P,MIN), C > MIN.
+
+% domain(maxmin)
+domain(maxmin(P,C))   :- preference(P,maxmin),
+                         max(P,C).
+domain(maxmin(P,C-1)) :- preference(P,maxmin),
+                         domain(maxmin(P,C)), min(P,MIN), C > MIN.
+
+% heuristic
+heuristic(P,maxmin(P,C),1,false) :- preference(P,maxmin),
+                                    domain(maxmin(P,C)), min(P,MIN).
+
+#program heuristic(neg).
+heuristic(P,X,L,MM) :- preference(P,neg), preference(P,_,_,name(PP),_),
+                       heuristic(P,X,L,M), inverse(P,M,MM).
+inverse(P,true,false) :- preference(P,neg).
+inverse(P,false,true) :- preference(P,neg).
+
+#program heuristic(lexico).
+heuristic(P,X,L+O,M) :- preference(P,lexico), 
+                        preference(P,_,_,name(P1),L1),
+                        heuristic(P1,X,L,M),
+                        O = #sum{ L3,L2 : preference(P,_,_,name(P2),L2), L2 < L1,
+                                          heuristic(P2,_,L3,_)}.
+                                          %heuristic(P2,_,L3,_), not heuristic(P2,_,L3+1,_)}.
+#program heuristic(pareto).
+
+% 2 options
+#const heuristic_pareto=1.
+
+% option 1
+
+heuristic(P,X,L,M) :- preference(P,pareto), heuristic_pareto=1,
+                      preference(P,_,_,name(P1),_),
+                      heuristic(P1,X,L,M).
+
+% option 2 (same as lexico)
+
+heuristic(P,X,L+O,M) :- preference(P,pareto), 
+                        preference(P,_,_,name(P1),_),
+                        heuristic(P1,X,L,M),
+                        O = #sum{ L3,L2 : preference(P,_,_,name(P2),_), P2 < P1,
+                                          heuristic(P2,_,L3,_)}.
+
+#program heuristic(and).
+
+% 2 options
+#const heuristic_and=1.
+
+% option 1
+
+heuristic(P,X,L,M) :- preference(P,and), heuristic_and=1,
+                      preference(P,_,_,name(P1),_),
+                      heuristic(P1,X,L,M).
+
+% option 2 (same as lexico)
+
+heuristic(P,X,L+O,M) :- preference(P,and), 
+                        preference(P,_,_,name(P1),_),
+                        heuristic(P1,X,L,M),
+                        O = #sum{ L3,L2 : preference(P,_,_,name(P2),_), P2 < P1,
+                                          heuristic(P2,_,L3,_)}.
 
 %
 % approximation programs:
 % - used with option --solving-mode=approx
-% - some preference types (aso, poset, maxmin, minmax, and) are missing
 %
 #program approximation.
 #minimize{ W@L,T : minimize(P,W,L,T,X), optimize(P), holds(X) }.
@@ -819,8 +1130,8 @@ domain(minmax(P,C-1)) :- preference(P,minmax),
                          domain(minmax(P,C)), min(P,MIN), C > MIN.
 
 % minimize
-minimize(P,C-MIN,1,0,minmax(P,C)) :- preference(P,minmax), 
-                                     domain(minmax(P,C)), min(P,MIN).
+minimize(P,1,1,C,minmax(P,C)) :- preference(P,minmax),
+                                 domain(minmax(P,C)), min(P,MIN).
 
 #program approximation(maxmin).
 
@@ -871,34 +1182,67 @@ domain(maxmin(P,C-1)) :- preference(P,maxmin),
                          domain(maxmin(P,C)), min(P,MIN), C > MIN.
 
 % minimize
-minimize(P,C-MIN,1,0,maxmin(P,C)) :- preference(P,maxmin), 
-                                     domain(maxmin(P,C)), min(P,MIN).
+minimize(P,1,1,C,maxmin(P,C)) :- preference(P,maxmin),
+                                 domain(maxmin(P,C)), min(P,MIN).
 
 #program approximation(aso).
 
 rule(P,Id,L) :- preference(P,aso),
                 preference(P,Id,_,_,_),
-                L = #max{ H : preference(P,Id,H,_,_)}.
-index(P,Id,1..L) :- rule(P,Id,L).
+                L = #max{ H : preference(P,Id,H,_,_)}, L>1.
+index(P,Id,1..L-1) :- rule(P,Id,L).
 
-pos(P,1,Id1)   :- preference(P,aso),
-                  rule(P,Id1,_), Id1 <= Id2 : rule(P,Id2,_).
-pos(P,N+1,Id2) :- preference(P,aso),
-                  pos(P,N,Id1), rule(P,Id2,_), Id1 < Id2,
-                  Id2 <= Id3 : rule(P,Id3,_), Id1 < Id3.
+% 3 options
+#const approx_aso=1.
 
-holds(aso(P,Id,Idx)) :- preference(P,aso),
+% options 1 and 2
+
+opt12(P) :- preference(P,aso), approx_aso=1.
+opt12(P) :- preference(P,aso), approx_aso=2.
+
+holds(aso(P,Id,Idx)) :- preference(P,aso), opt12(P),
                         index(P,Id,Idx),
                         not holds(X), preference(P,Id,0,for(X),_).
-holds(aso(P,Id,Idx)) :- preference(P,aso),
+holds(aso(P,Id,Idx)) :- preference(P,aso), opt12(P),
                         index(P,Id,Idx),
                         not holds(X) : preference(P,Id,H,for(X),_), H!=0.
-holds(aso(P,Id,Idx)) :- preference(P,aso),
+holds(aso(P,Id,Idx)) :- preference(P,aso), opt12(P),
                         index(P,Id,Idx), Idx>=Pos,
                         holds(X), preference(P,Id,Pos,for(X),_), Pos != 0.
 
-minimize(P,-1,N,Idx,aso(P,Id,Idx)) :- preference(P,aso),
+% option 1
+minimize(P,-1,1,Idx,aso(P,Id,Idx)) :- preference(P,aso), approx_aso=1,
+                                      index(P,Id,Idx).
+% option 2
+pos(P,1,Id1)   :- preference(P,aso), approx_aso=2,
+                  rule(P,Id1,_), Id1 <= Id2 : rule(P,Id2,_).
+pos(P,N+1,Id2) :- preference(P,aso), approx_aso=2,
+                  pos(P,N,Id1), rule(P,Id2,_), Id1 < Id2,
+                  Id2 <= Id3 : rule(P,Id3,_), Id1 < Id3.
+
+minimize(P,-1,N,Idx,aso(P,Id,Idx)) :- preference(P,aso), approx_aso=2,
                                       index(P,Id,Idx), pos(P,N,Id).
+
+
+% option 3
+holds(aso(P,Id,1))   :- preference(P,aso), approx_aso=3,
+                        rule(P,Id,L),
+                        not holds(X), preference(P,Id,0,for(X),_).
+holds(aso(P,Id,1))   :- preference(P,aso), approx_aso=3,
+                        rule(P,Id,L),
+                        not holds(X) : preference(P,Id,H,for(X),_), H!=0.
+holds(aso(P,Id,Idx)) :- preference(P,aso), approx_aso=3,
+                        rule(P,Id,L), L>Idx,
+                        holds(X), preference(P,Id,Idx,for(X),_), H!=0,
+                        not holds(aso(P,Id,Idx')) : Idx'=1..(Idx-1).
+
+max_index(P,I) :- preference(P,aso), approx_aso=3,
+                  rule(P,_,I), not rule(P,_,I+1).
+
+minimize(P,-1,I-Idx+1,Id,aso(P,Id,Idx)) :- preference(P,aso), approx_aso=3,
+                                           index(P,Id,Idx), max_index(P,I).
+
+% we could also do a level per each position of each rule...
 
 #program approximation(poset).
 
@@ -910,12 +1254,26 @@ poset(P,X,Y) :- preference(P,poset),
 poset(P,X,Y) :- preference(P,poset),
                 poset(P,X,Z), poset(P,Z,Y).
 
-step(P,X,0)   :- preference(P,poset),
+% 2 options
+#const approx_poset=2.
+
+% option 1
+
+step(P,X,1)   :- preference(P,poset), approx_poset=1,
                  poset(P,X).
-step(P,X,S+1) :- preference(P,poset),
+step(P,X,S+1) :- preference(P,poset), approx_poset=1,
                  step(P,X,S), step(P,Y,S), poset(P,Y,X).
 
-minimize(P,-1,-S,X,X) :- preference(P,poset), step(P,X,S), not step(P,X,S+1).
+minimize(P,-1,-S,X,X) :- preference(P,poset), approx_poset=1,
+                         step(P,X,S), not step(P,X,S+1).
+
+% option 2
+
+cost(P,X,C+1) :- preference(P,poset), approx_poset=2,
+                 poset(P,X),
+                 C = #sum{ CC,Y : poset(P,X,Y), cost(P,Y,CC) }.
+
+minimize(P,-C,1,X,X) :- cost(P,X,C), approx_poset=2.
 
 #program approximation(neg).
 minimize(P,-W,L,T,X) :- preference(P,neg), preference(P,_,_,name(PP),_),
@@ -930,14 +1288,38 @@ minimize(P,W,L+O,T,X) :- preference(P,lexico),
                                           %minimize(P2,_,L3,_,_), not minimize(P2,_,L3+1,_,_)}.
 
 #program approximation(pareto).
-minimize(P,W,L+O,T,X) :- preference(P,pareto), 
+
+% 2 options
+#const approx_pareto=1.
+
+% option 1
+
+minimize(P,W,L,(P1,T),X) :- preference(P,pareto), approx_pareto=1,
+                            preference(P,_,_,name(P1),_),
+                            minimize(P1,W,L,T,X).
+
+% option 2 (same as lexico)
+
+minimize(P,W,L+O,T,X) :- preference(P,pareto), approx_pareto=2, 
                          preference(P,_,_,name(P1),_),
                          minimize(P1,W,L,T,X),
                          O = #sum{ L3,P2 : preference(P,_,_,name(P2),_), P2 < P1,
                                            minimize(P2,_,L3,_,_)}.
 
 #program approximation(and). % same as pareto
-minimize(P,W,L+O,T,X) :- preference(P,and), 
+
+% 2 options
+#const approx_and=1.
+
+% option 1
+
+minimize(P,W,L,(P1,T),X) :- preference(P,and), approx_and=1,
+                            preference(P,_,_,name(P1),_),
+                            minimize(P1,W,L,T,X).
+
+% option 2 (same as lexico)
+
+minimize(P,W,L+O,T,X) :- preference(P,and), approx_and=2, 
                          preference(P,_,_,name(P1),_),
                          minimize(P1,W,L,T,X),
                          O = #sum{ L3,P2 : preference(P,_,_,name(P2),_), P2 < P1,

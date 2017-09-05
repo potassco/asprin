@@ -188,6 +188,7 @@ class Solver:
         self.approx_opt_models = []
         self.assumptions = []
         self.last_model = None
+        self.sequences = {}
         # functions
         self.get_preference_parts_opt = self.get_preference_parts
         # for GeneralController
@@ -245,6 +246,13 @@ class Solver:
             return "".join([str(i) for i in tuple.arguments]).replace('"',"")
         else:
             return str(tuple)
+
+    def get_sequence(self, string):
+        if string in self.sequences:
+            self.sequences[string] += 1
+        else:
+            self.sequences[string]  = 1
+        return self.sequences[string]
 
     #
     # CLINGO PROXY
