@@ -573,42 +573,56 @@ error_type(superset,no_sets).
 
 #program preference(clingo_minimize).
 
-level(P,L) :- preference(P,clingo_minimize), preference(P,_,_,_,T), L = @get(T,1).
-           
-better(P) :- preference(P,clingo_minimize),
+required(P) :- preference(P,clingo_minimize), required(P,_).
+
+level(P,L) :- preference(P,clingo_minimize), required(P),
+              preference(P,_,_,_,T), L = @get(T,1).
+
+% better
+required_level(P,better) :- preference(P,clingo_minimize), required(P,better).
+required_level(P,    eq) :- preference(P,clingo_minimize), required(P,better).
+better(P) :- preference(P,clingo_minimize), required(P,better),
              level(P,L), better(P,L), 
              eq(P,LL) : level(P,LL), LL>L.
 
-bettereq(P) :- better(P), preference(P,clingo_minimize).
-bettereq(P) :-     eq(P), preference(P,clingo_minimize).
+% bettereq
+required(P,better) :- preference(P,clingo_minimize), required(P,bettereq).
+required(P,    eq) :- preference(P,clingo_minimize), required(P,bettereq).
+bettereq(P) :- preference(P,clingo_minimize), required(P,bettereq),
+               better(P).
+bettereq(P) :- preference(P,clingo_minimize), required(P,bettereq),
+               eq(P).
 
-eq(P) :- preference(P,clingo_minimize),
+% eq
+required_level(P,eq) :- preference(P,clingo_minimize), required(P,eq).
+eq(P) :- preference(P,clingo_minimize), required(P,eq),
          eq(P,L) : level(P,L).
            
-worseeq(P) :-    eq(P), preference(P,clingo_minimize).
-worseeq(P) :- worse(P), preference(P,clingo_minimize).
-           
-worse(P) :- preference(P,clingo_minimize),
-           level(P,L), worse(P,L), 
-           eq(P,LL) : level(P,LL), LL>L.
+% worseeq
+required(P,worse) :- preference(P,clingo_minimize), required(P,worseeq).
+required(P,   eq) :- preference(P,clingo_minimize), required(P,worseeq).
+worseeq(P) :- preference(P,clingo_minimize), required(P,worseeq),
+              worse(P).
+worseeq(P) :- preference(P,clingo_minimize), required(P,worseeq),
+              eq(P).
 
-better(P,L) :- preference(P,clingo_minimize), required(P,better), level(P,L),
+% worse
+required_level(P,worse) :- preference(P,clingo_minimize), required(P,worse).
+required_level(P,   eq) :- preference(P,clingo_minimize), required(P,worse).
+worse(P) :- preference(P,clingo_minimize), required(P,worse),
+            level(P,L), worse(P,L), 
+            eq(P,LL) : level(P,LL), LL>L.
+
+% levels: better, eq and worse
+better(P,L) :- preference(P,clingo_minimize), required_level(P,better), level(P,L),
   1 #sum { -W,T : holds(X),  preference(P,_,_,for(X),T), W = @get(T,0), L=@get(T,1); 
             W,T : holds'(X), preference(P,_,_,for(X),T), W = @get(T,0), L=@get(T,1)}.
 
-bettereq(P,L) :- preference(P,clingo_minimize), required(P,better), level(P,L),
-  0 #sum { -W,T : holds(X),  preference(P,_,_,for(X),T), W = @get(T,0), L=@get(T,1); 
-            W,T : holds'(X), preference(P,_,_,for(X),T), W = @get(T,0), L=@get(T,1)}.
-
-eq(P,L) :- preference(P,clingo_minimize), required(P,better), level(P,L),
+eq(P,L) :- preference(P,clingo_minimize), required_level(P,eq), level(P,L),
   0 #sum { -W,T : holds(X),  preference(P,_,_,for(X),T), W = @get(T,0), L=@get(T,1); 
             W,T : holds'(X), preference(P,_,_,for(X),T), W = @get(T,0), L=@get(T,1)}0.
 
-worseeq(P,L) :- preference(P,clingo_minimize), required(P,better), level(P,L),
-  #sum { -W,T : holds(X),  preference(P,_,_,for(X),T), W = @get(T,0), L=@get(T,1); 
-          W,T : holds'(X), preference(P,_,_,for(X),T), W = @get(T,0), L=@get(T,1)}0.
-
-worse(P,L) :- preference(P,clingo_minimize), required(P,better), level(P,L),
+worse(P,L) :- preference(P,clingo_minimize), required_level(P,worse), level(P,L),
   #sum { -W,T : holds(X),  preference(P,_,_,for(X),T), W = @get(T,0), L=@get(T,1); 
           W,T : holds'(X), preference(P,_,_,for(X),T), W = @get(T,0), L=@get(T,1)}-1.
 
@@ -732,6 +746,7 @@ error_type(X,Y) :- #false, error_type(X,Y).
 %
 
 minimize(P) :- minimize(P,_,_,_,_).
+minimize(A,B,C,D,E) :- #false, minimize(A,B,C,D,E). % to avoid warnings
 
 % pos(itions)
 pos(P,L,1,T1)   :- minimize(P),
@@ -785,7 +800,7 @@ minimize(P,1,1,X,X) :- preference(P,less(cardinality)),
                        preference(P,_,_,for(X),_).
 
 #program heuristic(more(cardinality)).
-minimize(P,-1,1,X,X) :- preference(P,less(cardinality)),
+minimize(P,-1,1,X,X) :- preference(P,more(cardinality)),
                         preference(P,_,_,for(X),_).
 
 #program heuristic(less(weight)).
@@ -795,6 +810,10 @@ minimize(P,@get(T,0),1,T,X) :- preference(P,less(weight)),
 #program heuristic(more(weight)).
 minimize(P,-@get(T,0),1,T,X) :- preference(P,more(weight)),
                                 preference(P,_,_,for(X),T).
+
+#program heuristic(clingo_minimize).
+minimize(P,W,L,T,X) :- preference(P,clingo_minimize), preference(P,_,_,for(X),T),
+                       W=@get(T,0), L=@get(T,1).
 
 #program heuristic(poset).
 
@@ -813,7 +832,7 @@ poset(P,X,Y) :- preference(P,poset),
 
 heuristic(P,X,1,true) :- preference(P,poset), heuristic_poset=1,
                          poset(P,X),
-                         assigned(Y) : poset(Y,X).
+                         assigned(P,Y) : poset(P,Y,X).
 
 assigned(P,X) :- preference(P,poset), heuristic_poset=1,
                  poset(P,X),     holds(X).
@@ -887,10 +906,10 @@ holds(aso(P,Id,1))   :- preference(P,aso), heuristic_aso=3,
                         not holds(X), preference(P,Id,0,for(X),_).
 holds(aso(P,Id,1))   :- preference(P,aso), heuristic_aso=3,
                         rule(P,Id,L),
-                        not holds(X) : preference(P,Id,H,for(X),_), H!=0.
+                        not holds(X) : preference(P,Id,Idx,for(X),_), Idx!=0.
 holds(aso(P,Id,Idx)) :- preference(P,aso), heuristic_aso=3,
                         rule(P,Id,L), L>Idx,
-                        holds(X), preference(P,Id,Idx,for(X),_), H!=0,
+                        holds(X), preference(P,Id,Idx,for(X),_), Idx!=0,
                         not holds(aso(P,Id,Idx')) : Idx'=1..(Idx-1).
 
 max_index(P,I) :- preference(P,aso), heuristic_aso=3,
@@ -1005,7 +1024,7 @@ heuristic(P,maxmin(P,C),1,false) :- preference(P,maxmin),
 
 #program heuristic(neg).
 heuristic(P,X,L,MM) :- preference(P,neg), preference(P,_,_,name(PP),_),
-                       heuristic(P,X,L,M), inverse(P,M,MM).
+                       heuristic(PP,X,L,M), inverse(P,M,MM).
 inverse(P,true,false) :- preference(P,neg).
 inverse(P,false,true) :- preference(P,neg).
 
@@ -1032,7 +1051,7 @@ heuristic(P,X,L,M) :- preference(P,pareto), heuristic_pareto=1,
 heuristic(P,X,L+O,M) :- preference(P,pareto), 
                         preference(P,_,_,name(P1),_),
                         heuristic(P1,X,L,M),
-                        O = #sum{ L3,L2 : preference(P,_,_,name(P2),_), P2 < P1,
+                        O = #sum{ L3,P2 : preference(P,_,_,name(P2),_), P2 < P1,
                                           heuristic(P2,_,L3,_)}.
 
 #program heuristic(and).
@@ -1051,7 +1070,7 @@ heuristic(P,X,L,M) :- preference(P,and), heuristic_and=1,
 heuristic(P,X,L+O,M) :- preference(P,and), 
                         preference(P,_,_,name(P1),_),
                         heuristic(P1,X,L,M),
-                        O = #sum{ L3,L2 : preference(P,_,_,name(P2),_), P2 < P1,
+                        O = #sum{ L3,P2 : preference(P,_,_,name(P2),_), P2 < P1,
                                           heuristic(P2,_,L3,_)}.
 
 %
@@ -1060,6 +1079,8 @@ heuristic(P,X,L+O,M) :- preference(P,and),
 %
 #program approximation.
 #minimize{ W@L,T : minimize(P,W,L,T,X), optimize(P), holds(X) }.
+
+minimize(A,B,C,D,E) :- #false, minimize(A,B,C,D,E). % to avoid warnings
 
 #program approximation(subset).
 minimize(P,1,1,X,X) :- preference(P,subset), preference(P,_,_,for(X),_).
@@ -1081,17 +1102,21 @@ minimize(P,W,1,T,X) :- preference(P,less(weight)), preference(P,_,_,for(X),T),
 minimize(P,W,1,T,X) :- preference(P,more(weight)), preference(P,_,_,for(X),T),
                        W=@get(T,0).
 
+#program approximation(clingo_minimize).
+minimize(P,W,L,T,X) :- preference(P,clingo_minimize), preference(P,_,_,for(X),T),
+                       W=@get(T,0), L=@get(T,1).
+
 #program approximation(minmax).
 
 % preprocess
 elem(P,@get(T,0),T,X) :- preference(P,minmax), preference(P,_,_,for(X),T).
 min(P,G,C) :- preference(P,minmax), elem(P,G,_,_),
               C = #sum{ W,T : elem(P,G,T,_), W=@get(T,1), W<0 }.
-min(P,C)   :- preference(P,minmax),
+min(P,C)   :- preference(P,minmax), elem(P,_,_,_),
               C = #min{ CC : min(P,G,CC) }.
-max(P,G,C) :- preference(P,minmax), elem(P,G,_,_),
+max(P,G,C) :- preference(P,minmax), elem(P,G,_,_), 
               C = #sum{ W,T : elem(P,G,T,_), W=@get(T,1), W>0 }.
-max(P,C)   :- preference(P,minmax),
+max(P,C)   :- preference(P,minmax), elem(P,_,_,_),
               C = #max{ CC : max(P,G,CC) }.
 
 % pos(itions)
@@ -1139,11 +1164,11 @@ minimize(P,1,1,C,minmax(P,C)) :- preference(P,minmax),
 elem(P,@get(T,0),T,X) :- preference(P,maxmin), preference(P,_,_,for(X),T).
 min(P,G,C) :- preference(P,maxmin), elem(P,G,_,_),
               C = #sum{ W,T : elem(P,G,T,_), W=-@get(T,1), W<0 }.
-min(P,C)   :- preference(P,maxmin),
+min(P,C)   :- preference(P,maxmin), elem(P,_,_,_),
               C = #min{ CC : min(P,G,CC) }.
 max(P,G,C) :- preference(P,maxmin), elem(P,G,_,_),
               C = #sum{ W,T : elem(P,G,T,_), W=-@get(T,1), W>0 }.
-max(P,C)   :- preference(P,maxmin),
+max(P,C)   :- preference(P,maxmin), elem(P,_,_,_),
               C = #max{ CC : max(P,G,CC) }.
 
 % pos(itions)
@@ -1211,8 +1236,8 @@ holds(aso(P,Id,Idx)) :- preference(P,aso), opt12(P),
                         holds(X), preference(P,Id,Pos,for(X),_), Pos != 0.
 
 % option 1
-minimize(P,-1,1,Idx,aso(P,Id,Idx)) :- preference(P,aso), approx_aso=1,
-                                      index(P,Id,Idx).
+minimize(P,-1,1,(Id,Idx),aso(P,Id,Idx)) :- preference(P,aso), approx_aso=1,
+                                           index(P,Id,Idx).
 % option 2
 pos(P,1,Id1)   :- preference(P,aso), approx_aso=2,
                   rule(P,Id1,_), Id1 <= Id2 : rule(P,Id2,_).
@@ -1230,10 +1255,10 @@ holds(aso(P,Id,1))   :- preference(P,aso), approx_aso=3,
                         not holds(X), preference(P,Id,0,for(X),_).
 holds(aso(P,Id,1))   :- preference(P,aso), approx_aso=3,
                         rule(P,Id,L),
-                        not holds(X) : preference(P,Id,H,for(X),_), H!=0.
+                        not holds(X) : preference(P,Id,Idx,for(X),_), Idx!=0.
 holds(aso(P,Id,Idx)) :- preference(P,aso), approx_aso=3,
                         rule(P,Id,L), L>Idx,
-                        holds(X), preference(P,Id,Idx,for(X),_), H!=0,
+                        holds(X), preference(P,Id,Idx,for(X),_), Idx!=0,
                         not holds(aso(P,Id,Idx')) : Idx'=1..(Idx-1).
 
 max_index(P,I) :- preference(P,aso), approx_aso=3,

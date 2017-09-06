@@ -48,7 +48,7 @@ class Test:
             if line == 1:
                 self.command = i[1:]
                 self.command = self.command.replace('asprin',
-                                                    ASPRIN + ' '.join(options))
+                                                    ASPRIN+' '.join(options),1)
             elif line == 2:
                 match = re.match(r'%( )*SATISFIABLE', i)
                 self.satisfiable = True if match else False

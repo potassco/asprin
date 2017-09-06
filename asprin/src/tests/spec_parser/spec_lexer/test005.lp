@@ -1,6 +1,9 @@
 % asprin test005.lp 0
 % SATISFIABLE
-#preference(p,q){}.#optimize(p).#program preference(q). :-.
+#preference(p,q){}.#optimize(p).
+#program preference(q). :-.
+#program approximation(q).
+#program heuristic(q).
 
 %asprin version 3.0.0
 %Reading from spec_parser/spec_lexer/test005.lp

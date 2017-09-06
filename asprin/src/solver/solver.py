@@ -510,7 +510,7 @@ class Solver:
         self.models += 1
         self.print_str_answer()
         # for models not proved to be optimal
-        if not model.optimality_proven:
+        if not model.optimality_proven and model.cost!=[]:
             if self.options.quiet == 0:
                 self.on_model(model)
                 self.print_shown()

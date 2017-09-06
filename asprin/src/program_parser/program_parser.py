@@ -36,13 +36,14 @@ import basic
 EMPTY      = utils.EMPTY
 
 # programs
-BASE      = utils.BASE
-SPEC      = utils.SPEC
-GENERATE  = utils.GENERATE
-PREFP     = utils.PREFP
-APPROX    = utils.APPROX
-HEURISTIC = utils.HEURISTIC
-UNSATP    = utils.UNSATP
+BASE         = utils.BASE
+SPEC         = utils.SPEC
+GENERATE     = utils.GENERATE
+PREFP        = utils.PREFP
+APPROX       = utils.APPROX
+HEURISTIC    = utils.HEURISTIC
+UNSATP       = utils.UNSATP
+CONSTANTS_NB = utils.CONSTANTS_NB
 
 # underscores
 U_PREFP     = utils.U_PREFP
@@ -319,6 +320,14 @@ class Parser:
         show += "#show."
         self.__add_and_ground(SHOW,[],show,[(SHOW,[])])
 
+    def add_constants_nonbase(self):
+        if not self.__options['constants_nb']:
+            return
+        constants = self.__options['constants_nb'].items()
+        program = " ".join("#const {}={}.".format(x,y) for x,y in constants)
+        self.__control.add(CONSTANTS_NB,[],program)
+        self.__control.ground([(CONSTANTS_NB,[])])
+
     def add_programs(self, types, builder):
         # visitors
         v = preference.PreferenceProgramVisitor(builder, PREFP, U_PREFP)
@@ -354,6 +363,9 @@ class Parser:
 
         # add #show statements if needed (CSP variables are not shown)
         self.add_show(types)
+
+        # add nonbase constants
+        self.add_constants_nonbase()
 
         # option --print-programs
         if self.__options['print-programs']:

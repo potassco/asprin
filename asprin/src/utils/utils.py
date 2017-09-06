@@ -42,6 +42,7 @@ APPROX     = "approximation"
 WARNINGS   = "warnings"
 UNSATP     = "preference_unsat"
 UNSATPBASE = "preference_unsat_base"
+CONSTANTS_NB = "constants_nonbase"
 
 # map preference programs to their bases
 mapbase = { PREFP  : PBASE,

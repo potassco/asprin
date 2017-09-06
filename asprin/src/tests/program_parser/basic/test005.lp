@@ -1,7 +1,7 @@
-% asprin test005.lp --solving-mode=heuristic 0
+% asprin test005.lp 0
 % ERROR
 
-% undefined heuristic programs
+% undefined type programs
 
 %
 % base program
@@ -13,43 +13,8 @@ dom(1..3).
 #show a/1.
 #show b/1.
 
-%
-% basic preference statements
-%
-
-#preference(p(1),subset){
-  a(X)
-}.
-
-#preference(p(2),less(weight)){
-  X :: b(X)
-}.
-
-#preference(p(3),aso){
-  a(X) >> not a(X) || b(X)
-}.
-
-#preference(p(4),poset){
+#preference(p,undefined){
   a(X);
-  b(X);
-  a(X) >> b(X)
+  b(X)
 }.
-
-%
-% composite preference statements
-%
-
-#preference(q,pareto){
-  **p(X)
-}.
-
-#preference(r,neg){
-  **q
-}.
-
-%
-% optimize statement
-%
-
-#optimize(p(4)).
-
+#optimize(p).

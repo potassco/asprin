@@ -79,6 +79,8 @@ for non base programs
   (<m> should be as in clingo --trans-ext option)"""
 HELP_PREFERENCE_UNSAT = """R|: Use """ + utils.UNSATP + """ programs \
 for optimal models"""
+HELP_CONST_NONBASE = """R|: Replace term occurrences of <id> in non-base
+  programs with <t>"""
 
 #
 # VERSION
@@ -158,7 +160,6 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
         while len(new)>i and new[i]=="_": i+=1
         if i>self.underscores: self.underscores = i
 
-
     def __add_file(self,files,file):
         abs_file = os.path.abspath(file) if file != "-" else "-"
         if abs_file in [i[1] for i in files]:
@@ -168,6 +169,17 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
         if not self.__first_file:
             self.__first_file = file
 
+    def __do_constants(self, alist):
+        # handle constants
+        constants = dict()
+        for i in alist:
+            old, sep, new = i.partition("=")
+            self.__update_underscores(new)
+            if old in constants:
+                raise Exception("constant defined twice")
+            else:
+                constants[old] = new
+        return constants
 
     def run(self, args):
 
@@ -207,6 +219,11 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
                            action='store_false')
         basic.add_argument('-c', '--const', dest='constants', 
                            action="append", help=argparse.SUPPRESS, default=[])
+        basic.add_argument('--const-nb', dest='constants_nb', 
+                           action="append", 
+                           metavar="<id>=<t>",
+                           help=HELP_CONST_NONBASE,
+                           default=[])
         basic.add_argument(DEBUG, dest='debug', action='store_true',
                            help=argparse.SUPPRESS)
         basic.add_argument('--to-clingo', dest='to_clingo', 
@@ -298,16 +315,9 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
         prologue += self.__first_file
 
         # handle constants
-        constants = dict()
-        for i in options['constants']:
-            old, sep, new = i.partition("=")
-            self.__update_underscores(new)
-            if old in constants:
-                raise Exception("constant defined twice")
-            else:
-                constants[old] = new
-        options['constants'] = constants
-
+        options['constants']    = self.__do_constants(options['constants'])
+        options['constants_nb'] = self.__do_constants(options['constants_nb'])
+        
         # statistics
         # if options['stats']:
         clingo_options.append('--stats')
