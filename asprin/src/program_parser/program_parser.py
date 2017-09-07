@@ -323,23 +323,27 @@ class Parser:
     def add_constants_nonbase(self):
         if not self.__options['constants_nb']:
             return
-        constants = self.__options['constants_nb'].items()
-        program = " ".join("#const {}={}.".format(x,y) for x,y in constants)
+        constants_nb = self.__options['constants_nb'].items()
+        program = " ".join("#const {}={}.".format(x,y) for x,y in constants_nb)
         self.__control.add(CONSTANTS_NB,[],program)
         self.__control.ground([(CONSTANTS_NB,[])])
 
     def add_programs(self, types, builder):
         # visitors
-        v = preference.PreferenceProgramVisitor(builder, PREFP, U_PREFP)
+        constants = self.__options['constants_nb']
+        v = preference.PreferenceProgramVisitor(builder, PREFP,
+                                                U_PREFP, constants)
         visitors = [(PREFP, v)]
         if self.__options['solving_mode'] == 'approx':
-            v = basic.BasicProgramVisitor(builder, APPROX, U_APPROX)
+            v = basic.BasicProgramVisitor(builder, APPROX, U_APPROX, constants)
             visitors.append((APPROX,v))
         elif self.__options['solving_mode'] == 'heuristic':
-            v = basic.HeuristicProgramVisitor(builder, HEURISTIC, U_HEURISTIC)
+            v = basic.HeuristicProgramVisitor(builder, HEURISTIC,
+                                              U_HEURISTIC, constants)
             visitors.append((HEURISTIC,v))
         if self.__options['preference_unsat']:
-            v = preference.PreferenceProgramVisitor(builder, UNSATP, U_UNSATP)
+            v = preference.PreferenceProgramVisitor(builder, UNSATP,
+                                                    U_UNSATP, constants)
             visitors.append((UNSATP,v))
         # add programs
         for name, visitor in visitors:

@@ -166,10 +166,11 @@ class Condition:
 
 class PreferenceProgramVisitor(visitor.Visitor):
 
-    def __init__(self, builder, type, underscores):
+    def __init__(self, builder, type, underscores, constants):
         visitor.Visitor.__init__(self)
         self.__builder    = builder
         self.__type       = type
+        self.__constants  = constants
         self.__statements = []
         self.__conditions = []
         self.__graph      = Graph()
@@ -276,7 +277,8 @@ class PreferenceProgramVisitor(visitor.Visitor):
         return DET
 
     def visit_Definition(self, d):
-        self.__statements.append(Statement("Definition", d))
+        if d.name not in self.__constants:
+            self.__statements.append(Statement("Definition", d))
 
     def visit_ShowSignature(self, sig):
         self.__statements.append(Statement("ShowSignature", sig))

@@ -189,6 +189,7 @@ class Solver:
         self.assumptions = []
         self.last_model = None
         self.sequences = {}
+        self.search = 0
         # functions
         self.get_preference_parts_opt = self.get_preference_parts
         # for GeneralController
@@ -247,11 +248,13 @@ class Solver:
         else:
             return str(tuple)
 
-    def get_sequence(self, string):
+    def get_sequence(self,name,elem):
+        string = str(name)
         if string in self.sequences:
             self.sequences[string] += 1
         else:
             self.sequences[string]  = 1
+        #print(self.sequences[string])
         return self.sequences[string]
 
     #
@@ -325,7 +328,9 @@ class Solver:
     def check_errors(self):
         pr, control, u = self.printer, self.control, self.underscores
         error = False
-        for atom in control.symbolic_atoms.by_signature(u+"_"+utils.ERROR_PRED, 1):
+        for atom in control.symbolic_atoms.by_signature(
+            u + "_" + utils.ERROR_PRED, 1
+        ):
             string = "\n" + self.cat(atom.symbol.arguments[0])
             pr.print_spec_error(string)
             error = True
@@ -344,16 +349,31 @@ class Solver:
             self.nholds = list(self.holds_domain.difference(self.holds))
 
     def set_solving_result(self, result):
-        self.solving_result = None
         if result.satisfiable:
             self.solving_result = SATISFIABLE
         elif result.unsatisfiable:
             self.solving_result = UNSATISFIABLE
+        else:
+            self.solving_result = UNKNOWN
 
     def solve(self):
         result = self.control.solve(assumptions=self.assumptions,
                                     on_model=self.on_model)
         self.set_solving_result(result)
+
+    def solve_heuristic(self):
+        h = []
+        # gather heuristics
+        for _solver in self.control.configuration.solver:
+            h.append(_solver.heuristic)
+            _solver.heuristic="Domain"
+        # solve
+        self.solve()
+        # restore heuristics
+        i = 0
+        for _solver in self.control.configuration.solver:
+            _solver.heuristic = h[i]
+            i += 1
 
     def solve_unsat(self):
         self.solving_result = UNSATISFIABLE
@@ -582,7 +602,29 @@ class Solver:
         if self.opt_models == 0:
             self.print_unsat()
         self.more_models = True if result.satisfiable else False
-        self.end() 
+        self.end()
+
+
+    #
+    # improve limit
+    #
+    def set_solve_limit(self):
+        if self.step == self.start_step:
+            self.search  = (
+                int(self.control.statistics['solving']['solvers']['conflicts'])
+            )
+        elif self.options.improve_limit[1]:
+            self.search += (
+                int(self.control.statistics['solving']['solvers']['conflicts'])
+            )
+        limit = self.search * self.options.improve_limit[0]
+        if limit < self.options.improve_limit[2]:
+            limit = self.options.improve_limit[2]
+        self.control.configuration.solve.solve_limit = str(limit) + ",umax"
+
+    def reset_solve_limit(self):
+        self.control.configuration.solve.solve_limit = "umax,umax"
+
     #
     # OPTIONS
     #
@@ -639,9 +681,15 @@ class Solver:
                     optimal.unsat()
                     # UNSAT_POST
                     general.unsat_post()
-                else:
+                elif self.solving_result == UNKNOWN:
                     # UNKNOWN
-                    pass
+                    general.unknown()
+                    # UNSAT
+                    method.unsat()
+                    enumeration.unsat()
+                    optimal.unsat()
+                    # UNSAT_POST
+                    general.unsat_post()
                 # END_LOOP
                 general.end_loop()
         except RuntimeError as e: 

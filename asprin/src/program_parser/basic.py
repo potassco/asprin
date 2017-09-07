@@ -69,12 +69,13 @@ class BasicTermTransformer(visitor.TermTransformer):
 
 class BasicProgramVisitor(visitor.Visitor):
 
-    def __init__(self, builder, type, underscores):
+    def __init__(self, builder, type, underscores, constants):
         visitor.Visitor.__init__(self)
         self.type = type
         self.helper = visitor.Helper()
         self.__builder = builder
         self.__underscores = underscores
+        self.__constants = constants
         self.__in_program = False
         self.__term_transformer = BasicTermTransformer(underscores)
         self.__term_transformer.set_predicates_info()
@@ -95,7 +96,8 @@ class BasicProgramVisitor(visitor.Visitor):
         self.__add(rule)
 
     def visit_Definition(self, d):
-        self.__add(d)
+        if d.name not in self.__constants:
+            self.__add(d)
 
     def visit_ShowSignature(self, sig):
         self.__term_transformer.transform_signature(sig)
@@ -164,8 +166,8 @@ class BasicProgramVisitor(visitor.Visitor):
 
 class HeuristicProgramVisitor(BasicProgramVisitor):
 
-    def __init__(self, builder, type, underscores):
-        BasicProgramVisitor.__init__(self, builder, type, underscores)
+    def __init__(self, builder, type, underscores, consts):
+        BasicProgramVisitor.__init__(self, builder, type, underscores, consts)
 
     def visit_Minimize(self, min):
         string = ERROR_MINIMIZE.format(self.type, str(min))

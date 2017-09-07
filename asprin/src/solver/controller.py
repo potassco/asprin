@@ -34,6 +34,8 @@ class GeneralController:
         solver.old_nholds   = None
         if solver.options.max_models == 1:
             solver.store_nholds = False
+        self.improve_limit = True if solver.options.improve_limit is not None \
+            else False
         self.solver         = solver
 
     def start(self):
@@ -51,6 +53,7 @@ class GeneralController:
             solver.get_preference_parts_opt = solver.get_preference_parts_unsatp
             solver.ground_unsatp_base()
 
+
     def sat(self):
         if not self.solver.normal_sat:
             return
@@ -61,6 +64,8 @@ class GeneralController:
             self.solver.print_answer()
         else:
             self.solver.print_str_answer()
+        if self.improve_limit:
+            self.solver.set_solve_limit()
 
     def unsat(self):
         if self.solver.last_unsat:
@@ -68,7 +73,6 @@ class GeneralController:
             if self.solver.models == 0:
                 self.solver.print_unsat()
             self.solver.end()
-            return
         if self.solver.options.quiet == 1:
             self.solver.print_shown()
         self.solver.last_unsat = True
@@ -78,6 +82,12 @@ class GeneralController:
             self.solver.end()
         if self.solver.options.steps == self.solver.step:
             self.solver.end() # to exit asap in this case
+        if self.improve_limit:
+            self.solver.reset_solve_limit()
+
+    def unknown(self):
+        if self.improve_limit:
+            self.solver.reset_solve_limit()
 
     def unsat_post(self):
         self.solver.start_step = self.solver.step + 1
@@ -214,18 +224,7 @@ class HeurMethodController(MethodController):
 
     def solve(self):
         if self.solver.last_unsat:
-            h = []
-            # gather heuristics
-            for _solver in self.solver.control.configuration.solver:
-                h.append(_solver.heuristic)
-                _solver.heuristic="Domain"
-            # solve
-            self.solver.solve()
-            # restore heuristics
-            i = 0
-            for _solver in self.solver.control.configuration.solver:
-                _solver.heuristic = h[i]
-                i += 1
+            self.solver.solve_heuristic()
         else:
             self.solver.solve_unsat()
 

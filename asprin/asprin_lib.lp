@@ -741,6 +741,7 @@ error_type(X,Y) :- #false, error_type(X,Y).
 #program heuristic.
 #heuristic holds(X) : heuristic(P,X,V,M), optimize(P). [V,M]
 
+#const use_get_sequence=1.
 %
 % generate heuristic/4 from minimize/5
 %
@@ -749,12 +750,17 @@ minimize(P) :- minimize(P,_,_,_,_).
 minimize(A,B,C,D,E) :- #false, minimize(A,B,C,D,E). % to avoid warnings
 
 % pos(itions)
-pos(P,L,1,T1)   :- minimize(P),
+pos(P,L,N,T1)   :- minimize(P), use_get_sequence=1,
+                   minimize(P,_,L,T1,_), 
+                   N=@get_sequence(("heuristic",P,L),T1).
+
+pos(P,L,1,T1)   :- minimize(P), use_get_sequence!=1,
                    minimize(P,_,L,T1,_), T1 <= T2 : minimize(P,_,L,T2,_).
-pos(P,L,N+1,T2) :- minimize(P),
+pos(P,L,N+1,T2) :- minimize(P), use_get_sequence!=1,
                    pos(P,L,N,T1),
                    minimize(P,_,L,T2,_), T1 < T2,
                    T2 <= T3 : minimize(P,_,L,T3,_), T1 < T3.
+
 max_pos(P,L,N) :- minimize(P),
                   pos(P,L,N,_), not pos(P,L,N+1,_).
 
@@ -854,12 +860,13 @@ heuristic(P,X,M-S+1,true) :- preference(P,poset), heuristic_poset=2,
                              step(P,X,S), not step(P,X,S+1).
 
 % option 3
-
+%*
 cost(P,X,C+1) :- preference(P,poset), heuristic_poset=3,
                  poset(P,X),
                  C = #sum{ CC,Y : poset(P,X,Y), cost(P,Y,CC) }.
 
 minimize(P,-C,1,X,X) :- cost(P,X,C), heuristic_poset=3.
+*%
 
 #program heuristic(aso).
 
@@ -890,9 +897,13 @@ holds(aso(P,Id,Idx)) :- preference(P,aso), opt12(P),
 heuristic(P,aso(P,Id,Idx),1,true) :- preference(P,aso), heuristic_aso=1,
                                      index(P,Id,Idx).
 % option 2
-pos(P,1,Id1)   :- preference(P,aso), heuristic_aso=2,
+pos(P,N,Id1)   :- preference(P,aso), heuristic_aso=2, use_get_sequence=1,
+                  rule(P,Id1,_),
+                  N=@get_sequence(("heuristic_aso",P),Id1).
+
+pos(P,1,Id1)   :- preference(P,aso), heuristic_aso=2, use_get_sequence!=1,
                   rule(P,Id1,_), Id1 <= Id2 : rule(P,Id2,_).
-pos(P,N+1,Id2) :- preference(P,aso), heuristic_aso=2,
+pos(P,N+1,Id2) :- preference(P,aso), heuristic_aso=2, use_get_sequence!=1,
                   pos(P,N,Id1), rule(P,Id2,_), Id1 < Id2,
                   Id2 <= Id3 : rule(P,Id3,_), Id1 < Id3.
 
@@ -932,9 +943,13 @@ max(P,C)   :- preference(P,minmax),
               C = #max{ CC : max(P,G,CC) }.
 
 % pos(itions)
-pos(P,G,1,T1)   :- preference(P,minmax),
+pos(P,G,N,T1)   :- preference(P,minmax), use_get_sequence=1,
+                   elem(P,G,T1,_),
+                   N=@get_sequence(("heuristic_minmax",P,G),T1).
+
+pos(P,G,1,T1)   :- preference(P,minmax), use_get_sequence!=1,
                    elem(P,G,T1,_), T1 <= T2 : elem(P,G,T2,_).
-pos(P,G,N+1,T2) :- preference(P,minmax),
+pos(P,G,N+1,T2) :- preference(P,minmax), use_get_sequence!=1,
                    pos(P,G,N,T1),
                    elem(P,G,T2,_), T1 < T2,
                    T2 <= T3 : elem(P,G,T3,_), T1 < T3.
@@ -984,9 +999,13 @@ max(P,C)   :- preference(P,maxmin),
               C = #max{ CC : max(P,G,CC) }.
 
 % pos(itions)
-pos(P,G,1,T1)   :- preference(P,maxmin),
+pos(P,G,N,T1)   :- preference(P,maxmin), use_get_sequence=1,
+                   elem(P,G,T1,_),
+                   N=@get_sequence(("heuristic_maxmin",P,G),T1).
+
+pos(P,G,1,T1)   :- preference(P,maxmin), use_get_sequence!=1,
                    elem(P,G,T1,_), T1 <= T2 : elem(P,G,T2,_).
-pos(P,G,N+1,T2) :- preference(P,maxmin),
+pos(P,G,N+1,T2) :- preference(P,maxmin), use_get_sequence!=1,
                    pos(P,G,N,T1),
                    elem(P,G,T2,_), T1 < T2,
                    T2 <= T3 : elem(P,G,T3,_), T1 < T3.
@@ -1082,6 +1101,8 @@ heuristic(P,X,L+O,M) :- preference(P,and),
 
 minimize(A,B,C,D,E) :- #false, minimize(A,B,C,D,E). % to avoid warnings
 
+#const use_get_sequence=1.
+
 #program approximation(subset).
 minimize(P,1,1,X,X) :- preference(P,subset), preference(P,_,_,for(X),_).
 
@@ -1120,9 +1141,13 @@ max(P,C)   :- preference(P,minmax), elem(P,_,_,_),
               C = #max{ CC : max(P,G,CC) }.
 
 % pos(itions)
-pos(P,G,1,T1)   :- preference(P,minmax),
+pos(P,G,N,T1)   :- preference(P,minmax), use_get_sequence=1,
+                   elem(P,G,T1,_),
+                   N=@get_sequence(("approximation_minmax",P,G),T1).
+
+pos(P,G,1,T1)   :- preference(P,minmax), use_get_sequence!=1,
                    elem(P,G,T1,_), T1 <= T2 : elem(P,G,T2,_).
-pos(P,G,N+1,T2) :- preference(P,minmax),
+pos(P,G,N+1,T2) :- preference(P,minmax), use_get_sequence!=1,
                    pos(P,G,N,T1),
                    elem(P,G,T2,_), T1 < T2,
                    T2 <= T3 : elem(P,G,T3,_), T1 < T3.
@@ -1172,9 +1197,12 @@ max(P,C)   :- preference(P,maxmin), elem(P,_,_,_),
               C = #max{ CC : max(P,G,CC) }.
 
 % pos(itions)
-pos(P,G,1,T1)   :- preference(P,maxmin),
+pos(P,G,N,T1)   :- preference(P,maxmin), use_get_sequence=1,
+                   elem(P,G,T1,_),
+                   N=@get_sequence(("approximation_maxmin",P,G),T1).
+pos(P,G,1,T1)   :- preference(P,maxmin), use_get_sequence!=1,
                    elem(P,G,T1,_), T1 <= T2 : elem(P,G,T2,_).
-pos(P,G,N+1,T2) :- preference(P,maxmin),
+pos(P,G,N+1,T2) :- preference(P,maxmin), use_get_sequence!=1,
                    pos(P,G,N,T1),
                    elem(P,G,T2,_), T1 < T2,
                    T2 <= T3 : elem(P,G,T3,_), T1 < T3.
@@ -1239,9 +1267,13 @@ holds(aso(P,Id,Idx)) :- preference(P,aso), opt12(P),
 minimize(P,-1,1,(Id,Idx),aso(P,Id,Idx)) :- preference(P,aso), approx_aso=1,
                                            index(P,Id,Idx).
 % option 2
-pos(P,1,Id1)   :- preference(P,aso), approx_aso=2,
+pos(P,N,Id)   :- preference(P,aso), approx_aso=2, use_get_sequence=1,
+                 rule(P,Id,_),
+                 N=@get_sequence(("approximation_aso",P),Id).
+
+pos(P,1,Id1)   :- preference(P,aso), approx_aso=2, use_get_sequence!=1,
                   rule(P,Id1,_), Id1 <= Id2 : rule(P,Id2,_).
-pos(P,N+1,Id2) :- preference(P,aso), approx_aso=2,
+pos(P,N+1,Id2) :- preference(P,aso), approx_aso=2, use_get_sequence!=1,
                   pos(P,N,Id1), rule(P,Id2,_), Id1 < Id2,
                   Id2 <= Id3 : rule(P,Id3,_), Id1 < Id3.
 

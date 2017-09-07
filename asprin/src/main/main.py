@@ -66,10 +66,10 @@ first one
 HELP_GROUND_ONCE = """R|: Ground preference program only once \
 (for improving a model)"""
 HELP_CLINGO_HELP = ": Print {1=basic|2=more|3=full} clingo help and exit"
-HELP_RELEASE_LAST = """R|: When improving a model, release preference program \
+HELP_RELEASE_LAST = """R|: Improving a model, release preference program \
 for last model 
   as soon as possible"""
-HELP_NO_OPT_IMPROVING = """R|: When improving a model, do not use optimal models"""
+HELP_NO_OPT_IMPROVING = """R|: Improving a model, do not use optimal models"""
 HELP_VOLATILE_IMPROVING = """R|: Use volatile preference programs \
 for improving a model"""
 HELP_VOLATILE_OPTIMAL = """R|: Use volatile preference programs \
@@ -81,6 +81,10 @@ HELP_PREFERENCE_UNSAT = """R|: Use """ + utils.UNSATP + """ programs \
 for optimal models"""
 HELP_CONST_NONBASE = """R|: Replace term occurrences of <id> in non-base
   programs with <t>"""
+HELP_IMPROVE_LIMIT = """R|: Improving a model, stop search after x conflicts,
+  where x is <m> times the conflicts for the first model of the current iteration;
+  add ',all' to consider the conflicts for all the models of the current iteration,
+  and add ',<min>' to search always for at least <min> conflicts"""
 
 #
 # VERSION
@@ -170,16 +174,39 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
             self.__first_file = file
 
     def __do_constants(self, alist):
-        # handle constants
-        constants = dict()
-        for i in alist:
-            old, sep, new = i.partition("=")
-            self.__update_underscores(new)
-            if old in constants:
-                raise Exception("constant defined twice")
-            else:
-                constants[old] = new
-        return constants
+        try:
+            constants = dict()
+            for i in alist:
+                old, sep, new = i.partition("=")
+                self.__update_underscores(new)
+                if new is "":
+                    raise Exception(
+                        "no definition for constant {}".format(old)
+                    )
+                if old in constants:
+                    raise Exception("constant {} defined twice".format(old))
+                else:
+                    constants[old] = new
+            return constants
+        except Exception as e:
+            self.__cmd_parser.error(str(e))
+
+    def __do_improve_limit(self, string):
+        if string is None:
+            return None
+        try:
+            out = [0,False,0]
+            match = re.match(r'(\d+)(,all)?(,\d+)?$',string)
+            if not match:
+                raise Exception("incorrect value for option --improve-limit")
+            out[0] = int(match.group(1))
+            if match.group(2) is not None:
+                out[1] = True
+            if match.group(3) is not None:
+                out[2] = int(match.group(3)[1:])
+            return out
+        except Exception as e:
+            self.__cmd_parser.error(str(e))
 
     def run(self, args):
 
@@ -188,6 +215,7 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
         cmd_parser = MyArgumentParser(usage=self.usage, epilog=_epilog,
             formatter_class=SmartFormatter, #argparse.RawDescriptionHelpFormatter,
             add_help=False, prog="asprin")
+        self.__cmd_parser = cmd_parser
 
         # Basic Options
         basic = cmd_parser.add_argument_group('Basic Options')
@@ -195,7 +223,7 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
                            help=': Print help and exit')
         basic.add_argument('--clingo-help',
                            help=HELP_CLINGO_HELP,
-                           type=int, dest='clingo_help', metavar='<n>', 
+                           type=int, dest='clingo_help', metavar='<m>', 
                            default=0, choices=[0,1,2,3])
         basic.add_argument('--version', '-v', dest='version',
                            action='store_true',
@@ -250,8 +278,8 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
         solving.add_argument('--dom-heur', dest='cmd_heuristic',
                               nargs=2, metavar=('<v>','<m>'),
                               help=HELP_HEURISTIC)
-        
-        # Additional Solving Options  
+
+        # Additional Solving Options
         solving = cmd_parser.add_argument_group('Additional Solving Options')
         solving.add_argument('--steps', '-s', 
                              help=": Execute at most <s> steps", type=int,
@@ -283,6 +311,9 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
                              help=argparse.SUPPRESS,
                              #help=HELP_PREFERENCE_UNSAT,
                              action='store_true')
+        solving.add_argument('--improve-limit',
+                             metavar='<m>', dest='improve_limit',
+                             help=HELP_IMPROVE_LIMIT)
 
         options, unknown = cmd_parser.parse_known_args(args=args)
         options = vars(options)
@@ -317,7 +348,12 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
         # handle constants
         options['constants']    = self.__do_constants(options['constants'])
         options['constants_nb'] = self.__do_constants(options['constants_nb'])
-        
+
+        # handle improve_limit
+        options['improve_limit'] = self.__do_improve_limit(
+            options['improve_limit']
+        )
+
         # statistics
         # if options['stats']:
         clingo_options.append('--stats')
@@ -342,7 +378,6 @@ class Asprin:
         for i in constants:
             if i[0] not in options['constants']:
                 options['constants'][i[0]] = i[1]
-
 
     def __get_control(self,clingo_options):
         try:
