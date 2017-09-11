@@ -21,6 +21,9 @@
 # SOFTWARE.
 # -*- coding: utf-8 -*-
 
+import solver as solver_module
+from ..utils import utils
+
 class GeneralController:
 
     def __init__(self, solver):
@@ -32,7 +35,7 @@ class GeneralController:
         solver.more_models  = True
         solver.old_holds    = None
         solver.old_nholds   = None
-        if solver.options.max_models == 1:
+        if solver.options.max_models == 1 and not solver.options.improve_limit:
             solver.store_nholds = False
         self.improve_limit = True if solver.options.improve_limit is not None \
             else False
@@ -55,23 +58,22 @@ class GeneralController:
 
 
     def sat(self):
-        if not self.solver.normal_sat:
-            return
         self.solver.models     += 1
         self.solver.last_unsat  = False
+        self.solver.last_model  = self.solver.step
         self.solver.check_last_model()
         if self.solver.options.quiet == 0:
             self.solver.print_answer()
         else:
             self.solver.print_str_answer()
-        if self.improve_limit:
-            self.solver.set_solve_limit()
 
     def unsat(self):
         if self.solver.last_unsat:
             self.solver.more_models = False
             if self.solver.models == 0:
                 self.solver.print_unsat()
+            elif self.improve_limit:
+                self.solver.enumerate_unknown()
             self.solver.end()
         if self.solver.options.quiet == 1:
             self.solver.print_shown()
@@ -82,20 +84,23 @@ class GeneralController:
             self.solver.end()
         if self.solver.options.steps == self.solver.step:
             self.solver.end() # to exit asap in this case
-        if self.improve_limit:
-            self.solver.reset_solve_limit()
-
-    def unknown(self):
-        if self.improve_limit:
-            self.solver.reset_solve_limit()
 
     def unsat_post(self):
         self.solver.start_step = self.solver.step + 1
+
+    def unknown(self):
+        if self.solver.last_unsat:
+            raise utils.FatalException
+        self.solver.print_limit_string()
+        self.solver.last_unsat = True # act as if unsat
+        if self.solver.options.steps == self.solver.step:
+            self.solver.end() # to exit asap in this case
 
     def end_loop(self):
         self.solver.step = self.solver.step + 1
         if self.solver.options.steps == (self.solver.step - 1):
             self.solver.end()
+        self.solver.clean_up()
 
 
 class GeneralControllerHandleOptimal:
@@ -123,15 +128,27 @@ class GeneralControllerHandleOptimal:
            self.solver.step == self.solver.start_step:
             self.solver.relax_optimal_models()
 
-    def unsat(self):
+    def __preprocess(self):
         if self.total_order and not self.first:
             self.delete_worse  = False
             self.delete_better = False
         self.first = False
+
+    def unsat(self):
+        self.__preprocess()
         self.solver.handle_optimal_model(self.solver.last_model,
+                                         False,
                                          self.delete_worse,
                                          self.delete_better,
                                          self.volatile)
+
+    def unknown(self):
+        self.__preprocess()
+        self.solver.handle_optimal_model(self.solver.last_model,
+                                         True,
+                                         self.delete_worse,
+                                         False,
+                                         True)
 
 
 class MethodController:
@@ -151,12 +168,16 @@ class MethodController:
     def unsat(self):
         pass
 
+    def unknown(self):
+        pass
+
 
 class GroundManyMethodController(MethodController):
 
     def __init__(self, solver):
         MethodController.__init__(self, solver)
         self.volatile = False
+        self.ground_holds = 0
         if (self.solver.options.max_models != 1 or
             self.solver.options.release_last or 
             self.solver.options.volatile_improving):
@@ -164,9 +185,8 @@ class GroundManyMethodController(MethodController):
 
     def start_loop(self):
         if not self.solver.last_unsat:
-            self.solver.last_model = self.solver.step - 1
             self.solver.ground_holds(self.solver.last_model)
-        if self.solver.step > self.solver.start_step:
+            self.ground_holds = self.solver.last_model
             self.solver.ground_preference_program(self.volatile)
 
     def solve(self):
@@ -174,6 +194,8 @@ class GroundManyMethodController(MethodController):
 
     def unsat(self):
         self.solver.relax_previous_models()
+        if self.ground_holds != self.solver.last_model:
+            self.solver.ground_holds(self.solver.last_model)
 
 
 class GroundOnceMethodController(MethodController):
@@ -187,14 +209,13 @@ class GroundOnceMethodController(MethodController):
         self.solver.turn_off_preference_program()
 
     def start_loop(self):
-        if self.solver.step > self.solver.start_step:
+        if not self.solver.last_unsat:
             self.solver.turn_on_preference_program()
 
     def solve(self):
         self.solver.solve()
 
     def unsat(self):
-        self.solver.last_model = self.solver.step - 1
         self.solver.ground_holds(self.solver.last_model)
         self.solver.turn_off_preference_program()
 
@@ -217,16 +238,64 @@ class HeurMethodController(MethodController):
     def start(self):
         self.solver.ground_heuristic()
 
-    def start_loop(self):
-        if not self.solver.last_unsat:
-            self.solver.last_model = self.solver.step - 1
-            self.solver.ground_holds(self.solver.last_model)
-
     def solve(self):
         if self.solver.last_unsat:
             self.solver.solve_heuristic()
         else:
             self.solver.solve_unsat()
+
+    def unsat(self):
+        self.solver.ground_holds(self.solver.last_model)
+
+
+class ImproveLimitController(MethodController):
+
+    def __init__(self, solver, controller):
+        MethodController.__init__(self, solver)
+        self.solver     = solver
+        self.controller = controller
+        self.option     = self.solver.options.improve_limit
+        self.stats      = solver.control.statistics['solving']['solvers']
+        self.conf       = solver.control.configuration.solve
+        self.search     = 0
+        # limits
+        self.previous_limit, self.limit = "", 0
+
+    def start(self):
+        self.controller.start()
+        self.solver.ground_holds_delete_better()
+
+    def start_loop(self):
+        # get previous limit, and set limit
+        self.previous_limit = self.conf.solve_limit
+        if not self.solver.last_unsat:
+            self.limit = self.search * self.option[0]
+            if self.limit < self.option[2]:
+                self.limit = self.option[2]
+            self.conf.solve_limit = str(self.limit) + ",umax"
+            if self.limit == 0: # if limit is 0, return
+                return
+        # call controller
+        self.controller.start_loop()
+
+    def solve(self):
+        # if improving and limit is 0, return unknown
+        if not self.solver.last_unsat and self.limit == 0:
+            self.solver.solve_unknown()
+        else:
+            self.controller.solve()
+        # reset previous limit
+        self.conf.solve_limit = self.previous_limit
+        # gather search results
+        if self.solver.solving_result == solver_module.SATISFIABLE:
+            if self.solver.last_unsat:
+                self.search  = int(self.stats['conflicts'])
+            elif self.option[1]:
+                self.search += int(self.stats['conflicts'])
+
+    def unsat(self):
+        self.controller.unsat()
+        self.solver.handle_unknown_models()
 
 
 class EnumerationController:
@@ -264,9 +333,8 @@ class NonOptimalController:
             # modifying options
             self.solver.options.non_optimal = True
         if self.solver.options.non_optimal:
-            import solver as _solver
-            self.solver.str_found      = _solver.STR_MODEL_FOUND
-            self.solver.str_found_star = _solver.STR_MODEL_FOUND_STAR
+            self.solver.str_found      = solver_module.STR_MODEL_FOUND
+            self.solver.str_found_star = solver_module.STR_MODEL_FOUND_STAR
             self.solver.add_unsat_to_preference_program()
 
 

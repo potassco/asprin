@@ -860,13 +860,13 @@ heuristic(P,X,M-S+1,true) :- preference(P,poset), heuristic_poset=2,
                              step(P,X,S), not step(P,X,S+1).
 
 % option 3
-%*
+
 cost(P,X,C+1) :- preference(P,poset), heuristic_poset=3,
                  poset(P,X),
                  C = #sum{ CC,Y : poset(P,X,Y), cost(P,Y,CC) }.
 
-minimize(P,-C,1,X,X) :- cost(P,X,C), heuristic_poset=3.
-*%
+%minimize(P,-C,1,X,X) :- cost(P,X,C), heuristic_poset=3.
+
 
 #program heuristic(aso).
 

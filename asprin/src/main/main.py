@@ -84,7 +84,8 @@ HELP_CONST_NONBASE = """R|: Replace term occurrences of <id> in non-base
 HELP_IMPROVE_LIMIT = """R|: Improving a model, stop search after x conflicts,
   where x is <m> times the conflicts for the first model of the current iteration;
   add ',all' to consider the conflicts for all the models of the current iteration,
-  and add ',<min>' to search always for at least <min> conflicts"""
+  add ',<min>' to search always for at least <min> conflicts, 
+  and add ',reprint' to reprint at the end (some of) the optimal models"""
 
 #
 # VERSION
@@ -195,8 +196,8 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
         if string is None:
             return None
         try:
-            out = [0,False,0]
-            match = re.match(r'(\d+)(,all)?(,\d+)?$',string)
+            out = [0,False,0,False]
+            match = re.match(r'(\d+)(,all)?(,\d+)?(,reprint)?$',string)
             if not match:
                 raise Exception("incorrect value for option --improve-limit")
             out[0] = int(match.group(1))
@@ -204,6 +205,8 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
                 out[1] = True
             if match.group(3) is not None:
                 out[2] = int(match.group(3)[1:])
+            if match.group(4) is not None:
+                out[3] = True
             return out
         except Exception as e:
             self.__cmd_parser.error(str(e))

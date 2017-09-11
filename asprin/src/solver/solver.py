@@ -62,6 +62,8 @@ STR_OPTIMUM_FOUND_STAR = "OPTIMUM FOUND *"
 STR_MODEL_FOUND        = "MODEL FOUND"
 STR_MODEL_FOUND_STAR   = "MODEL FOUND *"
 STR_UNSATISFIABLE      = "UNSATISFIABLE"
+STR_LIMIT              = "MODEL FOUND (SEARCH LIMIT)"
+STR_NON_OPTIMAL        = "BETTER THAN MODEL {}"
 
 # program names
 DO_HOLDS = "do_holds"
@@ -72,6 +74,7 @@ OPEN_HOLDS = "open_holds"
 VOLATILE_FACT = "volatile_fact"
 VOLATILE_EXT = "volatile_external"
 DELETE_MODEL = "delete_model"
+DELETE_MODEL_VOLATILE = "delete_model_volatile"
 DELETE_MODEL_APPROX = "delete_model_approx"
 UNSAT_PRG = "unsat"
 NOT_UNSAT_PRG = "not_unsat"
@@ -88,12 +91,12 @@ UNSATPBASE = utils.UNSATPBASE
 VOLATILE      = utils.VOLATILE
 MODEL         = utils.MODEL
 HOLDS         = utils.HOLDS
-VOLATILE      = utils.VOLATILE
 UNSAT_ATOM    = utils.UNSAT
 PREFERENCE    = utils.PREFERENCE
 HOLDS_AT_ZERO = "holds_at_zero"
 CSP           = "$"
 MODEL_DELETE_BETTER = clingo.parse_term("delete_better")
+DELETE_MODEL_VOLATILE_ATOM = "delete_model_volatile_atom"
 
 # messages
 SAME_MODEL = """\
@@ -101,6 +104,8 @@ same stable model computed twice, there is an error in the input, \
 probably an incorrect preference program"""
 WARNING_NO_OPTIMIZE = """WARNING: no optimize statement, \
 computing non optimal stable models"""
+UNKNOWN_OPTIMAL = """\nINFO: The MODELs FOUND (with SEARCH LIMIT) \
+for which no BETTER MODEL was found are OPTIMAL MODELS"""
 
 #
 # AUXILIARY PROGRAMS
@@ -121,6 +126,11 @@ PROGRAMS = \
    (DELETE_MODEL,           [],"""
 :-     ##""" + HOLDS + """(X,0) : X = @get_holds(); 
    not ##""" + HOLDS + """(X,0) : X = @get_nholds()."""),
+   (DELETE_MODEL_VOLATILE,           ["m"],"""
+#external ##""" + DELETE_MODEL_VOLATILE_ATOM + """(m).
+:-     ##""" + HOLDS + """(X,0) : X = @get_holds(); 
+   not ##""" + HOLDS + """(X,0) : X = @get_nholds();
+   not ##""" + DELETE_MODEL_VOLATILE_ATOM + """(m)."""),
    (UNSAT_PRG,     ["m1","m2"],"""
 :- not ##""" + UNSAT_ATOM + """(##m(m1),##m(m2)),
        ##""" +   VOLATILE + """(##m(m1),##m(m2))."""),
@@ -171,6 +181,8 @@ class Solver:
         self.model_str         = self.underscores + MODEL
         self.holds_at_zero_str = self.underscores + HOLDS_AT_ZERO
         self.holds_str         = self.underscores + HOLDS
+        self.unsat_str         = self.underscores + UNSAT_ATOM
+        self.delete_str        = self.underscores + DELETE_MODEL_VOLATILE_ATOM
         # holds
         self.holds             = []
         self.nholds            = []
@@ -182,18 +194,19 @@ class Solver:
         self.solving_result = None
         self.externals  = dict()
         self.improving  = []
-        self.not_improving  = []
+        self.not_improving  = set()
         self.store_nholds = True
         self.holds_domain = set()
         self.approx_opt_models = []
         self.assumptions = []
         self.last_model = None
         self.sequences = {}
-        self.search = 0
+        self.unknown = []
+        self.unknown_non_optimal = set()
+        self.grounded_delete_better = False
         # functions
         self.get_preference_parts_opt = self.get_preference_parts
-        # for GeneralController
-        self.normal_sat   = True
+        self.same_shown_function = self.same_shown_underscores 
         # strings
         self.str_found      = STR_OPTIMUM_FOUND
         self.str_found_star = STR_OPTIMUM_FOUND_STAR
@@ -228,7 +241,10 @@ class Solver:
         return self.nholds
 
     def get_holds_function(self, term, y):
-        return clingo.Function(self.holds_str, [term, clingo.Number(y)]) 
+        return clingo.Function(self.holds_str, [term, clingo.Number(y)])
+
+    def get_unsat_function(self, term, y):
+        return clingo.Function(self.unsat_str, [term, clingo.Number(y)])
 
     def get(self, atuple, index):
         try:
@@ -375,6 +391,9 @@ class Solver:
             _solver.heuristic = h[i]
             i += 1
 
+    def solve_unknown(self):
+        self.solving_result = UNKNOWN
+
     def solve_unsat(self):
         self.solving_result = UNSATISFIABLE
 
@@ -399,6 +418,12 @@ class Solver:
     def print_answer(self):
         self.printer.do_print(STR_ANSWER.format(self.models))
         self.printer.do_print(" ".join(map(self.symbol2str, self.shown)))
+
+    def print_non_optimal_string(self, model):
+        self.printer.do_print(STR_NON_OPTIMAL.format(model))
+
+    def print_limit_string(self):
+        self.printer.do_print(STR_LIMIT)
 
     def print_optimum_string(self):
         self.printer.do_print(self.str_found)
@@ -429,7 +454,10 @@ class Solver:
             return True
         return False
 
-    def on_model_enumerate(self,model):
+    def same_shown_false(self):
+        return False
+
+    def on_model_enumerate(self, model):
         true = model.symbols(shown=True)
         self.shown = [ i for i in true if i.name != self.holds_at_zero_str ]
         # self.same_shown_function is modified by EnumerationController 
@@ -449,7 +477,7 @@ class Solver:
         old_models = self.control.configuration.solve.models
         self.set_control_models()
         # assumptions
-        ass  = [ (self.get_holds_function(x,0), True)  for x in self.holds ]
+        ass  = [ (self.get_holds_function(x,0),  True) for x in self.holds ]
         ass += [ (self.get_holds_function(x,0), False) for x in self.nholds]
         # solve
         self.old_shown, self.enumerate_flag = self.shown, False
@@ -464,7 +492,9 @@ class Solver:
         self.improving = []
 
     def ground_holds_delete_better(self):
-        self.control.ground([(DO_HOLDS_DELETE_BETTER, [])], self)
+        if not self.grounded_delete_better:
+            self.control.ground([(DO_HOLDS_DELETE_BETTER, [])], self)
+            self.grounded_delete_better = True
 
     def relax_optimal_models(self):
         for x,y in self.not_improving:
@@ -472,18 +502,23 @@ class Solver:
 
     def volatile_optimal_model(self, step, delete_worse, delete_better):
         if delete_worse:
-            self.not_improving.append((step,0))
+            self.not_improving.add((step,0))
         if delete_better:
-            self.not_improving.append((MODEL_DELETE_BETTER,step))
+            self.not_improving.add((MODEL_DELETE_BETTER,step))
         for x,y in self.not_improving:        #activate
             self.control.assign_external(self.get_external(x,y),True)
         if not self.options.no_opt_improving: #reset
-            self.not_improving = []
+            self.not_improving = set()
 
-    def handle_optimal_model(self, step, delete_worse, delete_better, volatile):
-        parts = [(DELETE_MODEL, [])]
+    def handle_optimal_model(self, step, delete_model_volatile,
+                             delete_worse, delete_better, volatile):
+        if not delete_model_volatile:
+            parts = [(DELETE_MODEL, [])]
+        else:
+            parts = [(DELETE_MODEL_VOLATILE, [step])]
         if delete_worse: 
             # note: get_preference_parts_opt defaults to get_preference_parts
+            #       may be modified by the GeneralController
             parts += self.get_preference_parts_opt(step, 0, False, volatile)
         if delete_better:
             parts += self.get_preference_parts_opt(MODEL_DELETE_BETTER, step,
@@ -492,6 +527,8 @@ class Solver:
         if volatile:
             self.volatile_optimal_model(step, delete_worse, delete_better)
 
+    def clean_up(self):
+        pass #self.control.cleanup()
 
     def end(self):
         self.printer.print_stats(self.control,             self.models,
@@ -604,26 +641,114 @@ class Solver:
         self.more_models = True if result.satisfiable else False
         self.end()
 
-
     #
-    # improve limit
+    # unknown (--improve-limit)
     #
-    def set_solve_limit(self):
-        if self.step == self.start_step:
-            self.search  = (
-                int(self.control.statistics['solving']['solvers']['conflicts'])
-            )
-        elif self.options.improve_limit[1]:
-            self.search += (
-                int(self.control.statistics['solving']['solvers']['conflicts'])
-            )
-        limit = self.search * self.options.improve_limit[0]
-        if limit < self.options.improve_limit[2]:
-            limit = self.options.improve_limit[2]
-        self.control.configuration.solve.solve_limit = str(limit) + ",umax"
 
-    def reset_solve_limit(self):
-        self.control.configuration.solve.solve_limit = "umax,umax"
+    def computed_all(self):
+        return (self.options.max_models != 0 and \
+                self.opt_models == self.options.max_models)
+
+    def print_unknown_optimal_models(self):
+        self.printer.do_print(UNKNOWN_OPTIMAL)
+
+    def enumerate_unknown(self):
+        # if no unknowns, or computed all, or project: return
+        if not self.unknown:
+            self.more_models = False
+            return
+        if self.computed_all():
+            return
+        if self.options.project and not self.options.improve_limit[3]:
+            self.print_unknown_optimal_models()
+            self.opt_models += len(self.unknown)
+            return
+        # create boolean array representing unknown
+        unknowns = [False] * (self.last_model + 1)
+        for i in self.unknown:
+            unknowns[i] = True
+        # create holds dictionary for unknowns
+        holds = {}
+        for i in self.control.symbolic_atoms.by_signature(self.holds_str, 2):
+            try:
+                step = int(i.symbol.arguments[1].number)
+                if unknowns[step]:
+                    alist = holds.setdefault(step, [])
+                    alist.append(i.symbol.arguments[0])
+            except:
+                pass
+        # enumerate iterating over holds
+        old = self.same_shown_function
+        self.same_shown_function = self.same_shown_false
+        for step in self.unknown:
+            if self.computed_all():
+                return
+            # pre
+            self.holds  = holds.get(step, [])
+            self.nholds = list(self.holds_domain.difference(self.holds))
+            delete_model = clingo.parse_term(
+                "{}({})".format(self.delete_str, step)
+            )
+            self.control.assign_external(delete_model, True)
+            if self.options.project:
+                old = self.options.max_models
+                self.options.max_models = self.opt_models + 1
+            # enumerate
+            self.enumerate()
+            # post
+            if self.options.project:
+                self.options.max_models = old
+            self.control.release_external(delete_model)
+        self.same_shown_function = old
+        self.more_models = False
+
+    def on_model_unknown(self, model):
+        self.unknown_non_optimal = set()
+        atoms = model.symbols(atoms=True)
+        for i in self.unknown:
+            if self.get_unsat_function(MODEL_DELETE_BETTER, i) in atoms:
+                self.unknown_non_optimal.add(i)
+
+    def handle_unknown_models(self):
+        # assumptions
+        ass  = [ (self.get_holds_function(x,0),  True) for x in self.holds ]
+        ass += [ (self.get_holds_function(x,0), False) for x in self.nholds]
+        ass += [                             (x, True) for x in self.shown]
+        # turn unknowns on
+        for i in self.unknown:
+            self.control.assign_external(
+                self.get_external(MODEL_DELETE_BETTER, i), True
+            )
+        # solve
+        if self.unknown:
+            self.control.solve(assumptions = ass + self.assumptions,
+                               on_model = self.on_model_unknown)
+        # release non optimal, and update unknown
+        update_unknown = [self.last_model]
+        for i in self.unknown:
+            if i in self.unknown_non_optimal:
+                self.control.release_external(
+                    self.get_external(MODEL_DELETE_BETTER, i)
+                )
+                self.control.release_external(
+                    self.get_external(i, 0)
+                )
+                self.print_non_optimal_string(i)
+            else:
+                self.control.assign_external(
+                    self.get_external(MODEL_DELETE_BETTER, i), False
+                )
+                update_unknown.append(i)
+        self.unknown = update_unknown
+        # update not_improving
+        self.not_improving.difference_update(
+            [(x,0) for x in self.unknown_non_optimal]
+        )
+        # add delete better for last model (without unsat constraint)
+        x, y  = MODEL_DELETE_BETTER, self.last_model
+        parts = [(PREFP, [x, y]), (VOLATILE_EXT,  [x,y])]
+        self.control.ground(parts, self)
+
 
     #
     # OPTIONS
@@ -655,6 +780,8 @@ class Solver:
                 method = controller.GroundOnceMethodController(self)
             else:
                 method = controller.GroundManyMethodController(self)
+        if self.options.improve_limit is not None:
+            method = controller.ImproveLimitController(self, method)
         # loop
         try:
             # START
@@ -684,11 +811,9 @@ class Solver:
                 elif self.solving_result == UNKNOWN:
                     # UNKNOWN
                     general.unknown()
-                    # UNSAT
                     method.unsat()
-                    enumeration.unsat()
-                    optimal.unsat()
-                    # UNSAT_POST
+                    optimal.unknown()
+                    # UNKNOWN_POST
                     general.unsat_post()
                 # END_LOOP
                 general.end_loop()

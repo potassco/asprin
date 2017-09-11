@@ -105,7 +105,8 @@ class Result(Test):
             if match:
                 self.unsatisfiable = True
             match = re.match(r'.*((OPTIMUM)|(MODEL)) FOUND.*', i)
-            if match:
+            match_limit = re.match(r'.*MODEL FOUND \(.*', i)
+            if match and not match_limit:
                 self.satisfiable = True
                 answer = last.split(' ')
                 answer.sort()
