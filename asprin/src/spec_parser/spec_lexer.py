@@ -215,7 +215,7 @@ class Lexer(object):
     t_ADD	    = r'\+'
     t_SUB	    = r'\-'
     #t_POW	    = r'\*\*'
-    t_MOD	    = r'\\\\'
+    t_MOD	    = r'\\'
     t_MUL	    = r'\*'
     t_GTGT	    = r'>>'
     t_LT	    = r'<'

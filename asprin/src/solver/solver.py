@@ -105,7 +105,7 @@ probably an incorrect preference program"""
 WARNING_NO_OPTIMIZE = """WARNING: no optimize statement, \
 computing non optimal stable models"""
 UNKNOWN_OPTIMAL = """\nINFO: The MODELs FOUND (with SEARCH LIMIT) \
-for which no BETTER MODEL was found are OPTIMAL MODELS"""
+for which no BETTER MODEL was said to be found are OPTIMAL MODELS"""
 
 #
 # AUXILIARY PROGRAMS
@@ -206,7 +206,7 @@ class Solver:
         self.grounded_delete_better = False
         # functions
         self.get_preference_parts_opt = self.get_preference_parts
-        self.same_shown_function = self.same_shown_underscores 
+        self.same_shown_function = self.same_shown_underscores
         # strings
         self.str_found      = STR_OPTIMUM_FOUND
         self.str_found_star = STR_OPTIMUM_FOUND_STAR
@@ -528,7 +528,7 @@ class Solver:
             self.volatile_optimal_model(step, delete_worse, delete_better)
 
     def clean_up(self):
-        pass #self.control.cleanup()
+        self.control.cleanup()
 
     def end(self):
         self.printer.print_stats(self.control,             self.models,
@@ -768,8 +768,6 @@ class Solver:
         general = controller.GeneralController(self)
         optimal = controller.GeneralControllerHandleOptimal(self)
         enumeration = controller.EnumerationController(self)
-        checker = controller.CheckerController(self)
-        non_optimal = controller.NonOptimalController(self)
         # MethodController
         if self.options.solving_mode == "approx":
             method = controller.ApproxMethodController(self)
@@ -782,12 +780,11 @@ class Solver:
                 method = controller.GroundManyMethodController(self)
         if self.options.improve_limit is not None:
             method = controller.ImproveLimitController(self, method)
+
         # loop
         try:
             # START
             general.start()
-            checker.start()
-            non_optimal.start()
             optimal.start()
             method.start()
             self.printer.do_print("Solving...")
@@ -806,20 +803,16 @@ class Solver:
                     method.unsat()
                     enumeration.unsat()
                     optimal.unsat()
-                    # UNSAT_POST
-                    general.unsat_post()
                 elif self.solving_result == UNKNOWN:
                     # UNKNOWN
                     general.unknown()
                     method.unsat()
                     optimal.unknown()
-                    # UNKNOWN_POST
-                    general.unsat_post()
                 # END_LOOP
                 general.end_loop()
-        except RuntimeError as e: 
+        except RuntimeError as e:
             self.printer.print_error("ERROR (clingo): {}".format(e))
-        except EndException as e: 
+        except EndException as e:
             # END
             pass
 

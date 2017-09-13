@@ -66,8 +66,8 @@ first one
 HELP_GROUND_ONCE = """R|: Ground preference program only once \
 (for improving a model)"""
 HELP_CLINGO_HELP = ": Print {1=basic|2=more|3=full} clingo help and exit"
-HELP_RELEASE_LAST = """R|: Improving a model, release preference program \
-for last model 
+HELP_RELEASE_LAST = """R|: Improving a model, release the preference program \
+for the last model 
   as soon as possible"""
 HELP_NO_OPT_IMPROVING = """R|: Improving a model, do not use optimal models"""
 HELP_VOLATILE_IMPROVING = """R|: Use volatile preference programs \
@@ -85,7 +85,7 @@ HELP_IMPROVE_LIMIT = """R|: Improving a model, stop search after x conflicts,
   where x is <m> times the conflicts for the first model of the current iteration;
   add ',all' to consider the conflicts for all the models of the current iteration,
   add ',<min>' to search always for at least <min> conflicts, 
-  and add ',reprint' to reprint at the end (some of) the optimal models"""
+  and add ',reprint' to reprint at the end the optimal models"""
 
 #
 # VERSION
@@ -234,6 +234,9 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
         basic.add_argument('--print-programs', dest='print-programs',
                            help=': Print translated programs and exit',
                            action='store_true')
+        basic.add_argument('--no-check', dest='check', 
+                           help=": Skip syntax checks",
+                           action='store_false')
         #basic.add_argument('-', dest='read_stdin', action='store_true',
         #                   help=argparse.SUPPRESS)
         basic.add_argument(TEST, dest='test', action='store_true',
@@ -287,6 +290,8 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
         solving.add_argument('--steps', '-s', 
                              help=": Execute at most <s> steps", type=int,
                              dest='steps', metavar='<s>', default=0)
+        basic.add_argument('--clean-up', dest='clean_up', action='store_true',
+                           help=argparse.SUPPRESS)
         solving.add_argument('--delete-better', dest='delete_better', 
                              help=HELP_DELETE_BETTER,
                              action='store_true')

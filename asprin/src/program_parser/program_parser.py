@@ -118,7 +118,8 @@ CHECK_SPEC = """
   A = "WARNING: no optimize statement, ",
   B = "computing non optimal stable models".
 
-#program """ + utils.WARNINGS + """.
+"""
+AVOID_WARNINGS = """#program """ + utils.WARNINGS + """.
 
 % avoid clingo warnings
 ##preference(A,B,C, for(D),E) :- #false, ##preference(A,B,C, for(D),E).
@@ -250,7 +251,7 @@ class Parser:
                 printer.Printer().print_spec_error(error.format(arg1, arg2))
                 ok = False
         return ok
-    
+
     def do_spec(self):
 
         control, programs = self.__control, self.__programs
@@ -261,37 +262,41 @@ class Parser:
         old = [ key                      for key, value in constants ]
         new = [ clingo.parse_term(value) for key, value in constants ]
         string  = programs[SPEC][""].get_string() 
-        string += CHECK_SPEC.replace("##",u)
+        if options['check']:
+            string += CHECK_SPEC.replace("##",u)
+        string += AVOID_WARNINGS.replace("##",u)
         self.__add_and_ground(SPEC,old,string,[(SPEC,new)])
 
-        # get specification warnings and errors
         pr = printer.Printer()
-        for atom in control.symbolic_atoms.by_signature(u+WARN_PRED, 1):
-            string = self.__cat(atom.symbol.arguments[0]) + "\n"
-            pr.print_spec_warning(string)
         errors = False
-        for atom in control.symbolic_atoms.by_signature(u+ERROR_PRED, 1):
-            string = self.__cat(atom.symbol.arguments[0]) + "\n"
-            pr.print_spec_error(string)
-            errors = True
 
-        # get non domain errors
-        for i in [(PREFERENCE,2),(PREFERENCE,5),(OPTIMIZE,1)]:
-            ui0 = u + i[0]
-            for atom in control.symbolic_atoms.by_signature(ui0, i[1]):
-                if not atom.is_fact:
-                    pr.print_spec_error(self.__non_domain_message(atom, i))
-                    errors = True
+        if options['check']:
+            # get specification warnings and errors
+            for atom in control.symbolic_atoms.by_signature(u+WARN_PRED, 1):
+                string = self.__cat(atom.symbol.arguments[0]) + "\n"
+                pr.print_spec_warning(string)
+            for atom in control.symbolic_atoms.by_signature(u+ERROR_PRED, 1):
+                string = self.__cat(atom.symbol.arguments[0]) + "\n"
+                pr.print_spec_error(string)
+                errors = True
+            # get non domain errors
+            for i in [(PREFERENCE,2),(PREFERENCE,5),(OPTIMIZE,1)]:
+                ui0 = u + i[0]
+                for atom in control.symbolic_atoms.by_signature(ui0, i[1]):
+                    if not atom.is_fact:
+                        pr.print_spec_error(self.__non_domain_message(atom, i))
+                        errors = True
 
         # get preference types, and test for corresponding programs
         out = set()
         upreference = u + PREFERENCE
         for atom in control.symbolic_atoms.by_signature(upreference,2):
             out.add(str(atom.symbol.arguments[1]))
-            ok = self.__program_exists(atom)
-            if not ok:
-                errors = True
-        
+            if options['check']:
+                ok = self.__program_exists(atom)
+                if not ok:
+                    errors = True
+
         # if errors
         if errors:
             raise Exception("parsing failed")

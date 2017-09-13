@@ -28,8 +28,31 @@ import utils
 import sys
 import subprocess
 
-DIR = "--test-dir="
 PATH = os.path.dirname(os.path.realpath(__file__))
+DIR = "--test-dir="
+ALL = "--all"
+OPTIONS = [
+    [""],
+    ["--delete-better"],
+    ["--ground-once"],
+    ["--release-last"],
+    ["--no-opt-improving"],
+    ["--volatile-improving"],
+    ["--volatile-optimal"],
+    ["--preference-unsat $asprin/mine/asprin_lib_unsat.lp"],
+    ["--solving-mode=heuristic"],
+    ["--solving-mode=heuristic --const-nb heuristic_aso=2"],
+    ["--solving-mode=heuristic --const-nb heuristic_aso=2 --const-nb use_get_sequence=2 "],
+    ["""--solving-mode=heuristic --const-nb heuristic_poset=2 --const-nb heuristic_aso=3 \
+     --const-nb heuristic_pareto=2 --const-nb heuristic_and=2"""],
+    ["--solving-mode=approx"],
+    ["--solving-mode=approx --const-nb approx_aso=2"],
+    ["--solving-mode=approx --const-nb approx_aso=2 --const-nb use_get_sequence=2 "],
+    ["""--solving-mode=approx --const-nb approx_poset=2 --const-nb approx_aso=3 \
+     --const-nb approx_pareto=2 --const-nb approx_and=2"""],
+    ["--improve-limit=0,10"],
+    ["--improve-limit=1,all,10,reprint"],
+]
 
 class cd:
     """Context manager for changing the current working directory"""
@@ -74,11 +97,17 @@ def main(args):
             path = i[len(DIR):]
             args.remove(i)
             break
-    errors = Tester().run(path, args)
-    if errors:
-        print("ERROR: There were errors in the tests")
+    if ALL in args:
+        options = OPTIONS
     else:
-        print("OK: All tests were successful")
+        options = [args]
+    for opt in options:
+        print("Options = {}".format(opt))
+        errors = Tester().run(path, opt)
+        if errors:
+            print("ERROR: There were errors in the tests")
+        else:
+            print("OK: All tests were successful")
 
 if __name__ == "__main__":
     main()

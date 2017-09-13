@@ -28,7 +28,6 @@ class GeneralController:
 
     def __init__(self, solver):
         solver.step         = 1
-        solver.start_step   = 1
         solver.last_unsat   = True
         solver.opt_models   = 0
         solver.models       = 0
@@ -55,6 +54,17 @@ class GeneralController:
         if options.preference_unsat and options.max_models != 1:
             solver.get_preference_parts_opt = solver.get_preference_parts_unsatp
             solver.ground_unsatp_base()
+        # check syntax
+        if options.check:
+            solver.check_errors()
+        # non optimal
+        if solver.no_optimize():
+            # modifying options
+            solver.options.non_optimal = True
+        if solver.options.non_optimal:
+            solver.str_found      = solver_module.STR_MODEL_FOUND
+            solver.str_found_star = solver_module.STR_MODEL_FOUND_STAR
+            solver.add_unsat_to_preference_program()
 
 
     def sat(self):
@@ -85,9 +95,6 @@ class GeneralController:
         if self.solver.options.steps == self.solver.step:
             self.solver.end() # to exit asap in this case
 
-    def unsat_post(self):
-        self.solver.start_step = self.solver.step + 1
-
     def unknown(self):
         if self.solver.last_unsat:
             raise utils.FatalException
@@ -100,13 +107,15 @@ class GeneralController:
         self.solver.step = self.solver.step + 1
         if self.solver.options.steps == (self.solver.step - 1):
             self.solver.end()
-        self.solver.clean_up()
+        if self.solver.options.clean_up:
+            self.solver.clean_up()
 
 
 class GeneralControllerHandleOptimal:
 
     def __init__(self, solver):
         self.solver = solver
+        self.start_step = True
         self.first  = True
         self.delete_worse  = True
         self.delete_better = self.solver.options.delete_better
@@ -124,9 +133,9 @@ class GeneralControllerHandleOptimal:
             self.solver.ground_holds_delete_better()
 
     def sat(self):
-        if self.no_opt_improving and \
-           self.solver.step == self.solver.start_step:
+        if self.no_opt_improving and self.start_step:
             self.solver.relax_optimal_models()
+        self.start_step = False
 
     def __preprocess(self):
         if self.total_order and not self.first:
@@ -135,6 +144,7 @@ class GeneralControllerHandleOptimal:
         self.first = False
 
     def unsat(self):
+        self.start_step = True
         self.__preprocess()
         self.solver.handle_optimal_model(self.solver.last_model,
                                          False,
@@ -143,6 +153,7 @@ class GeneralControllerHandleOptimal:
                                          self.volatile)
 
     def unknown(self):
+        self.start_step = True
         self.__preprocess()
         self.solver.handle_optimal_model(self.solver.last_model,
                                          True,
@@ -150,6 +161,23 @@ class GeneralControllerHandleOptimal:
                                          False,
                                          True)
 
+
+class EnumerationController:
+
+    def __init__(self, solver):
+        self.solver = solver
+        # show_underscores is set by program_parser.py
+        if not solver.options.project and not solver.options.show_underscores:
+            solver.same_shown_function = solver.same_shown
+
+    def unsat(self):
+        if not self.solver.options.project:
+            self.solver.enumerate()
+
+
+#
+# Method Controllers
+#
 
 class MethodController:
 
@@ -166,9 +194,6 @@ class MethodController:
         pass
 
     def unsat(self):
-        pass
-
-    def unknown(self):
         pass
 
 
@@ -297,44 +322,5 @@ class ImproveLimitController(MethodController):
         self.controller.unsat()
         self.solver.handle_unknown_models()
 
-
-class EnumerationController:
-
-    def __init__(self, solver):
-        self.solver = solver
-        if not solver.options.project:
-            # show_underscores is set by program_parser.py
-            if not solver.options.show_underscores:
-                solver.same_shown_function = solver.same_shown
-            else:
-                solver.same_shown_function = solver.same_shown_underscores
-
-    def unsat(self):
-        if not self.solver.options.project:
-            self.solver.enumerate()
-
-
-class CheckerController:
-
-    def __init__(self, solver):
-        self.solver = solver
-
-    def start(self):
-        self.solver.check_errors()
-
-
-class NonOptimalController:
-
-    def __init__(self, solver):
-        self.solver = solver
-
-    def start(self):
-        if self.solver.no_optimize():
-            # modifying options
-            self.solver.options.non_optimal = True
-        if self.solver.options.non_optimal:
-            self.solver.str_found      = solver_module.STR_MODEL_FOUND
-            self.solver.str_found_star = solver_module.STR_MODEL_FOUND_STAR
-            self.solver.add_unsat_to_preference_program()
 
 
