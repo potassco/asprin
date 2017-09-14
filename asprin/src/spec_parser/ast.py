@@ -477,7 +477,7 @@ class WBody:
         return ""
 
 
-    # return rules for sat/1 with extended atoms appearing in 
+    # return rules for sat/1 with extended atoms appearing in
     # boolean formulas which are not literals
     def str_sat(self, body):
         if self.naming:
