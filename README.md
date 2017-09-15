@@ -26,7 +26,7 @@ the python module of [clingo](https://github.com/potassco/clingo) (version 5.2.0
 whose directory should be in the environment variable `PYTHONPATH`:
 
 * On Windows, 
-you can download the corresponding [clingo release](https://github.com/potassco/clingo/releases/download/v5.2.0/clingo-5.2.0-macos-10.9.tar.gz), 
+you can download the corresponding [clingo release](https://github.com/potassco/clingo/releases/download/v5.2.1/clingo-5.2.1-win64.zip), 
 uncompress it in some directory `dir`,
 and set `PYTHONPATH` to `dir\clingo-5.2.0-win64\python-api` (with `set PYTHONPATH=dir\clingo-5.2.0-win64\python-api`).
 
