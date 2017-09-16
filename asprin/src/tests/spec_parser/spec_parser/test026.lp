@@ -1,4 +1,4 @@
-% asprin test026.lp 0 -c x=0 --const-nb y=0 \-\-no-asprin-lib
+% asprin test026.lp 0 -c x=0 --const-nb y=0 --no-asprin-lib
 % SATISFIABLE
 
 { a(X) : dom(X) } :- x=0, y!=0.
