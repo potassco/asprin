@@ -10,7 +10,9 @@ but many more can be defined simply writing a logic program.
 
 For a formal description of `asprin`, please read our [paper](http://www.cs.uni-potsdam.de/wv/pdfformat/brderosc15a.pdf) ([bibtex](http://www.cs.uni-potsdam.de/wv/bibtex/brderosc15a.bib)).
 
-The User Guide of `asprin` appears in Section 10.2 of the Potassco User Guide, available [here](https://sourceforge.net/projects/potassco/files/guide/). 
+Starting with version 3, asprin is documented in the [Potassco guide](https://github.com/potassco/guide/releases/).
+Older versions are documented in the [Potassco guide on Sourceforge](https://sourceforge.net/projects/potassco/files/guide/).
+
 
 ## Usage
 ```bash
