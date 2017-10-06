@@ -578,9 +578,13 @@ required(P) :- preference(P,clingo_minimize), required(P,_).
 level(P,L) :- preference(P,clingo_minimize), required(P),
               preference(P,_,_,_,T), L = @get(T,1).
 
+two_levels(P) :- preference(P,clingo_minimize), required(P),
+                 level(P,L), level(P,LL), LL > L.
+
 % better
 required_level(P,better) :- preference(P,clingo_minimize), required(P,better).
-required_level(P,    eq) :- preference(P,clingo_minimize), required(P,better).
+required_level(P,    eq) :- preference(P,clingo_minimize), required(P,better),
+                            two_levels(P).
 better(P) :- preference(P,clingo_minimize), required(P,better),
              level(P,L), better(P,L), 
              eq(P,LL) : level(P,LL), LL>L.
@@ -608,7 +612,8 @@ worseeq(P) :- preference(P,clingo_minimize), required(P,worseeq),
 
 % worse
 required_level(P,worse) :- preference(P,clingo_minimize), required(P,worse).
-required_level(P,   eq) :- preference(P,clingo_minimize), required(P,worse).
+required_level(P,   eq) :- preference(P,clingo_minimize), required(P,worse), 
+                           two_levels(P).
 worse(P) :- preference(P,clingo_minimize), required(P,worse),
             level(P,L), worse(P,L), 
             eq(P,LL) : level(P,LL), LL>L.
