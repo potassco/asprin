@@ -39,7 +39,7 @@ OPTIONS = [
     ["--no-opt-improving"],
     ["--volatile-improving"],
     ["--volatile-optimal"],
-    ["--preference-unsat $asprin/mine/asprin_lib_unsat.lp"],
+    #["--preference-unsat $asprin/mine/asprin_lib_unsat.lp"],
     ["--solving-mode=heuristic"],
     ["--solving-mode=heuristic --const-nb heuristic_aso=2"],
     ["--solving-mode=heuristic --const-nb heuristic_aso=2 --const-nb use_get_sequence=2 "],
