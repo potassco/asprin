@@ -400,9 +400,9 @@ class Solver:
     def set_control_models(self):
         solve_conf = self.control.configuration.solve
         if self.options.max_models == 0:
-            solve_conf.models = 0
+            solve_conf.models = "0"
         else:
-            solve_conf.models = self.options.max_models - self.opt_models
+            solve_conf.models = str(self.options.max_models - self.opt_models)
 
     def symbol2str(self,symbol):
         if symbol.name == CSP:
@@ -473,9 +473,11 @@ class Solver:
 
     def enumerate(self):
         # models
-        control    = self.control
+        control, solve_conf = self.control, self.control.configuration.solve
         old_models = self.control.configuration.solve.models
         self.set_control_models()
+        if solve_conf.models != "0": # we repeat one
+            solve_conf.models = str(int(solve_conf.models) + 1)
         # assumptions
         ass  = [ (self.get_holds_function(x,0),  True) for x in self.holds ]
         ass += [ (self.get_holds_function(x,0), False) for x in self.nholds]
