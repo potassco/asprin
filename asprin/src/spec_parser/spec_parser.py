@@ -472,7 +472,6 @@ class Parser(object):
                    |              NOT NOT ext_atom
         """
         p[0] = p[1:]
-        if len(p)>=4 and p[0][1]==",": p[0][1]=", "
 
 
     #

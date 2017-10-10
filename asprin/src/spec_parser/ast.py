@@ -52,6 +52,7 @@ OR    = "or"
 NOT   = "not"
 NAME  = "name"
 FOR   = "for"
+EXT_ATOM = "ext_atom"
 HASH_SEM = utils.HASH_SEM
 
 # boolean formulas
@@ -99,18 +100,12 @@ def ast2str(ast):
 
 
 # Translate body to string
-def _body2str(i):
-    out = []
-    if isinstance(i,list) and len(i) > 0:
-        if isinstance(i[0],str) and i[0] in { ATOM, TRUE, FALSE, CMP}:
-            return [ ast2str(i[1]) ]
-        for j in i:
-            out += _body2str(j)
-    return out
-
-# TODO: CHECK
 def body2str(i):
-    return ", ".join(_body2str(i))
+    if isinstance(i, list):
+        if len(i) > 0 and i[0] == EXT_ATOM:
+            return ast2str(i[1][1])
+        return "".join([body2str(x) for x in i])
+    return i + " "
 
 # get variables from ast
 def get_vars(ast):
