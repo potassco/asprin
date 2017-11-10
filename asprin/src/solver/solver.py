@@ -783,8 +783,6 @@ class Solver:
         if self.options.improve_limit is not None:
             method = controller.ImproveLimitController(self, method)
 
-        print("X")
-
         # loop
         try:
             # START
