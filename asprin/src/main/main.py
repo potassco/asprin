@@ -54,6 +54,7 @@ ERROR_FATAL    = "Fatal error, this should not happen.\n"
 ERROR_PARSING  = "parsing failed"
 DEBUG          = "--debug"
 TEST           = "--test"
+ALL_CONFIGS    = ["tweety", "trendy", "frumpy", "crafty", "jumpy", "handy"]
 HELP_PROJECT   = """R|: Enable projective solution enumeration,
   projecting on the formulas of the specification"""
 HELP_HEURISTIC = """R|: Apply domain heuristics with value <v> and modifier <m>
@@ -86,6 +87,8 @@ HELP_IMPROVE_LIMIT = """R|: Improving a model, stop search after x conflicts,
   add ',all' to consider the conflicts for all the models of the current iteration,
   add ',<min>' to search always for at least <min> conflicts, 
   and add ',reprint' to reprint at the end the optimal models"""
+HELP_CONFIGS = """R|: Run clingo configurations c1, ..., cn iteratively 
+  (use 'all' for running all configurations)"""
 
 #
 # VERSION
@@ -284,6 +287,9 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
         solving.add_argument('--dom-heur', dest='cmd_heuristic',
                               nargs=2, metavar=('<v>','<m>'),
                               help=HELP_HEURISTIC)
+        solving.add_argument('--configs', dest='configs',
+                              metavar='<ci>', action='append',
+                              help=HELP_CONFIGS)
 
         # Additional Solving Options
         solving = cmd_parser.add_argument_group('Additional Solving Options')
@@ -361,6 +367,10 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
         options['improve_limit'] = self.__do_improve_limit(
             options['improve_limit']
         )
+
+        # handle configs all
+        if options['configs'] and 'all' in options['configs']:
+            options['configs'] = ALL_CONFIGS
 
         # statistics
         # if options['stats']:

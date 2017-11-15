@@ -151,12 +151,11 @@ aso(P,Id,R) :-
           -1,Idx : nohead'(P,Id), index(P,Id,Idx);
           -1,Idx : holds'(X), preference(P,Id,Pos,for(X),_), Pos != 0, index(P,Id,Idx), Idx>=Pos} U.
 
-% WARNING: switch #inf and #sup when clingo bug is fixed!
-required(P,  better,   1,#inf) :- preference(P,aso), required(P,aso,  better).
-required(P,bettereq,   0,#inf) :- preference(P,aso), required(P,aso,bettereq).
+required(P,  better,   1,#sup) :- preference(P,aso), required(P,aso,  better).
+required(P,bettereq,   0,#sup) :- preference(P,aso), required(P,aso,bettereq).
 required(P,      eq,   0,   0) :- preference(P,aso), required(P,aso,      eq).
-required(P, worseeq,#sup,   0) :- preference(P,aso), required(P,aso, worseeq).
-required(P,   worse,#sup,  -1) :- preference(P,aso), required(P,aso,   worse).
+required(P, worseeq,#inf,   0) :- preference(P,aso), required(P,aso, worseeq).
+required(P,   worse,#inf,  -1) :- preference(P,aso), required(P,aso,   worse).
 
 required(P,aso,better)   :- preference(P,aso), required(P,better).
 required(P,aso,bettereq) :- preference(P,aso), required(P,better).

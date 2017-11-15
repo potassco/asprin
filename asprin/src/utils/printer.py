@@ -109,8 +109,7 @@ class Printer:
             print("  Optimum    : {}".format("yes" if opt_models>0 else "no"))
             if opt_models > 0:
                 print("  Optimal    : {}".format(opt_models))
-        #print(clingo_stats.Stats().summary(ctl,False))
+        print(clingo_stats.Stats().summary(ctl,False))
         if stats:
-            print(clingo_stats.Stats().summary(ctl,False))
             print(clingo_stats.Stats().statistics(ctl))
 

@@ -372,7 +372,16 @@ class Solver:
         else:
             self.solving_result = UNKNOWN
 
+    def set_config(self):
+        try:
+            self.iconfigs = (self.iconfigs + 1) % len(self.options.configs)
+        except:
+            self.iconfigs = 0
+        self.control.configuration.configuration = self.options.configs[self.iconfigs]
+
     def solve(self):
+        if self.options.configs is not None:
+            self.set_config()
         result = self.control.solve(assumptions=self.assumptions,
                                     on_model=self.on_model)
         self.set_solving_result(result)
