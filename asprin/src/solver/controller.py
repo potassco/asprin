@@ -93,6 +93,7 @@ class GeneralController:
         if self.solver.opt_models == self.solver.options.max_models:
             self.solver.end()
         if self.solver.options.steps == self.solver.step:
+            self.solver.print_steps_message()
             self.solver.end() # to exit asap in this case
 
     def unknown(self):
@@ -101,11 +102,13 @@ class GeneralController:
         self.solver.print_limit_string()
         self.solver.last_unsat = True # act as if unsat
         if self.solver.options.steps == self.solver.step:
+            self.solver.print_steps_message()
             self.solver.end() # to exit asap in this case
 
     def end_loop(self):
         self.solver.step = self.solver.step + 1
         if self.solver.options.steps == (self.solver.step - 1):
+            self.solver.print_steps_message()
             self.solver.end()
         if self.solver.options.clean_up:
             self.solver.clean_up()

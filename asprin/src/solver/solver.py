@@ -62,6 +62,7 @@ STR_OPTIMUM_FOUND_STAR = "OPTIMUM FOUND *"
 STR_MODEL_FOUND        = "MODEL FOUND"
 STR_MODEL_FOUND_STAR   = "MODEL FOUND *"
 STR_UNSATISFIABLE      = "UNSATISFIABLE"
+STR_SATISFIABLE        = "SATISFIABLE"
 STR_LIMIT              = "MODEL FOUND (SEARCH LIMIT)"
 STR_NON_OPTIMAL        = "BETTER THAN MODEL {}"
 
@@ -436,6 +437,10 @@ class Solver:
 
     def print_optimum_string(self):
         self.printer.do_print(self.str_found)
+
+    def print_steps_message(self):
+        if self.opt_models == 0:
+            self.printer.do_print(STR_SATISFIABLE)
 
     def print_unsat(self):
         self.printer.do_print(STR_UNSATISFIABLE)
