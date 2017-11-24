@@ -190,27 +190,24 @@ error_type(aso,no_sets).
 #program preference(less(cardinality)).
 
 better(P) :- preference(P,less(cardinality)), required(P,better),
-                1 #sum { -1,X : holds(X),  preference(P,_,_,for(X),_); 
-                          1,X : holds'(X), preference(P,_,_,for(X),_)}.
+             1 #sum { -1,X : holds(X),  preference(P,_,_,for(X),_);
+                       1,X : holds'(X), preference(P,_,_,for(X),_)}.
 
-required(P,better) :- required(P,bettereq).
-required(P,eq)        :- required(P,bettereq).
 bettereq(P) :- preference(P,less(cardinality)), required(P,bettereq),
-                  1 #sum { 1: eq(P); 1: better(P) }.
+               0 #sum { -1,X : holds(X),  preference(P,_,_,for(X),_);
+                         1,X : holds'(X), preference(P,_,_,for(X),_)}.
 
 eq(P) :- preference(P,less(cardinality)), required(P,eq),
          0 #sum { -1,X : holds(X),  preference(P,_,_,for(X),_); 
-                   1,X : holds'(X), preference(P,_,_,for(X),_)}0. 
+                   1,X : holds'(X), preference(P,_,_,for(X),_)} 0.
 
-required(P,worse) :- required(P,worseeq).
-required(P,eq)    :- required(P,worseeq).
 worseeq(P) :- preference(P,less(cardinality)), required(P,worseeq),
-              1 #sum { 1: eq(P); 1: worse(P) }.
+              #sum { -1,X : holds(X),  preference(P,_,_,for(X),_);
+                      1,X : holds'(X), preference(P,_,_,for(X),_)} 0.
 
 worse(P) :- preference(P,less(cardinality)), required(P,worse),
-            #sum { -1,X : holds(X),  preference(P,_,_,for(X),_); 
+            #sum { -1,X : holds(X),  preference(P,_,_,for(X),_);
                     1,X : holds'(X), preference(P,_,_,for(X),_)}-1.
-
 
 % errors
 error_type(less(cardinality),no_naming).
@@ -248,14 +245,19 @@ error_type(less(weight),no_sets).
 
 #program preference(lexico).
 
-required(Q,better) :- preference(P,lexico), required(P,better), preference(P,_,_,name(Q),_).
-required(Q,eq)        :- preference(P,lexico), required(P,better), preference(P,_,_,name(Q),_).
-better(P) :- preference(P,lexico), required(P,better),
-                better(R); preference(P,_,_,name(R),(L));
-	            eq(Q)      : preference(P,_,_,name(Q),(LL)), LL > L.
+many(P) :- preference(P,lexico), 
+           2 #sum { 1,Q: preference(P,_,_,name(Q),_) }.
 
-required(P,better) :- preference(P,lexico), required(P,bettereq). 
-required(P,eq)        :- preference(P,lexico), required(P,bettereq). 
+required(Q,better) :- preference(P,lexico), required(P,better), preference(P,_,_,name(Q),_).
+required(Q,eq)     :- preference(P,lexico), required(P,better), preference(P,_,_,name(Q),_),
+                      many(P).
+
+better(P) :- preference(P,lexico), required(P,better),
+             better(R); preference(P,_,_,name(R),(L));
+             eq(Q)    : preference(P,_,_,name(Q),(LL)), LL > L, many(P).
+
+required(P,better) :- preference(P,lexico), required(P,bettereq).
+required(P,eq)     :- preference(P,lexico), required(P,bettereq).
 bettereq(P) :- preference(P,lexico), required(P,bettereq),
                   1 #sum { 1: better(P); 1: eq(P) }.
 
@@ -269,10 +271,11 @@ worseeq(P) :- preference(P,lexico), required(P,worseeq),
               1 #sum { 1: worse(P); 1: eq(P) }.
 
 required(Q,worse) :- preference(P,lexico), required(P,worse), preference(P,_,_,name(Q),_).
-required(Q,eq)    :- preference(P,lexico), required(P,worse), preference(P,_,_,name(Q),_).
+required(Q,eq)    :- preference(P,lexico), required(P,worse), preference(P,_,_,name(Q),_), 
+                     many(P).
 worse(P) :- preference(P,lexico), required(P,worse),
             worse(R); preference(P,_,_,name(R),(L));
-	        eq(Q) : preference(P,_,_,name(Q),(LL)), LL > L.
+            eq(Q) : preference(P,_,_,name(Q),(LL)), LL > L, many(P).
 
 required(P,bettereq) :- preference(P,lexico), required(P,unc). 
 required(P,worseeq)     :- preference(P,lexico), required(P,unc). 
@@ -291,27 +294,24 @@ error_type(lexico,naming_unique_weights).
 #program preference(more(cardinality)).
 
 better(P) :- preference(P,more(cardinality)), required(P,better),
-                #sum { -1,X : holds(X),  preference(P,_,_,for(X),_); 
-                        1,X : holds'(X), preference(P,_,_,for(X),_)}-1.
+             #sum { -1,X : holds(X),  preference(P,_,_,for(X),_); 
+                     1,X : holds'(X), preference(P,_,_,for(X),_)}-1.
 
-required(P,better) :- required(P,bettereq).
-required(P,eq)        :- required(P,bettereq).
 bettereq(P) :- preference(P,more(cardinality)), required(P,bettereq),
-                  1 #sum { 1: eq(P); 1: better(P) }.
+               #sum { -1,X : holds(X),  preference(P,_,_,for(X),_); 
+                       1,X : holds'(X), preference(P,_,_,for(X),_)} 0.
 
 eq(P) :- preference(P,more(cardinality)), required(P,eq),
          0 #sum { -1,X : holds(X),  preference(P,_,_,for(X),_); 
                    1,X : holds'(X), preference(P,_,_,for(X),_)}0. 
 
-required(P,worse) :- required(P,worseeq).
-required(P,eq)    :- required(P,worseeq).
 worseeq(P) :- preference(P,more(cardinality)), required(P,worseeq),
-              1 #sum { 1: eq(P); 1: worse(P) }.
+              0 #sum { -1,X : holds(X),  preference(P,_,_,for(X),_);
+                        1,X : holds'(X), preference(P,_,_,for(X),_)}.
 
 worse(P) :- preference(P,more(cardinality)), required(P,worse),
             1 #sum { -1,X : holds(X),  preference(P,_,_,for(X),_); 
                       1,X : holds'(X), preference(P,_,_,for(X),_)}.
-
 
 % errors
 error_type(more(cardinality),no_naming).
@@ -323,23 +323,23 @@ error_type(more(cardinality),no_sets).
 #program preference(more(weight)).
 
 better(P) :- preference(P,more(weight)), required(P,better),
-                #sum { -W,T : holds(X),  preference(P,_,_,for(X),T), W = @get(T,0); 
-                        W,T : holds'(X), preference(P,_,_,for(X),T), W = @get(T,0)}-1.
+             #sum { -W,T : holds(X),  preference(P,_,_,for(X),T), W = @get(T,0);
+                     W,T : holds'(X), preference(P,_,_,for(X),T), W = @get(T,0)}-1.
 
 bettereq(P) :- preference(P,more(weight)), required(P,bettereq),
-                  #sum { -W,T : holds(X),  preference(P,_,_,for(X),T), W = @get(T,0); 
-                          W,T : holds'(X), preference(P,_,_,for(X),T), W = @get(T,0)}0. 
+               #sum { -W,T : holds(X),  preference(P,_,_,for(X),T), W = @get(T,0);
+                       W,T : holds'(X), preference(P,_,_,for(X),T), W = @get(T,0)}0.
 
 eq(P) :- preference(P,more(weight)), required(P,eq),
-         0 #sum { -W,T : holds(X),  preference(P,_,_,for(X),T), W = @get(T,0); 
-                   W,T : holds'(X), preference(P,_,_,for(X),T), W = @get(T,0)}0. 
+         0 #sum { -W,T : holds(X),  preference(P,_,_,for(X),T), W = @get(T,0);
+                   W,T : holds'(X), preference(P,_,_,for(X),T), W = @get(T,0)}0.
 
 worseeq(P) :- preference(P,more(weight)), required(P,worseeq),
-              0 #sum { -W,T : holds(X),  preference(P,_,_,for(X),T), W = @get(T,0); 
+              0 #sum { -W,T : holds(X),  preference(P,_,_,for(X),T), W = @get(T,0);
                         W,T : holds'(X), preference(P,_,_,for(X),T), W = @get(T,0)}.
 
 worse(P) :- preference(P,more(weight)), required(P,worse),
-            1 #sum { -W,T : holds(X),  preference(P,_,_,for(X),T), W = @get(T,0); 
+            1 #sum { -W,T : holds(X),  preference(P,_,_,for(X),T), W = @get(T,0);
                       W,T : holds'(X), preference(P,_,_,for(X),T), W = @get(T,0)}.
                      
 % errors
@@ -389,32 +389,38 @@ error_type(neg,single).
 
 #program preference(pareto).
 
+many(P) :- preference(P,pareto),
+           2 #sum { 1,Q: preference(P,_,_,name(Q),_) }.
+
 required(Q,better)   :- preference(P,pareto), required(P,better), preference(P,_,_,name(Q),_).
-required(Q,bettereq) :- preference(P,pareto), required(P,better), preference(P,_,_,name(Q),_).
+required(Q,bettereq) :- preference(P,pareto), required(P,better), preference(P,_,_,name(Q),_),
+                        many(P).
+
 better(P) :- preference(P,pareto), required(P,better),
-	            bettereq(Q) : preference(P,_,_,name(Q),_);
-                better(R);    preference(P,_,_,name(R),_).
+             bettereq(Q) : preference(P,_,_,name(Q),_), many(P);
+             better(R);    preference(P,_,_,name(R),_).
 
 required(Q,bettereq) :- preference(P,pareto), required(P,bettereq), preference(P,_,_,name(Q),_).
 bettereq(P) :- preference(P,pareto), required(P,bettereq),
-	              bettereq(Q) : preference(P,_,_,name(Q),_).
+               bettereq(Q) : preference(P,_,_,name(Q),_).
 
 required(Q,eq) :- preference(P,pareto), required(P,eq), preference(P,_,_,name(Q),_).
 eq(P) :- preference(P,pareto), required(P,eq),
-	     eq(Q) : preference(P,_,_,name(Q),_).
+         eq(Q) : preference(P,_,_,name(Q),_).
 
 required(Q,worseeq) :- preference(P,pareto), required(P,worseeq), preference(P,_,_,name(Q),_).
 worseeq(P) :- preference(P,pareto), required(P,worseeq),
-	          worseeq(Q) : preference(P,_,_,name(Q),_).
+              worseeq(Q) : preference(P,_,_,name(Q),_).
 
 required(Q,worse)   :- preference(P,pareto), required(P,worse), preference(P,_,_,name(Q),_).
-required(Q,worseeq) :- preference(P,pareto), required(P,worse), preference(P,_,_,name(Q),_).
+required(Q,worseeq) :- preference(P,pareto), required(P,worse), preference(P,_,_,name(Q),_),
+                       many(P).
 worse(P) :- preference(P,pareto), required(P,worse),
-	        worseeq(Q) : preference(P,_,_,name(Q),_);
+            worseeq(Q) : preference(P,_,_,name(Q),_), many(P);
             worse(R);    preference(P,_,_,name(R),_).
 
-required(P,bettereq) :- preference(P,pareto), required(P,unc). 
-required(P,worseeq)     :- preference(P,pareto), required(P,unc). 
+required(P,bettereq) :- preference(P,pareto), required(P,unc).
+required(P,worseeq)     :- preference(P,pareto), required(P,unc).
 unc(P) :- preference(P,pareto); required(P,unc); 
           not bettereq(P); not worseeq(P).
 
@@ -441,8 +447,9 @@ poset(P,X,Y) :- preference(P,poset), required(P,noteq),
                 preference(P,I,1,for(X),_), preference(P,I,2,for(Y),_).
 
 % transitive closure
+#const tc_poset=1.
 poset(P,X,Y) :- preference(P,poset), required(P,noteq),
-                poset(P,X,Z), poset(P,Z,Y).
+                poset(P,X,Z), poset(P,Z,Y), tc_poset=1.
 
 % better
 
@@ -832,8 +839,10 @@ poset(P,X) :- preference(P,poset),
 
 poset(P,X,Y) :- preference(P,poset),
                 preference(P,I,1,for(X),_), preference(P,I,2,for(Y),_).
+
+#const heuristic_tc_poset=1.
 poset(P,X,Y) :- preference(P,poset),
-                poset(P,X,Z), poset(P,Z,Y).
+                poset(P,X,Z), poset(P,Z,Y), heuristic_tc_poset=1.
 
 % 3 options
 #const heuristic_poset=1.
@@ -1312,8 +1321,10 @@ poset(P,X) :- preference(P,poset),
 
 poset(P,X,Y) :- preference(P,poset),
                 preference(P,I,1,for(X),_), preference(P,I,2,for(Y),_).
+
+#const approx_tc_poset=1.
 poset(P,X,Y) :- preference(P,poset),
-                poset(P,X,Z), poset(P,Z,Y).
+                poset(P,X,Z), poset(P,Z,Y), approx_tc_poset=1.
 
 % 2 options
 #const approx_poset=2.
