@@ -271,7 +271,6 @@ class Solver:
             self.sequences[string] += 1
         else:
             self.sequences[string]  = 1
-        #print(self.sequences[string])
         return self.sequences[string]
 
     #
@@ -476,7 +475,9 @@ class Solver:
         self.shown = [ i for i in true if i.name != self.holds_at_zero_str ]
         # self.same_shown_function is modified by EnumerationController 
         # at controller.py
-        if self.enumerate_flag or not self.same_shown_function():
+        if self.opt_models < self.options.max_models and (
+            self.enumerate_flag or not self.same_shown_function()
+        ):
             self.models     += 1
             self.opt_models += 1
             if self.options.quiet in {0,1}:

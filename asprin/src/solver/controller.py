@@ -176,6 +176,8 @@ class EnumerationController:
     def unsat(self):
         if not self.solver.options.project:
             self.solver.enumerate()
+            if self.solver.opt_models == self.solver.options.max_models:
+                self.solver.end()
 
 
 #
