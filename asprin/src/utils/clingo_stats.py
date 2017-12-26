@@ -34,30 +34,23 @@ import json
 
 class Stats:
 
-
     def __init__(self):
         self.__width = 13
-
-
 
     def __ratio(self,x,y):
         return float(x)/float(y) if float(y)!=0 else 0
 
-
     def __percent(self,x,y):
         return 100*self.__ratio(x,y)
-
 
     def __print_key(self,key):
         return key + " "*(self.__width-len(key)) + ": "
 
-
     def __print_key_value(self,key,value):
         return self.__print_key(key) + value
 
-
     # requires Control initialized with --stats
-    def summary(self,control,models=True):
+    def summary(self, control, models=True):
 
         out = ""
         summary = control.statistics['summary']
@@ -91,7 +84,7 @@ class Stats:
 
 
     # requires Control initialized with --stats
-    def statistics(self,control):
+    def statistics(self, control):
 
         # return "" if no stats
         if not 'accu' in control.statistics: return ""

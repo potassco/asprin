@@ -27,15 +27,6 @@ from ..utils import utils
 class GeneralController:
 
     def __init__(self, solver):
-        solver.step         = 1
-        solver.last_unsat   = True
-        solver.opt_models   = 0
-        solver.models       = 0
-        solver.more_models  = True
-        solver.old_holds    = None
-        solver.old_nholds   = None
-        if solver.options.max_models == 1 and not solver.options.improve_limit:
-            solver.store_nholds = False
         self.improve_limit = True if solver.options.improve_limit is not None \
             else False
         self.solver         = solver
@@ -220,7 +211,10 @@ class GroundManyMethodController(MethodController):
             self.solver.ground_preference_program(self.volatile)
 
     def solve(self):
-        self.solver.solve()
+        self.solver.solve(
+            assumptions=self.solver.assumptions,
+            on_model=self.solver.on_model
+        )
 
     def unsat(self):
         self.solver.relax_previous_models()
@@ -243,7 +237,10 @@ class GroundOnceMethodController(MethodController):
             self.solver.turn_on_preference_program()
 
     def solve(self):
-        self.solver.solve()
+        self.solver.solve(
+            assumptions=self.solver.assumptions,
+            on_model=self.solver.on_model
+        )
 
     def unsat(self):
         self.solver.ground_holds(self.solver.last_model)

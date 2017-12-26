@@ -33,6 +33,7 @@ import argparse
 import sys
 import clingo
 import os
+import threading
 from ..spec_parser    import    spec_parser
 from ..program_parser import program_parser
 from ..solver         import         solver
@@ -52,6 +53,10 @@ ERROR_INFO     = "*** Info : (asprin): Try '--help' for usage information"
 ERROR_OPEN     = "<cmd>: error: file could not be opened:\n  {}\n"
 ERROR_FATAL    = "Fatal error, this should not happen.\n"
 ERROR_PARSING  = "parsing failed"
+INTERRUPT      = """*** Info : (asprin): INTERRUPTED by signal!
+UNKNOWN
+
+INTERRUPTED  : 1"""
 DEBUG          = "--debug"
 TEST           = "--test"
 ALL_CONFIGS    = ["tweety", "trendy", "frumpy", "crafty", "jumpy", "handy"]
@@ -442,15 +447,17 @@ class Asprin:
         program_parser.Parser(self.control, programs, self.options).parse() 
 
         # solving
-        self.solver = solver.Solver(self.control)
-        self.solver.set_options(self.options)
+        self.solver = solver.Solver(self.control, self.options)
         self.solver.run()
 
     def signal_handler(self, signum, frame):
+        print(INTERRUPT, end='')
         if self.solver is not None:
-            self.solver.end()
+            self.solver.signal()
+            return
         elif self.control is not None:
-            printer.Printer().print_stats(self.control, 0, True, 0, False,
+            printer.Printer().print_stats(self.control, 0, True, 0, 
+                                          self.options['non_optimal'],
                                           self.options['stats'])
         sys.exit(1)
 

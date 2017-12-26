@@ -27,6 +27,8 @@
 
 import clingo
 import controller
+from sys import exit
+from threading import Condition
 from ..utils import printer
 from ..utils import utils
 
@@ -173,11 +175,14 @@ class Options:
 
 class Solver:
 
-    def __init__(self, control):
-        # parameters
+    def __init__(self, control, options):
+        # control and options
         self.control           = control
-        self.underscores       = utils.underscores
+        self.options           = Options()
+        for key, value in options.items():
+            setattr(self.options, key, value)
         # strings
+        self.underscores       = utils.underscores
         self.volatile_str      = self.underscores + VOLATILE
         self.model_str         = self.underscores + MODEL
         self.holds_at_zero_str = self.underscores + HOLDS_AT_ZERO
@@ -188,7 +193,11 @@ class Solver:
         self.holds             = []
         self.nholds            = []
         # others
-        self.options = Options()
+        self.step = 1
+        self.last_unsat = True
+        self.opt_models = 0
+        self.models = 0
+        self.more_models = True
         self.old_holds = None
         self.old_nholds = None
         self.shown = []
@@ -205,6 +214,10 @@ class Solver:
         self.unknown = []
         self.unknown_non_optimal = set()
         self.grounded_delete_better = False
+        # solving and signals
+        self.condition = Condition()
+        self.interrupted = False
+        self.solving = False
         # functions
         self.get_preference_parts_opt = self.get_preference_parts
         self.same_shown_function = self.same_shown_underscores
@@ -213,6 +226,8 @@ class Solver:
         self.str_found_star = STR_OPTIMUM_FOUND_STAR
         # printer
         self.printer = printer.Printer()
+        if self.options.max_models == 1 and not self.options.improve_limit:
+            self.store_nholds = False
 
     #
     # AUXILIARY
@@ -364,13 +379,12 @@ class Solver:
         if self.store_nholds:
             self.nholds = list(self.holds_domain.difference(self.holds))
 
-    def set_solving_result(self, result):
-        if result.satisfiable:
-            self.solving_result = SATISFIABLE
-        elif result.unsatisfiable:
-            self.solving_result = UNSATISFIABLE
+    def signal(self):
+        if not self.solving:
+            self.exit(1)
         else:
-            self.solving_result = UNKNOWN
+            self.control.interrupt()
+            self.interrupted = True
 
     def set_config(self):
         try:
@@ -379,12 +393,31 @@ class Solver:
             self.iconfigs = 0
         self.control.configuration.configuration = self.options.configs[self.iconfigs]
 
-    def solve(self):
+    def stop(self, result):
+        # set solving result
+        if result.satisfiable:
+            self.solving_result = SATISFIABLE
+        elif result.unsatisfiable:
+            self.solving_result = UNSATISFIABLE
+        else:
+            self.solving_result = UNKNOWN
+        # notify
+        with self.condition:
+            self.condition.notify()
+
+    def solve(self, **kwargs):
         if self.options.configs is not None:
             self.set_config()
-        result = self.control.solve(assumptions=self.assumptions,
-                                    on_model=self.on_model)
-        self.set_solving_result(result)
+        self.solving = True
+        with self.condition:
+            with self.control.solve(
+                async=True, on_finish=self.stop, **kwargs
+            ) as handle:
+                self.condition.wait(float("inf"))
+                handle.wait()
+        self.solving = False
+        if self.interrupted:
+            self.exit(1)
 
     def solve_heuristic(self):
         h = []
@@ -393,7 +426,7 @@ class Solver:
             h.append(_solver.heuristic)
             _solver.heuristic="Domain"
         # solve
-        self.solve()
+        self.solve(assumptions=self.assumptions, on_model=self.on_model)
         # restore heuristics
         i = 0
         for _solver in self.control.configuration.solver:
@@ -472,10 +505,10 @@ class Solver:
 
     def on_model_enumerate(self, model):
         true = model.symbols(shown=True)
-        self.shown = [ i for i in true if i.name != self.holds_at_zero_str ]
+        self.shown = [i for i in true if i.name != self.holds_at_zero_str]
         # self.same_shown_function is modified by EnumerationController 
         # at controller.py
-        if self.opt_models < self.options.max_models and (
+        if self.opt_models != self.options.max_models and (
             self.enumerate_flag or not self.same_shown_function()
         ):
             self.models     += 1
@@ -498,8 +531,8 @@ class Solver:
         ass += [ (self.get_holds_function(x,0), False) for x in self.nholds]
         # solve
         self.old_shown, self.enumerate_flag = self.shown, False
-        control.solve(assumptions = ass + self.assumptions,
-                         on_model = self.on_model_enumerate)
+        self.solve(assumptions = ass + self.assumptions,
+                   on_model = self.on_model_enumerate)
         self.shown = self.old_shown
         control.configuration.solve.models = old_models
 
@@ -547,10 +580,16 @@ class Solver:
     def clean_up(self):
         self.control.cleanup()
 
-    def end(self):
+    def print_stats(self):
         self.printer.print_stats(self.control,             self.models,
                                  self.more_models,         self.opt_models,
                                  self.options.non_optimal, self.options.stats)
+    def exit(self, code):
+        self.print_stats()
+        exit(code)
+
+    def end(self):
+        self.print_stats()
         raise EndException
 
     #
@@ -629,10 +668,10 @@ class Solver:
             self.set_control_models()
             if self.options.max_models == 1:                    # one model
                 self.control.configuration.solve.models = 0
-            result = self.control.solve(on_model=self.on_model_approx)
+            self.solve(on_model=self.on_model_approx)
+            satisfiable = self.solving_result == SATISFIABLE
             # break if unsat or computed all or one model
-            if not result.satisfiable                      or \
-                self.options.max_models == self.opt_models or \
+            if not satisfiable or self.options.max_models == self.opt_models or \
                 self.options.max_models == 1:                   # one model
                 break
             # add programs
@@ -648,14 +687,14 @@ class Solver:
                     parts += self.get_preference_parts(0, m, False, False)
             self.control.ground(parts, self)
         # end
-        if self.options.max_models == 1 and result.satisfiable: # one model
+        if self.options.max_models == 1 and satisfiable: # one model
             if self.options.quiet == 1:
                 self.print_shown()
             self.opt_models += 1
             self.print_optimum_string()
         if self.opt_models == 0:
             self.print_unsat()
-        self.more_models = True if result.satisfiable else False
+        self.more_models = True if satisfiable else False
         self.end()
 
     #
@@ -738,8 +777,8 @@ class Solver:
             )
         # solve
         if self.unknown:
-            self.control.solve(assumptions = ass + self.assumptions,
-                               on_model = self.on_model_unknown)
+            self.solve(assumptions = ass + self.assumptions,
+                       on_model = self.on_model_unknown)
         # release non optimal, and update unknown
         update_unknown = [self.last_model]
         for i in self.unknown:
@@ -766,14 +805,6 @@ class Solver:
         parts = [(PREFP, [x, y]), (VOLATILE_EXT,  [x,y])]
         self.control.ground(parts, self)
 
-
-    #
-    # OPTIONS
-    #
-
-    def set_options(self,options):
-        for key,value in options.items():
-            setattr(self.options,key,value)
 
     #
     # RUN()
