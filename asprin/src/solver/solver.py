@@ -37,8 +37,8 @@ import time
 times = {}
 def start_clock(clock):
     times[clock] = time.clock()
-def stop_clock(clock):
-    print(time.clock()-times[clock])
+def check_clock(clock):
+    return time.clock() - times[clock]
 
 
 #
@@ -67,6 +67,7 @@ STR_UNSATISFIABLE      = "UNSATISFIABLE"
 STR_SATISFIABLE        = "SATISFIABLE"
 STR_LIMIT              = "MODEL FOUND (SEARCH LIMIT)"
 STR_NON_OPTIMAL        = "BETTER THAN MODEL {}"
+STR_TIMING_CLOCK       = "TIMING"
 
 # program names
 DO_HOLDS = "do_holds"
@@ -109,6 +110,7 @@ WARNING_NO_OPTIMIZE = """WARNING: no optimize statement, \
 computing non optimal stable models"""
 UNKNOWN_OPTIMAL = """\nINFO: The MODELs FOUND (with SEARCH LIMIT) \
 for which no BETTER MODEL was said to be found are OPTIMAL MODELS"""
+STR_TIMING_MSG = """Solving Time {}: {:.2f}s"""
 
 #
 # AUXILIARY PROGRAMS
@@ -287,6 +289,10 @@ class Solver:
         else:
             self.sequences[string]  = 1
         return self.sequences[string]
+
+    def start_timing(self):
+        if self.options.timing:
+            start_clock(STR_TIMING_CLOCK)
 
     #
     # CLINGO PROXY
@@ -467,8 +473,14 @@ class Solver:
     def print_limit_string(self):
         self.printer.do_print(STR_LIMIT)
 
-    def print_optimum_string(self):
-        self.printer.do_print(self.str_found)
+    def print_optimum_string(self, star=False):
+        if not star:
+            self.printer.do_print(self.str_found)
+        else:
+            self.printer.do_print(self.str_found_star)
+        if self.options.timing:
+            time = check_clock(STR_TIMING_CLOCK)
+            self.printer.do_print(STR_TIMING_MSG.format(self.opt_models, time))
 
     def print_steps_message(self):
         if self.opt_models == 0:
@@ -517,7 +529,7 @@ class Solver:
                 self.print_answer()
             else:
                 self.print_str_answer()
-            self.printer.do_print(self.str_found_star)
+            self.print_optimum_string(True)
 
     def enumerate(self):
         # models
@@ -830,6 +842,7 @@ class Solver:
             method = controller.ImproveLimitController(self, method)
 
         # loop
+        self.start_timing()
         try:
             # START
             general.start()
