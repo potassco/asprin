@@ -111,10 +111,11 @@ class Program(object):
 class Parser(object):
 
 
-    def __init__(self, underscores):
+    def __init__(self, underscores, options):
 
         # start lexer, parser, and printer
-        self.lexer  = Lexer(underscores)
+        self.options = options
+        self.lexer  = Lexer(underscores, options)
         self.tokens = self.lexer.tokens
         #self.parser = yacc.yacc(module=self,debug=False)
         self.parser = yacc.yacc(module=self)
@@ -288,10 +289,10 @@ class Parser(object):
     # Input:  options [list of files, bool for including asprin lib]
     # Output: translation, underscores, constants, and programs with shown 
     #
-    def parse_files(self,options):
+    def parse_files(self):
 
         # input files
-        files = options['files']
+        files = self.options['files']
         for i in files:
             if i[0]=="-":
                 self.__parse_file(STDIN)
@@ -303,8 +304,8 @@ class Parser(object):
 
         # asprin_lib.lp
         #filenames = [os.path.basename(i[0]) for i in files]
-        #if options['asprin-lib'] and ASPRIN_LIB not in filenames:
-        if options['asprin-lib']:
+        #if self.options['asprin-lib'] and ASPRIN_LIB not in filenames:
+        if self.options['asprin-lib']:
             if os.path.isfile(ASPRIN_LIB):
                 file = ASPRIN_LIB
             else:

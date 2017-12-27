@@ -1,4 +1,4 @@
-% asprin test008.lp 0
+% asprin test008.lp 0 --minimize
 % SATISFIABLE
 
 {a;b;c}.

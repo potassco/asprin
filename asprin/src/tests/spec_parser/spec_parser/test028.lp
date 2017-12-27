@@ -1,4 +1,4 @@
-% asprin test028.lp 0
+% asprin test028.lp 0 --minimize
 % SATISFIABLE
 
 dom(1..3).

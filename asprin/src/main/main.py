@@ -266,6 +266,9 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
                            metavar="<id>=<t>",
                            help=HELP_CONST_NONBASE,
                            default=[])
+        basic.add_argument('--minimize', dest='minimize',
+                           help=argparse.SUPPRESS,
+                           action='store_true')
         basic.add_argument(DEBUG, dest='debug', action='store_true',
                            help=argparse.SUPPRESS)
         basic.add_argument('--to-clingo', dest='to_clingo', 
@@ -440,9 +443,9 @@ class Asprin:
             self.control.load(i)
 
         # specification parsing
-        sp = spec_parser.Parser(u)
+        sp = spec_parser.Parser(u, self.options)
         programs, utils.underscores, base_constants, self.options['show'] = \
-                                                 sp.parse_files(self.options)
+                                                     sp.parse_files()
         self.__update_constants(self.options, base_constants)
 
         # preference programs parsing

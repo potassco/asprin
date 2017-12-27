@@ -1,4 +1,4 @@
-% asprin test021.lp 0
+% asprin test021.lp 0 --minimize
 % SATISFIABLE
 
 1 { a(X,Y) : dom1(X), dom2(Y) }.

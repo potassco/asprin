@@ -43,8 +43,9 @@ ERROR_LEXER="lexer error, unexpected {}\n"
 class Lexer(object):
 
 
-    def __init__(self, underscores):
+    def __init__(self, underscores, options):
         self.__underscores = underscores
+        self.__options     = options
         self.__show        = set()
         self.__error       = False
         self.lexer = lex.lex(module=self)
@@ -333,7 +334,8 @@ class Lexer(object):
         r'(\#preference)|(\#optimize)|(\#program)|(\#const)|(\#include)|(\#minimize)|(\#maximize)'
         #r'(\#preference)|(\#optimize)|(\#program)|(\#const)|(\#include)'
         if ((t.value == "#maximize" or t.value == "#minimize") and
-            (self.__program != (BASE, EMPTY))):
+            ((self.__program != (BASE, EMPTY)) or
+             not self.__options['minimize'])):
             t.lexer.lexpos = t.lexpos + 1
             return
         t.lexer.push_state('INITIAL')
