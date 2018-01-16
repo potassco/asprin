@@ -24,20 +24,20 @@ Option `--help` prints help.
 
 ## Building
 `asprin` requires Python (version 2.7 is tested), and 
-the python module of [clingo](https://github.com/potassco/clingo) (version 5.2.1 is tested),
+the python module of [clingo](https://github.com/potassco/clingo) (version 5.2.2 is tested),
 whose directory should be in the environment variable `PYTHONPATH`:
 
 * On Windows, 
-you can download the corresponding [clingo release](https://github.com/potassco/clingo/releases/download/v5.2.1/clingo-5.2.1-win64.zip), 
+you can download the corresponding [clingo release](https://github.com/potassco/clingo/releases/download/v5.2.2/clingo-5.2.2-win64.zip), 
 uncompress it in some directory `dir`,
-and set `PYTHONPATH` to `dir\clingo-5.2.0-win64\python-api` (with `set PYTHONPATH=dir\clingo-5.2.0-win64\python-api`).
+and set `PYTHONPATH` to `dir\clingo-5.2.2-win64\python-api` (with `set PYTHONPATH=dir\clingo-5.2.2-win64\python-api`).
 
 * On Mac, 
-you can download the corresponding [clingo release](https://github.com/potassco/clingo/releases/download/v5.2.0/clingo-5.2.0-macos-10.9.tar.gz), 
+you can download the corresponding [clingo release](https://github.com/potassco/clingo/releases/download/v5.2.2/clingo-5.2.2-macos-10.9.tar.gz), 
 uncompress it in some directory `dir`,
-and set `PYTHONPATH` to `dir\clingo-5.2.0-macos-10.9\python-api` (with `export PYTHONPATH=dir\clingo-5.2.0-macos-10.9\python-api`).
+and set `PYTHONPATH` to `dir\clingo-5.2.2-macos-10.9\python-api` (with `export PYTHONPATH=dir\clingo-5.2.2-macos-10.9\python-api`).
 
-* On Unix, you can download the [source code](https://github.com/potassco/clingo/archive/v5.2.0.tar.gz), 
+* On Unix, you can download the [source code](https://github.com/potassco/clingo/archive/v5.2.2.tar.gz), 
 build it following the instructions in `INSTALL.md`, and set `PYTHONPATH` accordingly.
 
 `asprin` can be installed with [pip](https://pip.pypa.io) via
@@ -48,7 +48,7 @@ In this case, setting environment variable `PYTHONUSERBASE` to `dir` before runn
 `asprin` will be installed in `dir/bin/asprin`.
 
 If that does not work, 
-you can always download the sources from [here](https://github.com/potassco/asprin/releases/download/v3.0.1/asprin-3.0.1.tar.gz) in some directory `dir`,
+you can always download the sources from [here](https://github.com/potassco/asprin/releases/download/v3.0.3/asprin-3.0.3.tar.gz) in some directory `dir`,
 and run `asprin` with `python dir/asprin/asprin/asprin.py`.
 
 System tests may be run with ```asprin --test```.
