@@ -330,8 +330,7 @@ class Parser:
             return
         constants_nb = self.__options['constants_nb'].items()
         program = " ".join("#const {}={}.".format(x,y) for x,y in constants_nb)
-        self.__control.add(CONSTANTS_NB,[],program)
-        self.__control.ground([(CONSTANTS_NB,[])])
+        self.__add_and_ground(CONSTANTS_NB, [], program, [(CONSTANTS_NB,[])])
 
     def add_programs(self, types, builder):
         # visitors

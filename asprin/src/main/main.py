@@ -449,7 +449,7 @@ class Asprin:
         self.__update_constants(self.options, base_constants)
 
         # preference programs parsing
-        program_parser.Parser(self.control, programs, self.options).parse() 
+        program_parser.Parser(self.control, programs, self.options).parse()
 
         # solving
         self.solver = solver.Solver(self.control, self.options)
@@ -460,10 +460,9 @@ class Asprin:
         if self.solver is not None:
             self.solver.signal()
             return
-        elif self.control is not None:
-            printer.Printer().print_stats(self.control, 0, True, 0, 
-                                          self.options['non_optimal'],
-                                          self.options['stats'])
+        printer.Printer().print_stats(self.control, 0, True, 0,
+                                      self.options['non_optimal'],
+                                      self.options['stats'], None, False)
         sys.exit(1)
 
     def run(self, args):
