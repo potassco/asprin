@@ -33,7 +33,6 @@ import argparse
 import sys
 import clingo
 import os
-import threading
 from ..spec_parser    import    spec_parser
 from ..program_parser import program_parser
 from ..solver         import         solver
@@ -455,6 +454,7 @@ class Asprin:
         self.solver = solver.Solver(self.control, self.options)
         self.solver.run()
 
+
     def signal_handler(self, signum, frame):
         print(INTERRUPT, end='')
         if self.solver is not None:
@@ -491,11 +491,13 @@ class Asprin:
             print(ERROR.format(ERROR_FATAL),file=sys.stderr)
             print(UNKNOWN,file=sys.stdout)
             sys.exit(65)
+        except SystemExit as e:
+            sys.exit(e.code)
         except Exception as e:
             print(ERROR.format(str(e)),file=sys.stderr)
             print(UNKNOWN,file=sys.stdout)
             sys.exit(65)
-
+        sys.exit(0)
 
 def main(args):
     if TEST in args:

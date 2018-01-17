@@ -887,10 +887,9 @@ class Solver:
                 # END_LOOP
                 general.end_loop()
         except RuntimeError as e:
-            if self.exited:
-                exit(1)
-            else:
+            if not self.exited:
                 self.printer.print_error("ERROR (clingo): {}".format(e))
+            exit(1)
         except EndException as e:
             # END
             pass
