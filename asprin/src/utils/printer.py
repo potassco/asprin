@@ -24,6 +24,7 @@
 from __future__ import print_function
 from ..utils import clingo_stats
 from ..utils import utils
+from ..utils import clingo_signal_handler
 import sys
 
 BASE = utils.BASE
@@ -31,33 +32,9 @@ WARNING_INCLUDED_FILE = "<cmd>: warning: already included file:\n  {}\n"
 ERROR_INCLUDED_FILE = "file could not be opened:\n  {}\n"
 MESSAGE_LIMIT = 20
 TOO_MANY = "too many messages."
-SUMMARY_STR="""Calls        : 1
-Time         : 0.000s (Solving: 0.00s 1st Model: 0.00s Unsat: 0.00s)
-CPU Time     : 0.000s"""
-
-STATS_STR = """
-
-Choices      : 0
-Conflicts    : 0        (Analyzed: 0)
-Restarts     : 0
-Problems     : 0        (Average Length: 0.00 Splits: 0)
-Lemmas       : 0        (Deleted: 0)
-  Binary     : 0        (Ratio:   0.00%)
-  Ternary    : 0        (Ratio:   0.00%)
-  Conflict   : 0        (Average Length:    0.0 Ratio:   0.00%)
-  Loop       : 0        (Average Length:    0.0 Ratio:   0.00%)
-  Other      : 0        (Average Length:    0.0 Ratio:   0.00%)
-Backjumps    : 0        (Average:  0.00 Max:   0 Sum:      0)
-  Executed   : 0        (Average:  0.00 Max:   0 Sum:      0 Ratio:   0.00%)
-  Bounded    : 0        (Average:  0.00 Max:   0 Sum:      0 Ratio: 100.00%)
-
-Variables    : 0        (Eliminated:    0 Frozen:    0)
-Constraints  : 0        (Binary:   0.0% Ternary:   0.0% Other:   0.0%)i
-"""
-
-class Bunch:
-    def __init__(self, **kwds):
-        self.__dict__.update(kwds)
+INTERRUPT = clingo_signal_handler.INTERRUPT.format("asprin")
+SUMMARY_STR = clingo_signal_handler.SUMMARY_STR
+STATS_STR = clingo_signal_handler.STATS_STR
 
 class Printer:
 
@@ -129,25 +106,31 @@ class Printer:
     #
 
     def print_stats(self, ctl, models, more_models,
-                    opt_models, non_optimal, 
-                    stats, copy_stats, solving):
+                    opt_models, non_optimal, stats,
+                    interrupted, solved, copy_statistics):
+        # interrupt
+        out = ""
+        if interrupted:
+            out = INTERRUPT
         # first lines
-        out = "\nModels       : {}{}".format(models,"+" if more_models else "")
+        out += "\nModels       : {}{}".format(models,"+" if more_models else "")
         if not non_optimal:
             out += "\n  Optimum    : {}".format("yes" if opt_models>0 else "no")
             if opt_models > 0:
                 out += "\n  Optimal    : {}".format(opt_models)
         out += "\n"
-        # copy stats
-        if copy_stats is not None:
-            ctl = Bunch(statistics=copy_stats)
         # gather string
-        if not solving:
+        if not solved:
             out += SUMMARY_STR + STATS_STR if stats else SUMMARY_STR
         else:
-            out += clingo_stats.Stats().summary(ctl, False)
+            # copy statistics dictionary
+            statistics = ctl.statistics
+            if copy_statistics is not None:
+                statistics = copy_statistics
+            # add statistics
+            out += clingo_stats.Stats().summary(statistics, False)
             if stats:
-                out += "\n" + clingo_stats.Stats().statistics(ctl)
+                out += "\n" + clingo_stats.Stats().statistics(statistics)
         # print
         print(out)
         sys.stdout.flush()

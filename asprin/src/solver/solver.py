@@ -27,9 +27,7 @@
 
 import clingo
 import controller
-import copy
-from sys import exit
-from threading import Condition
+import sys
 from ..utils import printer
 from ..utils import utils
 
@@ -178,12 +176,13 @@ class Options:
 
 class Solver:
 
-    def __init__(self, control, options):
+    def __init__(self, control, options, control_proxy):
         # control and options
         self.control           = control
         self.options           = Options()
         for key, value in options.items():
             setattr(self.options, key, value)
+        self.control_proxy     = control_proxy
         # strings
         self.underscores       = utils.underscores
         self.volatile_str      = self.underscores + VOLATILE
@@ -217,12 +216,7 @@ class Solver:
         self.unknown = []
         self.unknown_non_optimal = set()
         self.grounded_delete_better = False
-        # solving and signals
-        self.condition = Condition()
-        self.interrupted = False
-        self.solving = False
-        self.solved = False
-        self.stats_copy = None
+        # exiting
         self.exited = False
         # functions
         self.get_preference_parts_opt = self.get_preference_parts
@@ -389,13 +383,6 @@ class Solver:
         if self.store_nholds:
             self.nholds = list(self.holds_domain.difference(self.holds))
 
-    def signal(self):
-        if self.solving:
-            self.control.interrupt()
-            self.interrupted = True
-        else:
-            self.exit(1)
-
     def set_config(self):
         try:
             self.iconfigs = (self.iconfigs + 1) % len(self.options.configs)
@@ -403,7 +390,7 @@ class Solver:
             self.iconfigs = 0
         self.control.configuration.configuration = self.options.configs[self.iconfigs]
 
-    def stop(self, result):
+    def set_solving_result(self, result):
         # set solving result
         if result.satisfiable:
             self.solving_result = SATISFIABLE
@@ -411,30 +398,15 @@ class Solver:
             self.solving_result = UNSATISFIABLE
         else:
             self.solving_result = UNKNOWN
-        # notify
-        with self.condition:
-            self.condition.notify()
 
-    def solve(self, **kwargs):
+    def solve(self, *args, **kwargs):
         if self.options.configs is not None:
             self.set_config()
-        self.solving = True
-        with self.condition:
-            with self.control.solve(
-                async=True, on_finish=self.stop, **kwargs
-            ) as handle:
-                self.condition.wait(float("inf"))
-                handle.wait()
-        self.solving = False
-        self.solved = True
-        if self.interrupted:
-            self.exit(1)
+        result = self.control_proxy.solve(*args, **kwargs)
+        self.set_solving_result(result)
 
     def ground(self, *args):
-        if self.solved:
-            self.stats_copy = copy.deepcopy(self.control.statistics)
-        self.control.ground(*args)
-        self.stats_copy = None
+        self.control_proxy.ground(*args)
 
     def solve_heuristic(self):
         h = []
@@ -602,22 +574,6 @@ class Solver:
 
     def clean_up(self):
         self.control.cleanup()
-
-    def print_stats(self):
-        self.printer.print_stats(self.control, self.models,
-                                 self.more_models, self.opt_models,
-                                 self.options.non_optimal,
-                                 self.options.stats, self.stats_copy,
-                                 self.solved)
-
-    def exit(self, code):
-        self.print_stats()
-        self.exited = True
-        exit(code)
-
-    def end(self):
-        self.print_stats()
-        raise EndException
 
     #
     # ground once method
@@ -834,7 +790,40 @@ class Solver:
 
 
     #
-    # RUN()
+    # exiting
+    #
+
+    def print_stats(self, interrupted=False, solved=True, copy_statistics=None):
+        self.printer.print_stats(
+            self.control, self.models, self.more_models, self.opt_models,
+            self.options.non_optimal, self.options.stats,
+            interrupted, solved, copy_statistics
+        )
+
+    def signal_on_solving(self):
+        self.print_stats(interrupted=True)
+        self.exit(1)
+
+    def signal_on_not_solving(self):
+        self.print_stats(
+            interrupted=True, copy_statistics=self.control_proxy.statistics
+        )
+        self.exit(1)
+
+    def signal_after_solving(self):
+        self.print_stats()
+
+    def exit(self, code):
+        self.exited = True
+        sys.exit(code)
+
+    def end(self):
+        self.print_stats()
+        raise EndException
+
+
+    #
+    # run()
     #
 
     def run(self):
@@ -889,7 +878,7 @@ class Solver:
         except RuntimeError as e:
             if not self.exited:
                 self.printer.print_error("ERROR (clingo): {}".format(e))
-            exit(1)
+            sys.exit(1)
         except EndException as e:
             # END
             pass
