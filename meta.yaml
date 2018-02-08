@@ -1,0 +1,44 @@
+{% set data = load_setup_py_data() %}
+{% set name = 'asprin' %}
+{% set version = data.get('version') %}
+{% set dev = true %}
+{% set build = 2 %}
+
+package:
+  name: {{ name }}
+  version: {{ version }}
+
+source:
+{% if dev %}
+  git_rev: myconda
+  git_url: https://github.com/potassco/{{ name }}.git
+{% else %}
+  url: https://github.com/potassco/{{ name }}/archive/v{{ version }}.zip
+{% endif %}
+
+requirements:
+  build:
+    - clingo >=5.3.0
+    - python
+    - setuptools
+  run:
+    - clingo >=5.3.0
+    - python
+
+build:
+  noarch: python
+  number: {{ build }}
+  script:
+    - python setup.py install --single-version-externally-managed --record record.txt
+
+about:
+  home:  https://potassco.org/
+  license: MIT
+  license_family: MIT
+  license_file: LICENSE.md
+  summary: Qualitative and quantitative optimization in answer set programming.
+  description: |
+      asprin is a solver for qualitative and quantitative optimization in answer set programming.
+  license_file: LICENSE.md
+  doc_url: https://potassco.org/
+  dev_url: https://github.com/potassco/{{ name }}
