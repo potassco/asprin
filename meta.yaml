@@ -38,6 +38,6 @@ about:
   license_file: LICENSE.txt
   summary: Qualitative and quantitative optimization in answer set programming.
   description: |
-      asprin is a solver for qualitative and quantitative optimization in answer set programming.
+      Asprin is a solver for qualitative and quantitative optimization in answer set programming.
   doc_url: https://github.com/potassco/guide/releases/
   dev_url: https://github.com/potassco/{{ name }}
