@@ -48,7 +48,7 @@ In this case, setting environment variable `PYTHONUSERBASE` to `dir` before runn
 `asprin` will be installed in `dir/bin/asprin`.
 
 If that does not work, 
-you can always download the sources from [here](https://github.com/potassco/asprin/releases/download/v3.0.1/asprin-3.0.1.tar.gz) in some directory `dir`,
+you can always download the sources from [here](https://github.com/potassco/asprin/releases/download/v3.0.2/asprin-3.0.2.tar.gz) in some directory `dir`,
 and run `asprin` with `python dir/asprin/asprin/asprin.py`.
 
 System tests may be run with ```asprin --test```.
