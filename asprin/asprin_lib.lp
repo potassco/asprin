@@ -750,9 +750,24 @@ error_type(X,Y) :- #false, error_type(X,Y).
 %
 
 #program heuristic.
-#heuristic holds(X) : heuristic(P,X,V,M), optimize(P). [V,M]
+#heuristic holds(X) : heuristic(P,X,V,M), optimize(P), not lexico. [V,M]
+#heuristic holds(X) : heuristic(P,X,V,M), optimize(P),     lexico,
+                      VV=@get_level(V,L,D), max_level(L), max_depth(D). [VV,M]
+
+minimize(A,B,C,D,E) :- #false, minimize(A,B,C,D,E). % to avoid warnings
+
+%%%%%
+
+lexico        :- preference(P,_,_,name(_),_), preference(P,lexico).
+max_level(M)  :- lexico, M = #max{ L: preference(P,_,_,name(P1),L), preference(P,lexico)}.
+max_depth(D)  :- lexico, depth(_,D), not depth(_,D+1).
+depth(P,0)    :- lexico, preference(P,_).
+depth(P1,D+1) :- lexico, preference(P,_), depth(P,D), preference(P,_,_,name(P1),_).
+
+%%%%%
 
 #const use_get_sequence=1.
+
 %
 % generate heuristic/4 from minimize/5
 %
@@ -1061,12 +1076,10 @@ inverse(P,true,false) :- preference(P,neg).
 inverse(P,false,true) :- preference(P,neg).
 
 #program heuristic(lexico).
-heuristic(P,X,L+O,M) :- preference(P,lexico), 
-                        preference(P,_,_,name(P1),L1),
-                        heuristic(P1,X,L,M),
-                        O = #sum{ L3,L2 : preference(P,_,_,name(P2),L2), L2 < L1,
-                                          heuristic(P2,_,L3,_)}.
-                                          %heuristic(P2,_,L3,_), not heuristic(P2,_,L3+1,_)}.
+heuristic(P,X,@append(L1,L),M) :- preference(P,lexico), 
+                                  preference(P,_,_,name(P1),L1),
+                                  heuristic(P1,X,L,M).
+
 #program heuristic(pareto).
 
 % 2 options
@@ -1078,13 +1091,13 @@ heuristic(P,X,L,M) :- preference(P,pareto), heuristic_pareto=1,
                       preference(P,_,_,name(P1),_),
                       heuristic(P1,X,L,M).
 
-% option 2 (same as lexico)
-
-heuristic(P,X,L+O,M) :- preference(P,pareto), 
-                        preference(P,_,_,name(P1),_),
-                        heuristic(P1,X,L,M),
-                        O = #sum{ L3,P2 : preference(P,_,_,name(P2),_), P2 < P1,
-                                          heuristic(P2,_,L3,_)}.
+%%% % option 2 (same as lexico)
+%%% 
+%%% heuristic(P,X,L+O,M) :- preference(P,pareto), heuristic_pareto=2,
+%%%                         preference(P,_,_,name(P1),_),
+%%%                         heuristic(P1,X,L,M),
+%%%                         O = #sum{ L3,P2 : preference(P,_,_,name(P2),_), P2 < P1,
+%%%                                           heuristic(P2,_,L3,_)}.
 
 #program heuristic(and).
 
@@ -1097,22 +1110,34 @@ heuristic(P,X,L,M) :- preference(P,and), heuristic_and=1,
                       preference(P,_,_,name(P1),_),
                       heuristic(P1,X,L,M).
 
-% option 2 (same as lexico)
-
-heuristic(P,X,L+O,M) :- preference(P,and), 
-                        preference(P,_,_,name(P1),_),
-                        heuristic(P1,X,L,M),
-                        O = #sum{ L3,P2 : preference(P,_,_,name(P2),_), P2 < P1,
-                                          heuristic(P2,_,L3,_)}.
+%%% % option 2 (same as lexico)
+%%% 
+%%% heuristic(P,X,L+O,M) :- preference(P,and), heuristic_and=2,
+%%%                         preference(P,_,_,name(P1),_),
+%%%                         heuristic(P1,X,L,M),
+%%%                         O = #sum{ L3,P2 : preference(P,_,_,name(P2),_), P2 < P1,
+%%%                                           heuristic(P2,_,L3,_)}.
 
 %
 % approximation programs:
 % - used with option --solving-mode=approx
 %
 #program approximation.
-#minimize{ W@L,T : minimize(P,W,L,T,X), optimize(P), holds(X) }.
+
+#minimize{ W@L, T : minimize(P,W,L,T,X), optimize(P), holds(X),   not lexico }.
+#minimize{ W@LL,T : minimize(P,W,L,T,X), optimize(P), holds(X),
+                    LL=@get_level(L,M,D), max_level(M), max_depth(D), lexico }.
 
 minimize(A,B,C,D,E) :- #false, minimize(A,B,C,D,E). % to avoid warnings
+
+lexico        :- preference(P,_,_,name(_),_), preference(P,lexico).
+max_level(M)  :- lexico, M = #max{ L: preference(P,_,_,name(P1),L), preference(P,lexico)}.
+max_depth(D)  :- lexico, depth(_,D), not depth(_,D+1).
+depth(P,0)    :- lexico, preference(P,_).
+depth(P1,D+1) :- lexico, preference(P,_), depth(P,D), preference(P,_,_,name(P1),_).
+
+% TODO: add min_level/1 and use it above and in @get_level/2, now we assume 0
+% min_level(M) :- M = #min{ L: preference(P,_,_,name(P1),L), preference(P,lexico)}.
 
 #const use_get_sequence=1.
 
@@ -1133,8 +1158,8 @@ minimize(P,W,1,T,X) :- preference(P,less(weight)), preference(P,_,_,for(X),T),
                        W=@get(T,0).
 
 #program approximation(more(weight)).
-minimize(P,W,1,T,X) :- preference(P,more(weight)), preference(P,_,_,for(X),T),
-                       W=@get(T,0).
+minimize(P,-W,1,T,X) :- preference(P,more(weight)), preference(P,_,_,for(X),T),
+                        W=@get(T,0).
 
 #program approximation(clingo_minimize).
 minimize(P,W,L,T,X) :- preference(P,clingo_minimize), preference(P,_,_,for(X),T),
@@ -1352,12 +1377,20 @@ minimize(P,-W,L,T,X) :- preference(P,neg), preference(P,_,_,name(PP),_),
                         minimize(PP,W,L,T,X).
 
 #program approximation(lexico).
-minimize(P,W,L+O,T,X) :- preference(P,lexico), 
-                         preference(P,_,_,name(P1),L1),
-                         minimize(P1,W,L,T,X),
-                         O = #sum{ L3,L2 : preference(P,_,_,name(P2),L2), L2 < L1,
-                                           minimize(P2,_,L3,_,_)}.
-                                          %minimize(P2,_,L3,_,_), not minimize(P2,_,L3+1,_,_)}.
+
+%%% minimize(P,W,L+O,T,X) :- preference(P,lexico), #false, 
+%%%                          preference(P,_,_,name(P1),L1), P != P1,
+%%%                          minimize(P1,W,L,T,X),
+%%%                          O = #sum{ L3,L2 : preference(P,_,_,name(P2),L2), L2 < L1, P2 != P, P2 != P1,
+%%%                                            minimize(P2,_,L3,_,_)}.
+%%%                                           %minimize(P2,_,L3,_,_), not minimize(P2,_,L3+1,_,_)}.
+%%% 
+
+minimize(P,W,@append(L1,L),T,X) :- preference(P,lexico),
+                                   preference(P,_,_,name(P1),L1),
+                                   minimize(P1,W,L,T,X).
+
+
 
 #program approximation(pareto).
 
@@ -1370,13 +1403,13 @@ minimize(P,W,L,(P1,T),X) :- preference(P,pareto), approx_pareto=1,
                             preference(P,_,_,name(P1),_),
                             minimize(P1,W,L,T,X).
 
-% option 2 (same as lexico)
-
-minimize(P,W,L+O,T,X) :- preference(P,pareto), approx_pareto=2, 
-                         preference(P,_,_,name(P1),_),
-                         minimize(P1,W,L,T,X),
-                         O = #sum{ L3,P2 : preference(P,_,_,name(P2),_), P2 < P1,
-                                           minimize(P2,_,L3,_,_)}.
+%%% % option 2 (same as lexico)
+%%% 
+%%% minimize(P,W,L+O,T,X) :- preference(P,pareto), approx_pareto=2, 
+%%%                          preference(P,_,_,name(P1),_),
+%%%                          minimize(P1,W,L,T,X),
+%%%                          O = #sum{ L3,P2 : preference(P,_,_,name(P2),_), P2 < P1, 
+%%%                                            minimize(P2,_,L3,_,_)}.
 
 #program approximation(and). % same as pareto
 
@@ -1389,11 +1422,17 @@ minimize(P,W,L,(P1,T),X) :- preference(P,and), approx_and=1,
                             preference(P,_,_,name(P1),_),
                             minimize(P1,W,L,T,X).
 
-% option 2 (same as lexico)
+%%% % option 2 (same as lexico)
+%%% 
+%%% minimize(P,W,L+O,T,X) :- preference(P,and), approx_and=2, 
+%%%                          preference(P,_,_,name(P1),_),
+%%%                          minimize(P1,W,L,T,X),
+%%%                          O = #sum{ L3,P2 : preference(P,_,_,name(P2),_), P2 < P1,
+%%%                                            minimize(P2,_,L3,_,_)}.
 
-minimize(P,W,L+O,T,X) :- preference(P,and), approx_and=2, 
-                         preference(P,_,_,name(P1),_),
-                         minimize(P1,W,L,T,X),
-                         O = #sum{ L3,P2 : preference(P,_,_,name(P2),_), P2 < P1,
-                                           minimize(P2,_,L3,_,_)}.
+%%% % TODO: Add encoding where only one level is considered:
+%%% % minimize(P,W,L,T,X) :- preference(P,and), approx_and=3,
+%%% %                             preference(P,_,_,name(P1),_),
+%%% %                             P2 >= P1 : preference(P,_,_,name(P2),_);
+%%% %                             minimize(P1,W,L,T,X).
 

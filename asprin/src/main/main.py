@@ -273,7 +273,7 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
                            help=argparse.SUPPRESS)
         basic.add_argument('--to-clingo', dest='to_clingo', 
                            action="append", help=argparse.SUPPRESS, default=[])
-        basic.add_argument('--timing', dest='timing', action='store_true',
+        basic.add_argument('--benchmark', dest='benchmark', action='store_true',
                            help=argparse.SUPPRESS)
 
         # Solving Options

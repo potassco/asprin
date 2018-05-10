@@ -27,7 +27,7 @@
 
 import clingo
 import controller
-from sys import exit
+import sys
 from threading import Condition
 from ..utils import printer
 from ..utils import utils
@@ -35,6 +35,7 @@ from ..utils import utils
 # TIMING
 import time
 times = {}
+FREQUENCY = 1
 def start_clock(clock):
     times[clock] = time.clock()
 def check_clock(clock):
@@ -67,7 +68,8 @@ STR_UNSATISFIABLE      = "UNSATISFIABLE"
 STR_SATISFIABLE        = "SATISFIABLE"
 STR_LIMIT              = "MODEL FOUND (SEARCH LIMIT)"
 STR_NON_OPTIMAL        = "BETTER THAN MODEL {}"
-STR_TIMING_CLOCK       = "TIMING"
+STR_BENCHMARK_CLOCK    = "BENCHMARK"
+STR_BENCHMARK_FILE     = "benchmark.txt"
 
 # program names
 DO_HOLDS = "do_holds"
@@ -103,6 +105,8 @@ MODEL_DELETE_BETTER = clingo.parse_term("delete_better")
 DELETE_MODEL_VOLATILE_ATOM = "delete_model_volatile_atom"
 
 # messages
+WRONG_APPEND = """\
+incorrect input to @append function, this should not happen"""
 SAME_MODEL = """\
 same stable model computed twice, there is an error in the input, \
 probably an incorrect preference program"""
@@ -110,7 +114,7 @@ WARNING_NO_OPTIMIZE = """WARNING: no optimize statement, \
 computing non optimal stable models"""
 UNKNOWN_OPTIMAL = """\nINFO: The MODELs FOUND (with SEARCH LIMIT) \
 for which no BETTER MODEL was said to be found are OPTIMAL MODELS"""
-STR_TIMING_MSG = """Solving Time {}: {:.2f}s"""
+STR_BENCHMARK_MSG = """Solving Time {}: {:.2f}s"""
 
 #
 # AUXILIARY PROGRAMS
@@ -230,6 +234,11 @@ class Solver:
         self.printer = printer.Printer()
         if self.options.max_models == 1 and not self.options.improve_limit:
             self.store_nholds = False
+        self.saved_stats = False
+        if self.options.benchmark:
+            start_clock(STR_BENCHMARK_CLOCK)
+            with open(STR_BENCHMARK_FILE, 'w') as f:
+                f.write("")
 
     #
     # AUXILIARY
@@ -282,7 +291,7 @@ class Solver:
         else:
             return str(tuple)
 
-    def get_sequence(self,name,elem):
+    def get_sequence(self, name, elem):
         string = str(name)
         if string in self.sequences:
             self.sequences[string] += 1
@@ -290,9 +299,33 @@ class Solver:
             self.sequences[string]  = 1
         return self.sequences[string]
 
-    def start_timing(self):
-        if self.options.timing:
-            start_clock(STR_TIMING_CLOCK)
+    def append(self, elem, alist):
+        if alist.name == "" and len(alist.arguments):
+            return clingo.Function("", [elem] + alist.arguments)
+        else:
+            return clingo.Function("", [elem] + [alist])
+
+    def get_level(self, levels, max_level, max_depth):
+        max_level = int(str(max_level))
+        max_depth = int(str(max_depth))
+        if str(levels.type) == "Number":
+            l = [int(str(levels))]
+        else:
+            l = [int(str(i)) for i in levels.arguments]
+        ###l, max_level, max_depth = [ 2, 1 ], 3, 6
+        # l (filled with zeros until max_depth digits) is a number in base max_level+1
+        level = 0
+        for idx, i in enumerate(l):
+            level += i * ((max_level + 1)**(max_depth - idx))
+        #print("{} <= {} {} {}".format(level, levels, max_level, max_depth))
+        return clingo.Number(level)
+
+    def save_stats(self):
+        if not self.saved_stats or check_clock(STR_BENCHMARK_CLOCK) > FREQUENCY:
+            self.saved_stats = True
+            with open(STR_BENCHMARK_FILE, 'w') as f:
+                self.print_stats(file=f)
+            start_clock(STR_BENCHMARK_CLOCK)
 
     #
     # CLINGO PROXY
@@ -422,6 +455,8 @@ class Solver:
                 self.condition.wait(float("inf"))
                 handle.wait()
         self.solving = False
+        if self.options.benchmark:
+            self.save_stats()
         if self.interrupted:
             self.exit(1)
 
@@ -478,9 +513,9 @@ class Solver:
             self.printer.do_print(self.str_found)
         else:
             self.printer.do_print(self.str_found_star)
-        if self.options.timing:
-            time = check_clock(STR_TIMING_CLOCK)
-            self.printer.do_print(STR_TIMING_MSG.format(self.opt_models, time))
+        #if self.options.benchmark:
+        #    time = check_clock(STR_BENCHMARK_CLOCK)
+        #    self.printer.do_print(STR_BENCHMARK_MSG.format(self.opt_models, time))
 
     def print_steps_message(self):
         if self.opt_models == 0:
@@ -592,13 +627,14 @@ class Solver:
     def clean_up(self):
         self.control.cleanup()
 
-    def print_stats(self):
+    def print_stats(self, file=sys.stdout):
         self.printer.print_stats(self.control,             self.models,
                                  self.more_models,         self.opt_models,
-                                 self.options.non_optimal, self.options.stats)
+                                 self.options.non_optimal, self.options.stats,
+                                 file)
     def exit(self, code):
         self.print_stats()
-        exit(code)
+        sys.exit(code)
 
     def end(self):
         self.print_stats()
@@ -842,7 +878,6 @@ class Solver:
             method = controller.ImproveLimitController(self, method)
 
         # loop
-        self.start_timing()
         try:
             # START
             general.start()
