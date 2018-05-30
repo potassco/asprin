@@ -867,7 +867,6 @@ class Solver:
                 self.control.release_external(
                     self.get_external(i, 0)
                 )
-                # TODO: check this printing
                 del self.mapping[i]
             else:
                 self.control.assign_external(

@@ -57,7 +57,9 @@ INTERRUPT      = """*** Info : (asprin): INTERRUPTED by signal!
 UNKNOWN
 
 INTERRUPTED  : 1"""
-ERROR_IMPROVE = "options --stats and --improve-limit cannot be used together"
+ERROR_IMPROVE_1 = "options --stats and --improve-limit cannot be used together"
+ERROR_IMPROVE_2 = """incorrect value for option --improve-limit, \
+options reprint and nocheck cannot be used together"""
 DEBUG          = "--debug"
 TEST           = "--test"
 ALL_CONFIGS    = ["tweety", "trendy", "frumpy", "crafty", "jumpy", "handy"]
@@ -92,7 +94,8 @@ HELP_IMPROVE_LIMIT = """R|: Improving a model, stop search after x conflicts,
   where x is <m> times the conflicts for the first model of the current iteration;
   add ',all' to consider the conflicts for all the models of the current iteration,
   add ',<min>' to search always for at least <min> conflicts,
-  and add ',reprint' to reprint at the end the optimal models"""
+  add ',reprint' to reprint at the end the optimal models, 
+  add ',nocheck' to not reprint, to project, and to not check if models are optimal"""
 HELP_CONFIGS = """R|: Run clingo configurations c1, ..., cn iteratively
   (use 'all' for running all configurations)"""
 
@@ -218,6 +221,8 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
                 out[3] = True
             if match.group(5) is not None:
                 out[4] = True
+            if out[3] and out[4]:
+                raise Exception(ERROR_IMPROVE_2)
             return out
         except Exception as e:
             self.__cmd_parser.error(str(e))
