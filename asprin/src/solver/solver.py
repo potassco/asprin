@@ -67,7 +67,6 @@ STR_MODEL_FOUND_STAR   = "MODEL FOUND *"
 STR_UNSATISFIABLE      = "UNSATISFIABLE"
 STR_SATISFIABLE        = "SATISFIABLE"
 STR_LIMIT              = "MODEL FOUND (SEARCH LIMIT)"
-STR_NON_OPTIMAL        = "BETTER THAN MODEL {}"
 STR_BENCHMARK_CLOCK    = "BENCHMARK"
 STR_BENCHMARK_FILE     = "benchmark.txt"
 
@@ -112,8 +111,11 @@ same stable model computed twice, there is an error in the input, \
 probably an incorrect preference program"""
 WARNING_NO_OPTIMIZE = """WARNING: no optimize statement, \
 computing non optimal stable models"""
-UNKNOWN_OPTIMAL = """\nINFO: The MODELs FOUND (with SEARCH LIMIT) \
-for which no BETTER MODEL was said to be found are OPTIMAL MODELS"""
+STR_BETTER_THAN_UNKNOWN = "BETTER THAN MODEL(S): {}"
+STR_UNKNOWN_OPTIMAL = """\nINFO: The following MODEL(S) FOUND (with SEARCH LIMIT) \
+are OPTIMAL MODEL(S): {}"""
+STR_UNKNOWN_NONOPTIMAL = """\nINFO: All MODEL(S) FOUND (with SEARCH LIMIT) \
+*could* be OPTIMAL MODEL(S): {}"""
 STR_BENCHMARK_MSG = """Solving Time {}: {:.2f}s"""
 
 #
@@ -220,6 +222,7 @@ class Solver:
         self.unknown = []
         self.unknown_non_optimal = set()
         self.grounded_delete_better = False
+        self.mapping = {}
         # solving and signals
         self.condition = Condition()
         self.interrupted = False
@@ -271,7 +274,11 @@ class Solver:
         return clingo.Function(self.holds_str, [term, clingo.Number(y)])
 
     def get_unsat_function(self, term, y):
-        return clingo.Function(self.unsat_str, [term, clingo.Number(y)])
+        return clingo.parse_term("{}({}{}({}),{}{}({}))".format(
+            self.unsat_str, 
+            self.underscores, MODEL, str(term),
+            self.underscores, MODEL, y
+            ))
 
     def get(self, atuple, index):
         try:
@@ -502,8 +509,20 @@ class Solver:
         self.printer.do_print(STR_ANSWER.format(self.models))
         self.printer.do_print(" ".join(map(self.symbol2str, self.shown)))
 
-    def print_non_optimal_string(self, model):
-        self.printer.do_print(STR_NON_OPTIMAL.format(model))
+    def print_unknowns(self, string, unknowns, mapping):
+        if unknowns:
+            self.printer.do_print(string.format(
+                " ".join([str(mapping[i]) for i in unknowns])
+            ))
+
+    def print_unknown_nonoptimal_models(self, unknowns, mapping):
+        self.print_unknowns(STR_UNKNOWN_NONOPTIMAL, unknowns, mapping)
+
+    def print_unknown_optimal_models(self, unknowns, mapping):
+        self.print_unknowns(STR_UNKNOWN_OPTIMAL, unknowns, mapping)
+
+    def print_better_than_unknown(self, unknowns, mapping):
+        self.print_unknowns(STR_BETTER_THAN_UNKNOWN, unknowns, mapping)
 
     def print_limit_string(self):
         self.printer.do_print(STR_LIMIT)
@@ -617,6 +636,7 @@ class Solver:
             # note: get_preference_parts_opt defaults to get_preference_parts
             #       may be modified by the GeneralController
             parts += self.get_preference_parts_opt(step, 0, False, volatile)
+        # TODO: In base setting, use same preference program as for improving
         if delete_better:
             parts += self.get_preference_parts_opt(MODEL_DELETE_BETTER, step,
                                                    False, volatile)
@@ -632,6 +652,7 @@ class Solver:
                                  self.more_models,         self.opt_models,
                                  self.options.non_optimal, self.options.stats,
                                  file)
+
     def exit(self, code):
         self.print_stats()
         sys.exit(code)
@@ -753,9 +774,6 @@ class Solver:
         return (self.options.max_models != 0 and \
                 self.opt_models == self.options.max_models)
 
-    def print_unknown_optimal_models(self):
-        self.printer.do_print(UNKNOWN_OPTIMAL)
-
     def enumerate_unknown(self):
         # if no unknowns, or computed all, or project: return
         if not self.unknown:
@@ -763,8 +781,11 @@ class Solver:
             return
         if self.computed_all():
             return
+        if self.options.improve_limit[4]: # if improve_no_check
+            self.print_unknown_nonoptimal_models(self.unknown, self.mapping)
+            return
         if self.options.project and not self.options.improve_limit[3]:
-            self.print_unknown_optimal_models()
+            self.print_unknown_optimal_models(self.unknown, self.mapping)
             self.opt_models += len(self.unknown)
             return
         # create boolean array representing unknown
@@ -810,10 +831,16 @@ class Solver:
         self.unknown_non_optimal = set()
         atoms = model.symbols(atoms=True)
         for i in self.unknown:
-            if self.get_unsat_function(MODEL_DELETE_BETTER, i) in atoms:
+            if not self.get_unsat_function(MODEL_DELETE_BETTER, i) in atoms:
                 self.unknown_non_optimal.add(i)
 
-    def handle_unknown_models(self):
+    def handle_unknown_models(self, result):
+        # if improve_no_check, add to unknown list if unknown
+        if self.options.improve_limit[4]:
+            if result == UNKNOWN:
+                self.unknown.append(self.last_model)
+                self.mapping[self.last_model] = self.models
+            return
         # assumptions
         ass  = [ (self.get_holds_function(x,0),  True) for x in self.holds ]
         ass += [ (self.get_holds_function(x,0), False) for x in self.nholds]
@@ -827,8 +854,11 @@ class Solver:
         if self.unknown:
             self.solve(assumptions = ass + self.assumptions,
                        on_model = self.on_model_unknown)
+        # print which unknown are not optimal
+        self.print_better_than_unknown(self.unknown_non_optimal, self.mapping)
+        # initialize array to update unknown
+        update_unknown = [self.last_model] if result == UNKNOWN else []
         # release non optimal, and update unknown
-        update_unknown = [self.last_model]
         for i in self.unknown:
             if i in self.unknown_non_optimal:
                 self.control.release_external(
@@ -837,7 +867,8 @@ class Solver:
                 self.control.release_external(
                     self.get_external(i, 0)
                 )
-                self.print_non_optimal_string(i)
+                # TODO: check this printing
+                del self.mapping[i]
             else:
                 self.control.assign_external(
                     self.get_external(MODEL_DELETE_BETTER, i), False
@@ -848,10 +879,13 @@ class Solver:
         self.not_improving.difference_update(
             [(x,0) for x in self.unknown_non_optimal]
         )
-        # add delete better for last model (without unsat constraint)
-        x, y  = MODEL_DELETE_BETTER, self.last_model
-        parts = [(PREFP, [x, y]), (VOLATILE_EXT,  [x,y])]
-        self.control.ground(parts, self)
+        # if UNKNOWN, add delete better for last model (w/out unsat constraint)
+        if result == UNKNOWN:
+            x, y  = MODEL_DELETE_BETTER, self.last_model
+            parts = [(PREFP, [x, y]), (VOLATILE_EXT,  [x,y])]
+            self.control.ground(parts, self)
+            # also, add mapping
+            self.mapping[self.last_model] = self.models
 
 
     #

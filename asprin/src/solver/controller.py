@@ -321,8 +321,9 @@ class ImproveLimitController(MethodController):
                 self.search += int(self.stats['conflicts'])
 
     def unsat(self):
+        result = self.solver.solving_result
         self.controller.unsat()
-        self.solver.handle_unknown_models()
+        self.solver.handle_unknown_models(result)
 
 
 

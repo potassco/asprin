@@ -1,17 +1,17 @@
 # MIT License
-# 
+#
 # Copyright (c) 2017 Javier Romero
-# 
+#
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
 # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 # copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to the following conditions:
-# 
+#
 # The above copyright notice and this permission notice shall be included in all
 # copies or substantial portions of the Software.
-# 
+#
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -57,6 +57,7 @@ INTERRUPT      = """*** Info : (asprin): INTERRUPTED by signal!
 UNKNOWN
 
 INTERRUPTED  : 1"""
+ERROR_IMPROVE = "options --stats and --improve-limit cannot be used together"
 DEBUG          = "--debug"
 TEST           = "--test"
 ALL_CONFIGS    = ["tweety", "trendy", "frumpy", "crafty", "jumpy", "handy"]
@@ -73,7 +74,7 @@ HELP_GROUND_ONCE = """R|: Ground preference program only once \
 (for improving a model)"""
 HELP_CLINGO_HELP = ": Print {1=basic|2=more|3=full} clingo help and exit"
 HELP_RELEASE_LAST = """R|: Improving a model, release the preference program \
-for the last model 
+for the last model
   as soon as possible"""
 HELP_NO_OPT_IMPROVING = """R|: Improving a model, do not use optimal models"""
 HELP_VOLATILE_IMPROVING = """R|: Use volatile preference programs \
@@ -90,9 +91,9 @@ HELP_CONST_NONBASE = """R|: Replace term occurrences of <id> in non-base
 HELP_IMPROVE_LIMIT = """R|: Improving a model, stop search after x conflicts,
   where x is <m> times the conflicts for the first model of the current iteration;
   add ',all' to consider the conflicts for all the models of the current iteration,
-  add ',<min>' to search always for at least <min> conflicts, 
+  add ',<min>' to search always for at least <min> conflicts,
   and add ',reprint' to reprint at the end the optimal models"""
-HELP_CONFIGS = """R|: Run clingo configurations c1, ..., cn iteratively 
+HELP_CONFIGS = """R|: Run clingo configurations c1, ..., cn iteratively
   (use 'all' for running all configurations)"""
 
 #
@@ -204,8 +205,8 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
         if string is None:
             return None
         try:
-            out = [0,False,0,False]
-            match = re.match(r'(\d+)(,all)?(,\d+)?(,reprint)?$',string)
+            out = [0, False, 0, False, False]
+            match = re.match(r'(\d+)(,all)?(,\d+)?(,reprint)?(,nocheck)?$',string)
             if not match:
                 raise Exception("incorrect value for option --improve-limit")
             out[0] = int(match.group(1))
@@ -215,6 +216,8 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
                 out[2] = int(match.group(3)[1:])
             if match.group(4) is not None:
                 out[3] = True
+            if match.group(5) is not None:
+                out[4] = True
             return out
         except Exception as e:
             self.__cmd_parser.error(str(e))
@@ -234,7 +237,7 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
                            help=': Print help and exit')
         basic.add_argument('--clingo-help',
                            help=HELP_CLINGO_HELP,
-                           type=int, dest='clingo_help', metavar='<m>', 
+                           type=int, dest='clingo_help', metavar='<m>',
                            default=0, choices=[0,1,2,3])
         basic.add_argument('--version', '-v', dest='version',
                            action='store_true',
@@ -242,7 +245,7 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
         basic.add_argument('--print-programs', dest='print-programs',
                            help=': Print translated programs and exit',
                            action='store_true')
-        basic.add_argument('--no-check', dest='check', 
+        basic.add_argument('--no-check', dest='check',
                            help=": Skip syntax checks",
                            action='store_false')
         #basic.add_argument('-', dest='read_stdin', action='store_true',
@@ -252,17 +255,17 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
         basic.add_argument('--stats', dest='stats', action='store_true',
                            help=': Print statistics')
         basic.add_argument('--quiet', '-q', dest='quiet', choices=[0,1,2],
-                           metavar='<q>', type=int, default=0, 
+                           metavar='<q>', type=int, default=0,
                            help=': print {0=all|1=optimal|2=no} models')
         #basic.add_argument('--no-info', dest='no_info', action='store_true',
         #                   help=': Do not print basic information')
         basic.add_argument('--no-asprin-lib', dest='asprin-lib',
                            help=': Do not include asprin_lib.lp',
                            action='store_false')
-        basic.add_argument('-c', '--const', dest='constants', 
+        basic.add_argument('-c', '--const', dest='constants',
                            action="append", help=argparse.SUPPRESS, default=[])
-        basic.add_argument('--const-nb', dest='constants_nb', 
-                           action="append", 
+        basic.add_argument('--const-nb', dest='constants_nb',
+                           action="append",
                            metavar="<id>=<t>",
                            help=HELP_CONST_NONBASE,
                            default=[])
@@ -271,7 +274,7 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
                            action='store_true')
         basic.add_argument(DEBUG, dest='debug', action='store_true',
                            help=argparse.SUPPRESS)
-        basic.add_argument('--to-clingo', dest='to_clingo', 
+        basic.add_argument('--to-clingo', dest='to_clingo',
                            action="append", help=argparse.SUPPRESS, default=[])
         basic.add_argument('--benchmark', dest='benchmark', action='store_true',
                            help=argparse.SUPPRESS)
@@ -282,17 +285,17 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
                              help=": Compute at most <n> models (0 for all)",
                              type=int, dest='max_models', metavar='<n>',
                              default=1)
-        solving.add_argument('--non-optimal', dest='non_optimal', 
-                             help=": Compute also non optimal models", 
+        solving.add_argument('--non-optimal', dest='non_optimal',
+                             help=": Compute also non optimal models",
                              action='store_true')
         solving.add_argument('--project', dest='project', help=HELP_PROJECT,
                              action='store_true')
-        solving.add_argument('--solving-mode', dest='solving_mode', 
+        solving.add_argument('--solving-mode', dest='solving_mode',
                              metavar="<arg>",
                              help=""": Run {normal|approx|heuristic} \
                                        solving mode""",
                              #help=argparse.SUPPRESS,
-                             default="normal", 
+                             default="normal",
                              choices=["normal", "heuristic", "approx"])
         solving.add_argument('--dom-heur', dest='cmd_heuristic',
                               nargs=2, metavar=('<v>','<m>'),
@@ -303,30 +306,30 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
 
         # Additional Solving Options
         solving = cmd_parser.add_argument_group('Additional Solving Options')
-        solving.add_argument('--steps', '-s', 
+        solving.add_argument('--steps', '-s',
                              help=": Execute at most <s> steps", type=int,
                              dest='steps', metavar='<s>', default=0)
         basic.add_argument('--clean-up', dest='clean_up', action='store_true',
                            help=argparse.SUPPRESS)
-        solving.add_argument('--delete-better', dest='delete_better', 
+        solving.add_argument('--delete-better', dest='delete_better',
                              help=HELP_DELETE_BETTER,
                              action='store_true')
-        solving.add_argument('--total-order', dest='total_order', 
+        solving.add_argument('--total-order', dest='total_order',
                              help=HELP_TOTAL_ORDER,
                              action='store_true')
-        solving.add_argument('--ground-once', dest='ground_once', 
+        solving.add_argument('--ground-once', dest='ground_once',
                              help=HELP_GROUND_ONCE,
                              action='store_true')
-        solving.add_argument('--release-last', dest='release_last', 
+        solving.add_argument('--release-last', dest='release_last',
                              help=HELP_RELEASE_LAST,
                              action='store_true')
-        solving.add_argument('--no-opt-improving', dest='no_opt_improving', 
+        solving.add_argument('--no-opt-improving', dest='no_opt_improving',
                              help=HELP_NO_OPT_IMPROVING,
                              action='store_true')
-        solving.add_argument('--volatile-improving', dest='volatile_improving', 
+        solving.add_argument('--volatile-improving', dest='volatile_improving',
                              help=HELP_VOLATILE_IMPROVING,
                              action='store_true')
-        solving.add_argument('--volatile-optimal', dest='volatile_optimal', 
+        solving.add_argument('--volatile-optimal', dest='volatile_optimal',
                              help=HELP_VOLATILE_OPTIMAL,
                              action='store_true')
         solving.add_argument('--pref-trans-ext', dest='trans_ext',
@@ -342,6 +345,10 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
         options, unknown = cmd_parser.parse_known_args(args=args)
         options = vars(options)
 
+        # checks
+        # if 'improve_limit' in options and options['stats']:
+        #     self.__cmd_parser.error(ERROR_IMPROVE)
+
         # print version
         if options['version']:
             print(self.version_string)
@@ -350,13 +357,13 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
         # separate files, number of models and clingo options
         options['files'], clingo_options = [], []
         for i in unknown:
-            if i=="-":                                   
+            if i=="-":
                 self.__add_file(options['files'],i)
-            elif (re.match(r'^([0-9]|[1-9][0-9]+)$',i)): 
+            elif (re.match(r'^([0-9]|[1-9][0-9]+)$',i)):
                 options['max_models'] = int(i)
-            elif (re.match(r'^-',i)):                    
+            elif (re.match(r'^-',i)):
                 clingo_options.append(i)
-            else:                                        
+            else:
                 self.__add_file(options['files'],i)
 
         # when no files, add stdin
@@ -364,9 +371,9 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
         if options['files'] == []:
             self.__first_file = "stdin"
             options['files'].append(("-","-"))
-        if len(options['files'])>1: 
+        if len(options['files'])>1:
             self.__first_file += " ..."
-        prologue = "asprin version " + VERSION + "\nReading from " 
+        prologue = "asprin version " + VERSION + "\nReading from "
         prologue += self.__first_file
 
         # handle constants
@@ -415,7 +422,7 @@ class Asprin:
 
     def run_wild(self, args):
 
-        # arguments parsing 
+        # arguments parsing
         aap = AsprinArgumentParser()
         self.options, clingo_options, u, prologue, warnings = aap.run(args)
 
@@ -449,7 +456,7 @@ class Asprin:
         self.__update_constants(self.options, base_constants)
 
         # preference programs parsing
-        program_parser.Parser(self.control, programs, self.options).parse() 
+        program_parser.Parser(self.control, programs, self.options).parse()
 
         # solving
         self.solver = solver.Solver(self.control, self.options)
@@ -461,7 +468,7 @@ class Asprin:
             self.solver.signal()
             return
         elif self.control is not None:
-            printer.Printer().print_stats(self.control, 0, True, 0, 
+            printer.Printer().print_stats(self.control, 0, True, 0,
                                           self.options['non_optimal'],
                                           self.options['stats'])
         sys.exit(1)
@@ -482,7 +489,7 @@ class Asprin:
             if (e.errno == errno.ENOENT):
                 print(ERROR_OPEN.format(e.filename),file=sys.stderr)
                 print(ERROR.format(ERROR_PARSING),file=sys.stderr)
-            else: 
+            else:
                 print(ERROR.format(str(e)),file=sys.stderr)
             print(UNKNOWN,file=sys.stdout)
             sys.exit(65)

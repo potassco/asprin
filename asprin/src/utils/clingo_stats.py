@@ -189,6 +189,11 @@ class Stats:
         out += " (Average: {:5.2f} Max: {:>3} Sum: {:>6} Ratio: {:6.2f}%)\n".format(avgJumpEx,maxJumpEx,jumped,jumpedRatio*100.0)
         out += self.__print_key_value("  Bounded","{:<8}".format(bounded))
         out += " (Average: {:5.2f} Max: {:>3} Sum: {:>6} Ratio: {:6.2f}%)\n".format(avgBound,maxBound,boundSum,100.0 - (jumpedRatio*100.0))
+
+        # return if there is no logic program info
+        if 'lp' not in control.statistics['problem']:
+            return out
+
         out += "\n"
 
         # logic program
