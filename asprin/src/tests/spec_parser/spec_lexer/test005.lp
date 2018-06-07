@@ -2,7 +2,7 @@
 % SATISFIABLE
 #preference(p,q){}.#optimize(p).
 #program preference(q). :-.
-#program approximation(q).
+#program weak(q).
 #program heuristic(q).
 
 %asprin version 3.0.0

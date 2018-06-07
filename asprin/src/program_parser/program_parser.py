@@ -139,9 +139,9 @@ ERROR_OPT_NON_DOMAIN   = "optimize:{}: "             + ERROR_NON_DOMAIN
 ERROR_NO_PREF_PROGRAM  = "preference:{}: " + ERROR_SPEC + """\
 preference type '{}' has no preference program\n"""
 ERROR_NO_HEURISTIC_PROGRAM  = "preference:{}: " + ERROR_SPEC + """\
-preference type '{}' has no heuristic program\n"""
+preference type '{}' has no heuristic approximation program\n"""
 ERROR_NO_APPROX_PROGRAM  = "preference:{}: " + ERROR_SPEC + """\
-preference type '{}' has no approximation program\n"""
+preference type '{}' has no weak approximation program\n"""
 ERROR_NO_UNSATP_PROGRAM  = "preference:{}: " + ERROR_SPEC + """\
 preference type '{}' has no """ + UNSATP + """ program\n"""
 

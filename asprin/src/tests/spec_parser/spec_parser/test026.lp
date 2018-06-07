@@ -10,7 +10,7 @@ dom(1..3).
 
 #program preference(t).
 :- y=0.
-#program approximation(t).
+#program weak(t).
 #program heuristic(t).
 
 

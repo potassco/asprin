@@ -754,8 +754,8 @@ error(X) :- #false, error(X).
 error_type(X,Y) :- #false, error_type(X,Y).
 
 %
-% heuristic programs:
-% - used with option --solving-mode=heuristic
+% heuristic approximation programs:
+% - used with option --approximation=heuristic
 %
 
 #program heuristic.
@@ -1135,16 +1135,15 @@ heuristic(P,X,L,M) :- preference(P,and), heuristic_and=1,
 %%%                                           heuristic(P2,_,L3,_)}.
 
 %
-% approximation programs:
-% - used with option --solving-mode=approx
-%
+% weak approximation programs:
+% - used with option --approximation=weak
 %
 
-#program approximation.
+#program weak.
 
 %
 % For some P, the levels L in
-%   minimize(P,_,L,_,_)
+%   wc(P,_,L,_,_)
 % have the form: 1, 2, ...
 %
 % For composite preferences, we have to define
@@ -1152,52 +1151,52 @@ heuristic(P,X,L,M) :- preference(P,and), heuristic_and=1,
 % where L is the number of (lexico) levels of P
 %
 
-#minimize{ W@L, T : minimize(P,W,L,T,X), optimize(P), holds(X) }.
+:~ wc(P,W,L,T,X), optimize(P), holds(X). [W@L,T]
 
-minimize(A,B,C,D,E) :- #false, minimize(A,B,C,D,E). % to avoid warnings
+wc(A,B,C,D,E) :- #false, wc(A,B,C,D,E). % to avoid warnings
 
 #const use_get_sequence=1.
 
-#program approximation(subset).
-minimize(P,1,1,X,X) :- preference(P,subset), preference(P,_,_,for(X),_).
+#program weak(subset).
+wc(P,1,1,X,X) :- preference(P,subset), preference(P,_,_,for(X),_).
 levels(P,1) :- preference(P,subset).
 
-#program approximation(superset).
-minimize(P,-1,1,X,X) :- preference(P,superset), preference(P,_,_,for(X),_).
+#program weak(superset).
+wc(P,-1,1,X,X) :- preference(P,superset), preference(P,_,_,for(X),_).
 levels(P,1) :- preference(P,superset).
 
-#program approximation(less(cardinality)).
-minimize(P,1,1,X,X) :- preference(P,less(cardinality)), preference(P,_,_,for(X),_).
+#program weak(less(cardinality)).
+wc(P,1,1,X,X) :- preference(P,less(cardinality)), preference(P,_,_,for(X),_).
 levels(P,1) :- preference(P,less(cardinality)).
 
-#program approximation(more(cardinality)).
-minimize(P,-1,1,X,X) :- preference(P,more(cardinality)), preference(P,_,_,for(X),_).
+#program weak(more(cardinality)).
+wc(P,-1,1,X,X) :- preference(P,more(cardinality)), preference(P,_,_,for(X),_).
 levels(P,1) :- preference(P,more(cardinality)).
 
-#program approximation(less(weight)).
-minimize(P,W,1,T,X) :- preference(P,less(weight)), preference(P,_,_,for(X),T),
-                       W=@get(T,0).
+#program weak(less(weight)).
+wc(P,W,1,T,X) :- preference(P,less(weight)), preference(P,_,_,for(X),T),
+                 W=@get(T,0).
 levels(P,1) :- preference(P,less(weight)).
 
-#program approximation(more(weight)).
-minimize(P,-W,1,T,X) :- preference(P,more(weight)), preference(P,_,_,for(X),T),
-                        W=@get(T,0).
+#program weak(more(weight)).
+wc(P,-W,1,T,X) :- preference(P,more(weight)), preference(P,_,_,for(X),T),
+                  W=@get(T,0).
 levels(P,1) :- preference(P,more(weight)).
 
 %
 % clingo minimize
 %
 
-#program approximation(clingo_minimize).
+#program weak(clingo_minimize).
 % map levels to 1..n
 level(P,L1,L) :- preference(P,clingo_minimize),
                  preference(P,_,_,_,T), L1=@get(T,1),
                  L = #sum{1, L2: preference(P,_,_,_,T), L2=@get(T,1), L2 <= L1 }.
 % define minimize/5
-minimize(P,W,LL,T,X) :- preference(P,clingo_minimize),
-                        preference(P,_,_,for(X),T),
-                        W=@get(T,0), L=@get(T,1),
-                        level(P,L,LL).
+wc(P,W,LL,T,X) :- preference(P,clingo_minimize),
+                  preference(P,_,_,for(X),T),
+                  W=@get(T,0), L=@get(T,1),
+                  level(P,L,LL).
 % number of levels (overestimation)
 levels(P,L) :- preference(P,clingo_minimize),
                L = #max{ LL: level(P,_,LL); 0 }.
@@ -1206,15 +1205,15 @@ levels(P,L) :- preference(P,clingo_minimize),
 % minmax and maxmin
 %
 
-#program approximation(minmax).
+#program weak(minmax).
 as_minmax(P)                     :- preference(P,minmax), preference(P,_,_,for(X),T).
 elem(P,@get(T,0), @get(T,1),T,X) :- preference(P,minmax), preference(P,_,_,for(X),T).
 
-#program approximation(maxmin).
+#program weak(maxmin).
 as_minmax(P)                     :- preference(P,maxmin), preference(P,_,_,for(X),T).
 elem(P,@get(T,0),-@get(T,1),T,X) :- preference(P,maxmin), preference(P,_,_,for(X),T).
 
-#program approximation. % (as_minmax, uses as_minmax/1 and elem/5
+#program weak. % (as_minmax, uses as_minmax/1 and elem/5
 
 % preprocess
 min(P,G,C) :- as_minmax(P), elem(P,G,_,_,_),
@@ -1229,7 +1228,7 @@ max(P,C)   :- as_minmax(P), elem(P,_,_,_,_),
 % pos(itions)
 pos(P,G,N,T1)   :- as_minmax(P), use_get_sequence=1,
                    elem(P,G,T1,_,_),
-                   N=@get_sequence(("approximation_minmax",P,G),T1).
+                   N=@get_sequence(("weak_minmax",P,G),T1).
 
 pos(P,G,1,T1)   :- as_minmax(P), use_get_sequence!=1,
                    elem(P,G,T1,_,_), T1 <= T2 : elem(P,G,T2,_,_).
@@ -1266,8 +1265,8 @@ domain(minmax(P,C-1)) :- as_minmax(P),
                          domain(minmax(P,C)), min(P,MIN), C > MIN.
 
 % minimize
-minimize(P,1,1,C,minmax(P,C)) :- as_minmax(P),
-                                 domain(minmax(P,C)), min(P,MIN).
+wc(P,1,1,C,minmax(P,C)) :- as_minmax(P),
+                           domain(minmax(P,C)), min(P,MIN).
 levels(P,1) :- as_minmax(P).
 
 % to avoid warnings
@@ -1278,7 +1277,7 @@ elem(A,B,C,D,E) :- #false, elem(A,B,C,D,E).
 %
 % aso
 %
-#program approximation(aso).
+#program weak(aso).
 
 rule(P,Id,L) :- preference(P,aso),
                 preference(P,Id,_,_,_),
@@ -1304,13 +1303,13 @@ holds(aso(P,Id,Idx)) :- preference(P,aso), opt12(P),
                         holds(X), preference(P,Id,Pos,for(X),_), Pos != 0.
 
 % option 1
-levels(P,1)                             :- preference(P,aso), approx_aso=1.
-minimize(P,-1,1,(Id,Idx),aso(P,Id,Idx)) :- preference(P,aso), approx_aso=1,
-                                           index(P,Id,Idx).
+levels(P,1)                       :- preference(P,aso), approx_aso=1.
+wc(P,-1,1,(Id,Idx),aso(P,Id,Idx)) :- preference(P,aso), approx_aso=1,
+                                     index(P,Id,Idx).
 % option 2 (to lexico)
 pos(P,N,Id)   :- preference(P,aso), approx_aso=2, use_get_sequence=1,
                  rule(P,Id,_),
-                 N=@get_sequence(("approximation_aso",P),Id).
+                 N=@get_sequence(("weak_aso",P),Id).
 
 pos(P,1,Id1)   :- preference(P,aso), approx_aso=2, use_get_sequence!=1,
                   rule(P,Id1,_), Id1 <= Id2 : rule(P,Id2,_).
@@ -1320,8 +1319,8 @@ pos(P,N+1,Id2) :- preference(P,aso), approx_aso=2, use_get_sequence!=1,
 
 levels(P,L)                        :- preference(P,aso), approx_aso=2,
                                       L = #sum{ 1,Id: rule(P,Id,_) }.
-minimize(P,-1,N,Idx,aso(P,Id,Idx)) :- preference(P,aso), approx_aso=2,
-                                      index(P,Id,Idx), pos(P,N,Id).
+wc(P,-1,N,Idx,aso(P,Id,Idx)) :- preference(P,aso), approx_aso=2,
+                                index(P,Id,Idx), pos(P,N,Id).
 
 
 % option 3 (to lexico)
@@ -1338,15 +1337,15 @@ holds(aso(P,Id,Idx)) :- preference(P,aso), approx_aso=3,
 
 levels(P,L) :- preference(P,aso), approx_aso=3,
                rule(P,_,L), not rule(P,_,L+1).
-minimize(P,-1,L-Idx+1,Id,aso(P,Id,Idx)) :- preference(P,aso), approx_aso=3,
-                                           index(P,Id,Idx), levels(P,L).
+wc(P,-1,L-Idx+1,Id,aso(P,Id,Idx)) :- preference(P,aso), approx_aso=3,
+                                     index(P,Id,Idx), levels(P,L).
 
 % we could also do a level per each position of each rule...
 
 %
 % poset
 %
-#program approximation(poset).
+#program weak(poset).
 
 poset(P,X) :- preference(P,poset),
               preference(P,_,_,for(X),_).
@@ -1371,8 +1370,8 @@ step(P,X,S+1) :- preference(P,poset), approx_poset=1,
 
 levels(P,S) :- preference(P,poset), approx_poset=1,
                step(P,_,S), not step(P,_,S+1).
-minimize(P,-1,-S,X,X) :- preference(P,poset), approx_poset=1,
-                         step(P,X,S), not step(P,X,S+1).
+wc(P,-1,-S,X,X) :- preference(P,poset), approx_poset=1,
+                   step(P,X,S), not step(P,X,S+1).
 
 % option 2
 
@@ -1380,26 +1379,26 @@ cost(P,X,C+1) :- preference(P,poset), approx_poset=2,
                  poset(P,X),
                  C = #sum{ CC,Y : poset(P,X,Y), cost(P,Y,CC) }.
 
-levels(P,1)          :- preference(P,poset), approx_poset=2.
-minimize(P,-C,1,X,X) :- preference(P,poset), approx_poset=2,
-                        cost(P,X,C).
+levels(P,1)    :- preference(P,poset), approx_poset=2.
+wc(P,-C,1,X,X) :- preference(P,poset), approx_poset=2,
+                  cost(P,X,C).
 
 %
-% composite preference approximation
+% composite preference weak
 %
 
-#program approximation(neg).
-minimize(P,-W,L,T,X) :- preference(P,neg), preference(P,_,_,name(PP),_),
-                        minimize(PP,W,L,T,X).
+#program weak(neg).
+wc(P,-W,L,T,X) :- preference(P,neg), preference(P,_,_,name(PP),_),
+                  wc(PP,W,L,T,X).
 levels(P,L) :- preference(P,neg), preference(P,_,_,name(PP),_), levels(PP,L).
 
 
-#program approximation.  % (as lexico, uses as_lexico/1 and level/3)
+#program weak.  % (as lexico, uses as_lexico/1 and level/3)
 
-minimize(P,W,L+S,T,X) :- as_lexico(P),
-                         level(P,P1,L1),
-                         minimize(P1,W,L,T,X),
-                         S = #sum{ LS2,P2,L2: level(P,P2,L2), L2 < L1, levels(P2,LS2) }.
+wc(P,W,L+S,T,X) :- as_lexico(P),
+                   level(P,P1,L1),
+                   wc(P1,W,L,T,X),
+                   S = #sum{ LS2,P2,L2: level(P,P2,L2), L2 < L1, levels(P2,LS2) }.
 
 % max level
 max_level(P,MAX) :- as_lexico(P),
@@ -1421,17 +1420,17 @@ levels(P,S) :- as_lexico(P),
                % 0 is added to avoid warnings, but it is not needed
 
 
-#program approximation(lexico).
+#program weak(lexico).
 
 %%%
 %%% With the next commented rule
 %%% clingo does not terminate grounding because of recursion through minimize/5
 %%%
-%%% minimize(P,W,L+O,T,X) :- preference(P,lexico),
-%%%                          preference(P,_,_,name(P1),L1), P != P1,
-%%%                          minimize(P1,W,L,T,X),
-%%%                          O = #sum{ L3,L2 : preference(P,_,_,name(P2),L2), L2 < L1, P2 != P, P2 != P1,
-%%%                                            minimize(P2,_,L3,_,_)}.
+%%% wc(P,W,L+O,T,X) :- preference(P,lexico),
+%%%                    preference(P,_,_,name(P1),L1), P != P1,
+%%%                    wc(P1,W,L,T,X),
+%%%                    O = #sum{ L3,L2 : preference(P,_,_,name(P2),L2), L2 < L1, P2 != P, P2 != P1,
+%%%                                      wc(P2,_,L3,_,_)}.
 %%% 
 
 as_lexico(P)  :- preference(P,lexico).
@@ -1439,15 +1438,15 @@ level(P,P1,L) :- preference(P,lexico),
                  preference(P,_,_,name(P1),L).
 
 
-#program approximation(pareto).
+#program weak(pareto).
 
 % 2 options
 #const approx_pareto=2.
 
 % option 1
-minimize(P,W,L,T,X) :- preference(P,pareto), approx_pareto=1,
-                       preference(P,_,_,name(P1),_),
-                       minimize(P1,W,L,T,X).
+wc(P,W,L,T,X) :- preference(P,pareto), approx_pareto=1,
+                 preference(P,_,_,name(P1),_),
+                 wc(P1,W,L,T,X).
 
 % option 2 (as lexico)
 as_lexico(P)  :- preference(P,pareto), approx_pareto=2.
@@ -1456,15 +1455,15 @@ level(P,P1,L) :- preference(P,pareto), approx_pareto=2,
                  L = #sum{1, P2: preference(P,_,_,name(P2),_), P2 <= P1 }.
 
 
-#program approximation(and). % same as pareto
+#program weak(and). % same as pareto
 
 % 2 options
 #const approx_and=2.
 
 % option 1
-minimize(P,W,L,T,X) :- preference(P,and), approx_and=1,
-                       preference(P,_,_,name(P1),_),
-                       minimize(P1,W,L,T,X).
+wc(P,W,L,T,X) :- preference(P,and), approx_and=1,
+                 preference(P,_,_,name(P1),_),
+                 wc(P1,W,L,T,X).
 
 % option 2 (as lexico)
 as_lexico(P)  :- preference(P,and), approx_and=2.

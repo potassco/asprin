@@ -684,7 +684,7 @@ class Solver:
         )
 
     #
-    # approximation
+    # weak approximation
     #
 
     def on_model_approx(self, model):
@@ -717,7 +717,7 @@ class Solver:
     def solve_approx(self):
         # set the domain of holds
         self.set_holds_domain()
-        # approximation programs
+        # weak approximation programs
         self.control.ground([(APPROX, [])], self)
         for i in PROGRAMS_APPROX:
             self.control.add(i[0], i[1], i[2].replace(TOKEN, self.underscores))
