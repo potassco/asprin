@@ -85,6 +85,15 @@ error(("preference:",P,": error: preference specification error, type '",T,"' re
 %        except:
 %            return 1
 %
+%    def get_sequence(self, name, elem):
+%        string = str(name)
+%        # self.sequences is initially {}
+%        if string in self.sequences:
+%            self.sequences[string] += 1
+%        else:
+%            self.sequences[string]  = 1
+%        return self.sequences[string]
+%
 
 #program preference(and).
 
@@ -1129,6 +1138,8 @@ heuristic(P,X,L,M) :- preference(P,and), heuristic_and=1,
 % approximation programs:
 % - used with option --solving-mode=approx
 %
+%
+
 #program approximation.
 
 %
@@ -1136,21 +1147,14 @@ heuristic(P,X,L,M) :- preference(P,and), heuristic_and=1,
 %   minimize(P,_,L,_,_)
 % have the form: 1, 2, ...
 %
+% For composite preferences, we have to define
+%   levels(P,L)
+% where L is the number of (lexico) levels of P
+%
 
 #minimize{ W@L, T : minimize(P,W,L,T,X), optimize(P), holds(X) }.
-%#minimize{ W@LL,T : minimize(P,W,L,T,X), optimize(P), holds(X),
-%                    LL=@get_level(L,M,D), max_level(M), max_depth(D), lexico }.
 
 minimize(A,B,C,D,E) :- #false, minimize(A,B,C,D,E). % to avoid warnings
-
-%lexico        :- preference(P,_,_,name(_),_), preference(P,lexico).
-%max_level(M)  :- preference(_,lexico), M = #max{ L: preference(P,_,_,name(P1),L), preference(P,lexico)}.
-%max_depth(D)  :- lexico, depth(_,D), not depth(_,D+1).
-%depth(P,0)    :- lexico, preference(P,_).
-%depth(P1,D+1) :- lexico, preference(P,_), depth(P,D), preference(P,_,_,name(P1),_).
-
-% TODO: add min_level/1 and use it above and in @get_level/2, now we assume 0
-% min_level(M) :- M = #min{ L: preference(P,_,_,name(P1),L), preference(P,lexico)}.
 
 #const use_get_sequence=1.
 
@@ -1180,122 +1184,100 @@ minimize(P,-W,1,T,X) :- preference(P,more(weight)), preference(P,_,_,for(X),T),
                         W=@get(T,0).
 levels(P,1) :- preference(P,more(weight)).
 
+%
+% clingo minimize
+%
+
 #program approximation(clingo_minimize).
-minimize(P,W,L,T,X) :- preference(P,clingo_minimize), preference(P,_,_,for(X),T),
-                       W=@get(T,0), L=@get(T,1).
-%levels(P,1) :- preference(P,clingo_minimize).
+% map levels to 1..n
+level(P,L1,L) :- preference(P,clingo_minimize),
+                 preference(P,_,_,_,T), L1=@get(T,1),
+                 L = #sum{1, L2: preference(P,_,_,_,T), L2=@get(T,1), L2 <= L1 }.
+% define minimize/5
+minimize(P,W,LL,T,X) :- preference(P,clingo_minimize),
+                        preference(P,_,_,for(X),T),
+                        W=@get(T,0), L=@get(T,1),
+                        level(P,L,LL).
+% number of levels (overestimation)
+levels(P,L) :- preference(P,clingo_minimize),
+               L = #max{ LL: level(P,_,LL); 0 }.
+
+%
+% minmax and maxmin
+%
 
 #program approximation(minmax).
+as_minmax(P)                     :- preference(P,minmax), preference(P,_,_,for(X),T).
+elem(P,@get(T,0), @get(T,1),T,X) :- preference(P,minmax), preference(P,_,_,for(X),T).
+
+#program approximation(maxmin).
+as_minmax(P)                     :- preference(P,maxmin), preference(P,_,_,for(X),T).
+elem(P,@get(T,0),-@get(T,1),T,X) :- preference(P,maxmin), preference(P,_,_,for(X),T).
+
+#program approximation. % (as_minmax, uses as_minmax/1 and elem/5
 
 % preprocess
-elem(P,@get(T,0),T,X) :- preference(P,minmax), preference(P,_,_,for(X),T).
-min(P,G,C) :- preference(P,minmax), elem(P,G,_,_),
-              C = #sum{ W,T : elem(P,G,T,_), W=@get(T,1), W<0 }.
-min(P,C)   :- preference(P,minmax), elem(P,_,_,_),
+min(P,G,C) :- as_minmax(P), elem(P,G,_,_,_),
+              C = #sum{ W,T : elem(P,G,T,W,_), W<0 }.
+min(P,C)   :- as_minmax(P), elem(P,_,_,_,_),
               C = #min{ CC : min(P,G,CC) }.
-max(P,G,C) :- preference(P,minmax), elem(P,G,_,_), 
-              C = #sum{ W,T : elem(P,G,T,_), W=@get(T,1), W>0 }.
-max(P,C)   :- preference(P,minmax), elem(P,_,_,_),
+max(P,G,C) :- as_minmax(P), elem(P,G,_,_,_),
+              C = #sum{ W,T : elem(P,G,T,W,_), W>0 }.
+max(P,C)   :- as_minmax(P), elem(P,_,_,_,_),
               C = #max{ CC : max(P,G,CC) }.
 
 % pos(itions)
-pos(P,G,N,T1)   :- preference(P,minmax), use_get_sequence=1,
-                   elem(P,G,T1,_),
+pos(P,G,N,T1)   :- as_minmax(P), use_get_sequence=1,
+                   elem(P,G,T1,_,_),
                    N=@get_sequence(("approximation_minmax",P,G),T1).
 
-pos(P,G,1,T1)   :- preference(P,minmax), use_get_sequence!=1,
-                   elem(P,G,T1,_), T1 <= T2 : elem(P,G,T2,_).
-pos(P,G,N+1,T2) :- preference(P,minmax), use_get_sequence!=1,
+pos(P,G,1,T1)   :- as_minmax(P), use_get_sequence!=1,
+                   elem(P,G,T1,_,_), T1 <= T2 : elem(P,G,T2,_,_).
+pos(P,G,N+1,T2) :- as_minmax(P), use_get_sequence!=1,
                    pos(P,G,N,T1),
-                   elem(P,G,T2,_), T1 < T2,
-                   T2 <= T3 : elem(P,G,T3,_), T1 < T3.
+                   elem(P,G,T2,_,_), T1 < T2,
+                   T2 <= T3 : elem(P,G,T3,_,_), T1 < T3.
 % cost 
-cost(P,G,0,C)   :- preference(P,minmax),
+cost(P,G,0,C)   :- as_minmax(P),
                    min(P,G,C).
-cost(P,G,N,C)   :- preference(P,minmax),
+cost(P,G,N,C)   :- as_minmax(P),
                    cost(P,G,N-1,C),
                    pos(P,G,N,_).
-cost(P,G,N,C+W) :- preference(P,minmax),
+cost(P,G,N,C+W) :- as_minmax(P),
                    cost(P,G,N-1,C),
-                   pos(P,G,N,T), W=@get(T,1), W>0,
-                   elem(P,G,T,X), holds(X).
-cost(P,G,N,C-W) :- preference(P,minmax),
+                   pos(P,G,N,T),
+                   elem(P,G,T,W,X), W>0, holds(X).
+cost(P,G,N,C-W) :- as_minmax(P),
                    cost(P,G,N-1,C),
-                   pos(P,G,N,T), W=@get(T,1), W<0,
-                   elem(P,G,T,X), not holds(X).
+                   pos(P,G,N,T),
+                   elem(P,G,T,W,X), W<0, not holds(X).
 
 % minmax
-holds(minmax(P,C))   :- preference(P,minmax),
+holds(minmax(P,C))   :- as_minmax(P),
                         pos(P,G,N,_), not pos(P,G,N+1,_),
                         cost(P,G,N,C).
-holds(minmax(P,C-1)) :- preference(P,minmax),
+holds(minmax(P,C-1)) :- as_minmax(P),
                         holds(minmax(P,C)), min(P,MIN), C > MIN.
 
 % domain(minmax)
-domain(minmax(P,C))   :- preference(P,minmax),
+domain(minmax(P,C))   :- as_minmax(P),
                          max(P,C).
-domain(minmax(P,C-1)) :- preference(P,minmax),
+domain(minmax(P,C-1)) :- as_minmax(P),
                          domain(minmax(P,C)), min(P,MIN), C > MIN.
 
 % minimize
-minimize(P,1,1,C,minmax(P,C)) :- preference(P,minmax),
+minimize(P,1,1,C,minmax(P,C)) :- as_minmax(P),
                                  domain(minmax(P,C)), min(P,MIN).
+levels(P,1) :- as_minmax(P).
 
-#program approximation(maxmin).
+% to avoid warnings
+as_minmax(P)    :- #false,    as_minmax(P).
+elem(A,B,C,D,E) :- #false, elem(A,B,C,D,E).
 
-% preprocess
-elem(P,@get(T,0),T,X) :- preference(P,maxmin), preference(P,_,_,for(X),T).
-min(P,G,C) :- preference(P,maxmin), elem(P,G,_,_),
-              C = #sum{ W,T : elem(P,G,T,_), W=-@get(T,1), W<0 }.
-min(P,C)   :- preference(P,maxmin), elem(P,_,_,_),
-              C = #min{ CC : min(P,G,CC) }.
-max(P,G,C) :- preference(P,maxmin), elem(P,G,_,_),
-              C = #sum{ W,T : elem(P,G,T,_), W=-@get(T,1), W>0 }.
-max(P,C)   :- preference(P,maxmin), elem(P,_,_,_),
-              C = #max{ CC : max(P,G,CC) }.
 
-% pos(itions)
-pos(P,G,N,T1)   :- preference(P,maxmin), use_get_sequence=1,
-                   elem(P,G,T1,_),
-                   N=@get_sequence(("approximation_maxmin",P,G),T1).
-pos(P,G,1,T1)   :- preference(P,maxmin), use_get_sequence!=1,
-                   elem(P,G,T1,_), T1 <= T2 : elem(P,G,T2,_).
-pos(P,G,N+1,T2) :- preference(P,maxmin), use_get_sequence!=1,
-                   pos(P,G,N,T1),
-                   elem(P,G,T2,_), T1 < T2,
-                   T2 <= T3 : elem(P,G,T3,_), T1 < T3.
-% cost 
-cost(P,G,0,C)   :- preference(P,maxmin),
-                   min(P,G,C).
-cost(P,G,N,C)   :- preference(P,maxmin),
-                   cost(P,G,N-1,C),
-                   pos(P,G,N,_).
-cost(P,G,N,C+W) :- preference(P,maxmin),
-                   cost(P,G,N-1,C),
-                   pos(P,G,N,T), W=-@get(T,1), W>0,
-                   elem(P,G,T,X), holds(X).
-cost(P,G,N,C-W) :- preference(P,maxmin),
-                   cost(P,G,N-1,C),
-                   pos(P,G,N,T), W=-@get(T,1), W<0,
-                   elem(P,G,T,X), not holds(X).
-
-% maxmin
-holds(maxmin(P,C))   :- preference(P,maxmin),
-                        pos(P,G,N,_), not pos(P,G,N+1,_),
-                        cost(P,G,N,C).
-holds(maxmin(P,C-1)) :- preference(P,maxmin),
-                        holds(maxmin(P,C)), min(P,MIN), C > MIN.
-
-% domain(maxmin)
-domain(maxmin(P,C))   :- preference(P,maxmin),
-                         max(P,C).
-domain(maxmin(P,C-1)) :- preference(P,maxmin),
-                         domain(maxmin(P,C)), min(P,MIN), C > MIN.
-
-% minimize
-minimize(P,1,1,C,maxmin(P,C)) :- preference(P,maxmin),
-                                 domain(maxmin(P,C)), min(P,MIN).
-
+%
+% aso
+%
 #program approximation(aso).
 
 rule(P,Id,L) :- preference(P,aso),
@@ -1322,9 +1304,10 @@ holds(aso(P,Id,Idx)) :- preference(P,aso), opt12(P),
                         holds(X), preference(P,Id,Pos,for(X),_), Pos != 0.
 
 % option 1
+levels(P,1)                             :- preference(P,aso), approx_aso=1.
 minimize(P,-1,1,(Id,Idx),aso(P,Id,Idx)) :- preference(P,aso), approx_aso=1,
                                            index(P,Id,Idx).
-% option 2
+% option 2 (to lexico)
 pos(P,N,Id)   :- preference(P,aso), approx_aso=2, use_get_sequence=1,
                  rule(P,Id,_),
                  N=@get_sequence(("approximation_aso",P),Id).
@@ -1335,11 +1318,13 @@ pos(P,N+1,Id2) :- preference(P,aso), approx_aso=2, use_get_sequence!=1,
                   pos(P,N,Id1), rule(P,Id2,_), Id1 < Id2,
                   Id2 <= Id3 : rule(P,Id3,_), Id1 < Id3.
 
+levels(P,L)                        :- preference(P,aso), approx_aso=2,
+                                      L = #sum{ 1,Id: rule(P,Id,_) }.
 minimize(P,-1,N,Idx,aso(P,Id,Idx)) :- preference(P,aso), approx_aso=2,
                                       index(P,Id,Idx), pos(P,N,Id).
 
 
-% option 3
+% option 3 (to lexico)
 holds(aso(P,Id,1))   :- preference(P,aso), approx_aso=3,
                         rule(P,Id,L),
                         not holds(X), preference(P,Id,0,for(X),_).
@@ -1351,14 +1336,16 @@ holds(aso(P,Id,Idx)) :- preference(P,aso), approx_aso=3,
                         holds(X), preference(P,Id,Idx,for(X),_), Idx!=0,
                         not holds(aso(P,Id,Idx')) : Idx'=1..(Idx-1).
 
-max_index(P,I) :- preference(P,aso), approx_aso=3,
-                  rule(P,_,I), not rule(P,_,I+1).
-
-minimize(P,-1,I-Idx+1,Id,aso(P,Id,Idx)) :- preference(P,aso), approx_aso=3,
-                                           index(P,Id,Idx), max_index(P,I).
+levels(P,L) :- preference(P,aso), approx_aso=3,
+               rule(P,_,L), not rule(P,_,L+1).
+minimize(P,-1,L-Idx+1,Id,aso(P,Id,Idx)) :- preference(P,aso), approx_aso=3,
+                                           index(P,Id,Idx), levels(P,L).
 
 % we could also do a level per each position of each rule...
 
+%
+% poset
+%
 #program approximation(poset).
 
 poset(P,X) :- preference(P,poset),
@@ -1381,6 +1368,9 @@ step(P,X,1)   :- preference(P,poset), approx_poset=1,
 step(P,X,S+1) :- preference(P,poset), approx_poset=1,
                  step(P,X,S), step(P,Y,S), poset(P,Y,X).
 
+
+levels(P,S) :- preference(P,poset), approx_poset=1,
+               step(P,_,S), not step(P,_,S+1).
 minimize(P,-1,-S,X,X) :- preference(P,poset), approx_poset=1,
                          step(P,X,S), not step(P,X,S+1).
 
@@ -1390,17 +1380,52 @@ cost(P,X,C+1) :- preference(P,poset), approx_poset=2,
                  poset(P,X),
                  C = #sum{ CC,Y : poset(P,X,Y), cost(P,Y,CC) }.
 
-minimize(P,-C,1,X,X) :- cost(P,X,C), approx_poset=2.
+levels(P,1)          :- preference(P,poset), approx_poset=2.
+minimize(P,-C,1,X,X) :- preference(P,poset), approx_poset=2,
+                        cost(P,X,C).
+
+%
+% composite preference approximation
+%
 
 #program approximation(neg).
 minimize(P,-W,L,T,X) :- preference(P,neg), preference(P,_,_,name(PP),_),
                         minimize(PP,W,L,T,X).
 levels(P,L) :- preference(P,neg), preference(P,_,_,name(PP),_), levels(PP,L).
 
+
+#program approximation.  % (as lexico, uses as_lexico/1 and level/3)
+
+minimize(P,W,L+S,T,X) :- as_lexico(P),
+                         level(P,P1,L1),
+                         minimize(P1,W,L,T,X),
+                         S = #sum{ LS2,P2,L2: level(P,P2,L2), L2 < L1, levels(P2,LS2) }.
+
+% max level
+max_level(P,MAX) :- as_lexico(P),
+                    MAX = #max { L: level(P,_,L) }.
+
+% start
+sum_levels(P,MIN-1,0)  :- as_lexico(P),
+                          MIN = #min { L: level(P,_,L) }.
+% progress
+sum_levels(P,L+1,   S) :- as_lexico(P),
+                          sum_levels(P,L,S),
+                          max_level(P,MAX), L < MAX.
+sum_levels(P,L+1,SS+S) :- as_lexico(P),
+                          sum_levels(P,L,S),
+                          level(P,_,P1,L+1), levels(P1,SS).
+% sum up
+levels(P,S) :- as_lexico(P),
+               max_level(P,MAX), S = #max{ SS: sum_levels(P,MAX,SS); 0 }.
+               % 0 is added to avoid warnings, but it is not needed
+
+
 #program approximation(lexico).
 
 %%%
-%%% the next encoding does not ground because of recursion through minimize/5
+%%% With the next commented rule
+%%% clingo does not terminate grounding because of recursion through minimize/5
 %%%
 %%% minimize(P,W,L+O,T,X) :- preference(P,lexico),
 %%%                          preference(P,_,_,name(P1),L1), P != P1,
@@ -1409,111 +1434,41 @@ levels(P,L) :- preference(P,neg), preference(P,_,_,name(PP),_), levels(PP,L).
 %%%                                            minimize(P2,_,L3,_,_)}.
 %%% 
 
-minimize(P,W,L+S,T,X) :- preference(P,lexico),
-                         preference(P,_,_,name(P1),L1),
-                         minimize(P1,W,L,T,X),
-                         S = #sum{ LS2,P2,L2: preference(P,_,_,name(P2),L2), L2 < L1, levels(P2,LS2) }.
+as_lexico(P)  :- preference(P,lexico).
+level(P,P1,L) :- preference(P,lexico),
+                 preference(P,_,_,name(P1),L).
 
-% max level
-max_level(P,MAX) :- preference(P,lexico),
-                    MAX = #max { L: preference(P,_,_,name(_),L) }.
-
-% start
-sum_levels(P,MIN-1,0)  :- preference(P,lexico),
-                          MIN = #min { L: preference(P,_,_,name(_),L) }.
-% progress
-sum_levels(P,L+1,   S) :- preference(P,lexico),
-                          sum_levels(P,L,S),
-                          max_level(P,MAX), L < MAX.
-sum_levels(P,L+1,SS+S) :- preference(P,lexico),
-                          sum_levels(P,L,S),
-                          preference(P,_,_,name(P1),L+1), levels(P1,SS).
-% sum up
-levels(P,S) :- preference(P,lexico),
-               max_level(P,MAX), S = #max{ SS: sum_levels(P,MAX,SS); 0 }.
-               % 0 is added to avoid warnings, but it is not needed
 
 #program approximation(pareto).
 
 % 2 options
-#const approx_pareto=2. % changed for experiments
+#const approx_pareto=2.
 
 % option 1
-
 minimize(P,W,L,T,X) :- preference(P,pareto), approx_pareto=1,
                        preference(P,_,_,name(P1),_),
                        minimize(P1,W,L,T,X).
 
 % option 2 (as lexico)
-
-minimize(P,W,L+S,T,X) :- preference(P,pareto), approx_pareto=2,
-                         order(P,P1,L1),
-                         minimize(P1,W,L,T,X),
-                         S = #sum{ LS2,P2,L2: order(P,P2,L2), L2 < L1, levels(P2,LS2) }.
-
-% order
-order(P,P1,L) :- preference(P,pareto), approx_pareto=2,
+as_lexico(P)  :- preference(P,pareto), approx_pareto=2.
+level(P,P1,L) :- preference(P,pareto), approx_pareto=2,
                  preference(P,_,_,name(P1),_),
                  L = #sum{1, P2: preference(P,_,_,name(P2),_), P2 <= P1 }.
 
-% max level
-max_level(P,MAX) :- preference(P,pareto), approx_pareto=2,
-                    MAX = #max { L: order(P,_,L) }.
-
-% start
-sum_levels(P,0,0)  :- preference(P,pareto), approx_pareto=2.
-% progress
-sum_levels(P,L+1,   S) :- preference(P,pareto), approx_pareto=2,
-                          sum_levels(P,L,S),
-                          max_level(P,MAX), L < MAX.
-sum_levels(P,L+1,SS+S) :- preference(P,pareto), approx_pareto=2,
-                          sum_levels(P,L,S),
-                          order(P,P1,L+1), levels(P1,SS).
-% sum up
-levels(P,S) :- preference(P,pareto), approx_pareto=2,
-               max_level(P,MAX), S = #max{ SS: sum_levels(P,MAX,SS); 0 }.
-               % 0 is added to avoid warnings, but it is not needed
-
-%%%
-%%%
-%%%
-
-lexico        :- preference(P,_,_,name(_),_), preference(P,pareto), approx_pareto=2.
-max_level(M)  :- preference(_,pareto), M = #max{ L: preference(P,_,_,name(P1),L), preference(P,pareto)}, approx_pareto=2.
-minimize(P,W,@append(L1,L),T,X) :- preference(P,pareto), approx_pareto=2,
-                                   preference(P,_,_,name(P1),L1),
-                                   minimize(P1,W,L,T,X).
-
-%%% % option 2 (same as lexico)
-%%% 
-%%% minimize(P,W,L+O,T,X) :- preference(P,pareto), approx_pareto=2, 
-%%%                          preference(P,_,_,name(P1),_),
-%%%                          minimize(P1,W,L,T,X),
-%%%                          O = #sum{ L3,P2 : preference(P,_,_,name(P2),_), P2 < P1, 
-%%%                                            minimize(P2,_,L3,_,_)}.
 
 #program approximation(and). % same as pareto
 
 % 2 options
-#const approx_and=1.
+#const approx_and=2.
 
 % option 1
+minimize(P,W,L,T,X) :- preference(P,and), approx_and=1,
+                       preference(P,_,_,name(P1),_),
+                       minimize(P1,W,L,T,X).
 
-minimize(P,W,L,(P1,T),X) :- preference(P,and), approx_and=1,
-                            preference(P,_,_,name(P1),_),
-                            minimize(P1,W,L,T,X).
-
-%%% % option 2 (same as lexico)
-%%% 
-%%% minimize(P,W,L+O,T,X) :- preference(P,and), approx_and=2, 
-%%%                          preference(P,_,_,name(P1),_),
-%%%                          minimize(P1,W,L,T,X),
-%%%                          O = #sum{ L3,P2 : preference(P,_,_,name(P2),_), P2 < P1,
-%%%                                            minimize(P2,_,L3,_,_)}.
-
-%%% % TODO: Add encoding where only one level is considered:
-%%% % minimize(P,W,L,T,X) :- preference(P,and), approx_and=3,
-%%% %                             preference(P,_,_,name(P1),_),
-%%% %                             P2 >= P1 : preference(P,_,_,name(P2),_);
-%%% %                             minimize(P1,W,L,T,X).
+% option 2 (as lexico)
+as_lexico(P)  :- preference(P,and), approx_and=2.
+level(P,P1,L) :- preference(P,and), approx_and=2,
+                 preference(P,_,_,name(P1),_),
+                 L = #sum{1, P2: preference(P,_,_,name(P2),_), P2 <= P1 }.
 
