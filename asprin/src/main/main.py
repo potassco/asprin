@@ -295,13 +295,11 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
                              action='store_true')
         solving.add_argument('--project', dest='project', help=HELP_PROJECT,
                              action='store_true')
-        solving.add_argument('--solving-mode', dest='solving_mode',
-                             metavar="<arg>",
-                             help=""": Run {normal|approx|heuristic} \
-                                       solving mode""",
-                             #help=argparse.SUPPRESS,
-                             default="normal",
-                             choices=["normal", "heuristic", "approx"])
+        solving.add_argument('--approximation', dest='approximation',
+                             metavar="<m>",
+                             help=""": Run {weak|heuristic} \
+                                       approximation mode""",
+                             choices=["weak", "heuristic"])
         solving.add_argument('--dom-heur', dest='cmd_heuristic',
                               nargs=2, metavar=('<v>','<m>'),
                               help=HELP_HEURISTIC)
@@ -393,6 +391,14 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
         # handle configs all
         if options['configs'] and 'all' in options['configs']:
             options['configs'] = ALL_CONFIGS
+
+        # handle solving_mode
+        options['solving_mode'] = 'normal'
+        if options.get('approximation','') == 'weak':
+            options['solving_mode'] = "approx"
+        elif options.get('approximation','') == 'heuristic':
+            options['solving_mode'] = "heuristic"
+        options.pop('approximation',None)
 
         # statistics
         # if options['stats']:

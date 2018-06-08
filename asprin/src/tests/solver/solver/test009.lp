@@ -1,4 +1,4 @@
-% asprin test009.lp -c n=10 --solving-mode=approx 0  --project
+% asprin test009.lp -c n=10 --approximation=weak 0  --project
 % SATISFIABLE
 1 { a(1..n) }.
 a(X,Y) :- a(X), Y=1..X.

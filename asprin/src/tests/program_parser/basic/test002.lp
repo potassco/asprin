@@ -1,4 +1,4 @@
-% asprin test002.lp --solving-mode=heuristic 0
+% asprin test002.lp --approximation=heuristic 0
 % SATISFIABLE
 
 dom(1..3).

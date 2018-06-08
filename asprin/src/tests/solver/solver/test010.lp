@@ -1,4 +1,4 @@
-% asprin test010.lp 0 --solving-mode=approx
+% asprin test010.lp 0 --approximation=weak
 % SATISFIABLE
 
 1 { a(X) : dom(X) }.

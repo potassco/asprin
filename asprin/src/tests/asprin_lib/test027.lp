@@ -1,4 +1,4 @@
-% asprin test027.lp 0 --solving-mode=approx
+% asprin test027.lp 0 --approximation=weak
 % SATISFIABLE
 
 { a(1..4) }.

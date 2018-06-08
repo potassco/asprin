@@ -1,4 +1,4 @@
-% asprin test003.lp --solving-mode=heuristic 0 -c subset=superset
+% asprin test003.lp --approximation=heuristic 0 -c subset=superset
 % SATISFIABLE
 
 dom(1..3).

@@ -40,15 +40,15 @@ OPTIONS = [
     ["--volatile-improving"],
     ["--volatile-optimal"],
     #["--preference-unsat $asprin/mine/asprin_lib_unsat.lp"],
-    ["--solving-mode=heuristic"],
-    ["--solving-mode=heuristic --const-nb heuristic_aso=2"],
-    ["--solving-mode=heuristic --const-nb heuristic_aso=2 --const-nb use_get_sequence=2 "],
-    ["""--solving-mode=heuristic --const-nb heuristic_poset=2 --const-nb heuristic_aso=3 \
-     --const-nb heuristic_pareto=2 --const-nb heuristic_and=2"""],
-    ["--solving-mode=approx"],
-    ["--solving-mode=approx --const-nb approx_aso=2"],
-    ["--solving-mode=approx --const-nb approx_aso=2 --const-nb use_get_sequence=2 "],
-    ["""--solving-mode=approx --const-nb approx_poset=2 --const-nb approx_aso=3 \
+    #["--approximation=heuristic"],
+    #["--approximation=heuristic --const-nb heuristic_aso=2"],
+    #["--approximation=heuristic --const-nb heuristic_aso=2 --const-nb use_get_sequence=2 "],
+    #["""--approximation=heuristic --const-nb heuristic_poset=2 --const-nb heuristic_aso=3 \
+    # --const-nb heuristic_pareto=2 --const-nb heuristic_and=2"""],
+    ["--approximation=weak"],
+    ["--approximation=weak --const-nb approx_aso=2"],
+    ["--approximation=weak --const-nb approx_aso=2 --const-nb use_get_sequence=2 "],
+    ["""--approximation=weak --const-nb approx_poset=2 --const-nb approx_aso=3 \
      --const-nb approx_pareto=2 --const-nb approx_and=2"""],
     ["--improve-limit=0,10"],
     ["--improve-limit=1,all,10,reprint"],

@@ -1,4 +1,4 @@
-% asprin test004.lp --solving-mode=heuristic 0
+% asprin test004.lp --approximation=heuristic 0
 % ERROR
 
 dom(1..3).
