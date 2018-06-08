@@ -1146,7 +1146,7 @@ heuristic(P,X,L,M) :- preference(P,and), heuristic_and=1,
 %   wc(P,_,L,_,_)
 % have the form: 1, 2, ...
 %
-% For composite preferences, we have to define
+% To use composite preferences, we have to define
 %   levels(P,L)
 % where L is the number of (lexico) levels of P
 %
@@ -1191,7 +1191,7 @@ levels(P,1) :- preference(P,more(weight)).
 % map levels to 1..n
 level(P,L1,L) :- preference(P,clingo_minimize),
                  preference(P,_,_,_,T), L1=@get(T,1),
-                 L = #sum{1, L2: preference(P,_,_,_,T), L2=@get(T,1), L2 <= L1 }.
+                 L = #sum{1, L2: preference(P,_,_,_,TT), L2=@get(TT,1), L2 <= L1 }.
 % define minimize/5
 wc(P,W,LL,T,X) :- preference(P,clingo_minimize),
                   preference(P,_,_,for(X),T),
@@ -1217,25 +1217,25 @@ elem(P,@get(T,0),-@get(T,1),T,X) :- preference(P,maxmin), preference(P,_,_,for(X
 
 % preprocess
 min(P,G,C) :- as_minmax(P), elem(P,G,_,_,_),
-              C = #sum{ W,T : elem(P,G,T,W,_), W<0 }.
+              C = #sum{ W,T : elem(P,G,W,T,_), W<0 }.
 min(P,C)   :- as_minmax(P), elem(P,_,_,_,_),
               C = #min{ CC : min(P,G,CC) }.
 max(P,G,C) :- as_minmax(P), elem(P,G,_,_,_),
-              C = #sum{ W,T : elem(P,G,T,W,_), W>0 }.
+              C = #sum{ W,T : elem(P,G,W,T,_), W>0 }.
 max(P,C)   :- as_minmax(P), elem(P,_,_,_,_),
               C = #max{ CC : max(P,G,CC) }.
 
 % pos(itions)
 pos(P,G,N,T1)   :- as_minmax(P), use_get_sequence=1,
-                   elem(P,G,T1,_,_),
+                   elem(P,G,_,T1,_),
                    N=@get_sequence(("weak_minmax",P,G),T1).
 
 pos(P,G,1,T1)   :- as_minmax(P), use_get_sequence!=1,
-                   elem(P,G,T1,_,_), T1 <= T2 : elem(P,G,T2,_,_).
+                   elem(P,G,_,T1,_), T1 <= T2 : elem(P,G,_,T2,_).
 pos(P,G,N+1,T2) :- as_minmax(P), use_get_sequence!=1,
                    pos(P,G,N,T1),
-                   elem(P,G,T2,_,_), T1 < T2,
-                   T2 <= T3 : elem(P,G,T3,_,_), T1 < T3.
+                   elem(P,G,_,T2,_), T1 < T2,
+                   T2 <= T3 : elem(P,G,_,T3,_), T1 < T3.
 % cost 
 cost(P,G,0,C)   :- as_minmax(P),
                    min(P,G,C).
@@ -1245,11 +1245,11 @@ cost(P,G,N,C)   :- as_minmax(P),
 cost(P,G,N,C+W) :- as_minmax(P),
                    cost(P,G,N-1,C),
                    pos(P,G,N,T),
-                   elem(P,G,T,W,X), W>0, holds(X).
+                   elem(P,G,W,T,X), W>0, holds(X).
 cost(P,G,N,C-W) :- as_minmax(P),
                    cost(P,G,N-1,C),
                    pos(P,G,N,T),
-                   elem(P,G,T,W,X), W<0, not holds(X).
+                   elem(P,G,W,T,X), W<0, not holds(X).
 
 % minmax
 holds(minmax(P,C))   :- as_minmax(P),
@@ -1413,12 +1413,15 @@ sum_levels(P,L+1,   S) :- as_lexico(P),
                           max_level(P,MAX), L < MAX.
 sum_levels(P,L+1,SS+S) :- as_lexico(P),
                           sum_levels(P,L,S),
-                          level(P,_,P1,L+1), levels(P1,SS).
+                          level(P,P1,L+1), levels(P1,SS).
 % sum up
 levels(P,S) :- as_lexico(P),
                max_level(P,MAX), S = #max{ SS: sum_levels(P,MAX,SS); 0 }.
                % 0 is added to avoid warnings, but it is not needed
 
+% to avoid warnings
+as_lexico(P) :- #false, as_lexico(P).
+level(A,B,C) :- #false, level(A,B,C).
 
 #program weak(lexico).
 
