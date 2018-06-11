@@ -85,6 +85,9 @@ error(("preference:",P,": error: preference specification error, type '",T,"' re
 %        except:
 %            return 1
 %
+%    def log2up(x):
+%        return int(math.ceil(math.log(x.number,2)))
+%
 %    def get_sequence(self, name, elem):
 %        string = str(name)
 %        # self.sequences is initially {}
@@ -759,76 +762,34 @@ error_type(X,Y) :- #false, error_type(X,Y).
 %
 
 #program heuristic.
-#heuristic holds(X) : heuristic(P,X,V,M), optimize(P), not lexico. [V,M]
-#heuristic holds(X) : heuristic(P,X,V,M), optimize(P),     lexico,
-                      VV=@get_level(V,L,D), max_level(L), max_depth(D). [VV,M]
+#heuristic holds(X) : heuristic(P,X,V,M), optimize(P). [V,M]
 
 minimize(A,B,C,D,E) :- #false, minimize(A,B,C,D,E). % to avoid warnings
-
-%%%%%
-
-lexico        :- preference(P,_,_,name(_),_), preference(P,lexico).
-max_level(M)  :- preference(_,lexico), M = #max{ L: preference(P,_,_,name(P1),L), preference(P,lexico)}.
-max_depth(D)  :- lexico, depth(_,D), not depth(_,D+1).
-depth(P,0)    :- lexico, preference(P,_).
-depth(P1,D+1) :- lexico, preference(P,_), depth(P,D), preference(P,_,_,name(P1),_).
-
-%%%%%
-
-#const use_get_sequence=1.
 
 %
 % generate heuristic/4 from minimize/5
 %
 
+% project minimize/5 on minimize/1
 minimize(P) :- minimize(P,_,_,_,_).
-minimize(A,B,C,D,E) :- #false, minimize(A,B,C,D,E). % to avoid warnings
 
-% pos(itions)
-pos(P,L,N,T1)   :- minimize(P), use_get_sequence=1,
-                   minimize(P,_,L,T1,_), 
-                   N=@get_sequence(("heuristic",P,L),T1).
+% for P, there is a bit at position B
+bit(P,B) :- minimize(P),
+            S = #sum{  W,T: minimize(P,W,L,T,X), W>0;
+                      -W,T: minimize(P,W,L,T,X), W<0},
+            B=0..(@log2up(S+1)-1).
 
-pos(P,L,1,T1)   :- minimize(P), use_get_sequence!=1,
-                   minimize(P,_,L,T1,_), T1 <= T2 : minimize(P,_,L,T2,_).
-pos(P,L,N+1,T2) :- minimize(P), use_get_sequence!=1,
-                   pos(P,L,N,T1),
-                   minimize(P,_,L,T2,_), T1 < T2,
-                   T2 <= T3 : minimize(P,_,L,T3,_), T1 < T3.
+% for P, the bit B may hold
+{ holds(bit(P,B)) } :- minimize(P), bit(P,B).
 
-max_pos(P,L,N) :- minimize(P),
-                  pos(P,L,N,_), not pos(P,L,N+1,_).
+% for P, atoms bit(P,B) encode in binary the value of the minimize
+:- minimize(P),
+   0 != #sum{ -(@exp2(B)): holds(bit(P,B));
+               W,T: minimize(P,W,L,T,X), W>0,     holds(X);
+              -W,T: minimize(P,W,L,T,X), W<0, not holds(X)}.
 
-% cost/3
-cost(P,L,0,0)   :- minimize(P), minimize(P,_,L,_,_).
-cost(P,L,N,C)   :- minimize(P),
-                   cost(P,L,N-1,C),
-                   pos(P,L,N,_).
-cost(P,L,N,C+W) :- minimize(P),
-                   cost(P,L,N-1,C),
-                   pos(P,L,N,T),
-                   minimize(P,W,L,T,X), W>0, holds(X).
-cost(P,L,N,C-W) :- minimize(P),
-                   cost(P,L,N-1,C),
-                   pos(P,L,N,T),
-                   minimize(P,W,L,T,X), W<0, not holds(X).
-
-% holds/1 and domain/1
-holds(minimize(P,L,C))   :- minimize(P),
-                            cost(P,L,N,C), max_pos(P,L,N).
-holds(minimize(P,L,C-1)) :- minimize(P),
-                            holds(minimize(P,L,C)), C > 0.
-
-domain(minimize(P,L,C)) :- minimize(P),
-                           minimize(P,_,L,_,_),
-                           M = #sum {  W,T : minimize(P,W,L,T,_), W > 0;
-                                      -W,T : minimize(P,W,L,T,_), W < 0},
-                           C = 0..M.
-
-% heuristic
-heuristic(P,minimize(P,L,C),L+1-M,false) :- minimize(P),
-                                            domain(minimize(P,L,C)),
-                                            M = #min{ LL : minimize(P,_,LL,_,_) }.
+% define heuristic/4
+heuristic(P,bit(P,B),B+1,false) :- minimize(P), bit(P,B).
 
 #program heuristic(subset).
 heuristic(P,X,1,false) :- preference(P,subset), preference(P,_,_,for(X),_).
@@ -934,15 +895,9 @@ holds(aso(P,Id,Idx)) :- preference(P,aso), opt12(P),
 heuristic(P,aso(P,Id,Idx),1,true) :- preference(P,aso), heuristic_aso=1,
                                      index(P,Id,Idx).
 % option 2
-pos(P,N,Id1)   :- preference(P,aso), heuristic_aso=2, use_get_sequence=1,
+pos(P,N,Id1)   :- preference(P,aso), heuristic_aso=2,
                   rule(P,Id1,_),
                   N=@get_sequence(("heuristic_aso",P),Id1).
-
-pos(P,1,Id1)   :- preference(P,aso), heuristic_aso=2, use_get_sequence!=1,
-                  rule(P,Id1,_), Id1 <= Id2 : rule(P,Id2,_).
-pos(P,N+1,Id2) :- preference(P,aso), heuristic_aso=2, use_get_sequence!=1,
-                  pos(P,N,Id1), rule(P,Id2,_), Id1 < Id2,
-                  Id2 <= Id3 : rule(P,Id3,_), Id1 < Id3.
 
 heuristic(P,aso(P,Id,Idx),N,true) :- preference(P,aso), heuristic_aso=2,
                                      index(P,Id,Idx), pos(P,N,Id).
@@ -980,16 +935,10 @@ max(P,C)   :- preference(P,minmax),
               C = #max{ CC : max(P,G,CC) }.
 
 % pos(itions)
-pos(P,G,N,T1)   :- preference(P,minmax), use_get_sequence=1,
+pos(P,G,N,T1)   :- preference(P,minmax),
                    elem(P,G,T1,_),
                    N=@get_sequence(("heuristic_minmax",P,G),T1).
 
-pos(P,G,1,T1)   :- preference(P,minmax), use_get_sequence!=1,
-                   elem(P,G,T1,_), T1 <= T2 : elem(P,G,T2,_).
-pos(P,G,N+1,T2) :- preference(P,minmax), use_get_sequence!=1,
-                   pos(P,G,N,T1),
-                   elem(P,G,T2,_), T1 < T2,
-                   T2 <= T3 : elem(P,G,T3,_), T1 < T3.
 % cost 
 cost(P,G,0,C)   :- preference(P,minmax),
                    min(P,G,C).
@@ -1036,16 +985,10 @@ max(P,C)   :- preference(P,maxmin),
               C = #max{ CC : max(P,G,CC) }.
 
 % pos(itions)
-pos(P,G,N,T1)   :- preference(P,maxmin), use_get_sequence=1,
+pos(P,G,N,T1)   :- preference(P,maxmin),
                    elem(P,G,T1,_),
                    N=@get_sequence(("heuristic_maxmin",P,G),T1).
 
-pos(P,G,1,T1)   :- preference(P,maxmin), use_get_sequence!=1,
-                   elem(P,G,T1,_), T1 <= T2 : elem(P,G,T2,_).
-pos(P,G,N+1,T2) :- preference(P,maxmin), use_get_sequence!=1,
-                   pos(P,G,N,T1),
-                   elem(P,G,T2,_), T1 < T2,
-                   T2 <= T3 : elem(P,G,T3,_), T1 < T3.
 % cost 
 cost(P,G,0,C)   :- preference(P,maxmin),
                    min(P,G,C).
@@ -1153,9 +1096,8 @@ heuristic(P,X,L,M) :- preference(P,and), heuristic_and=1,
 
 :~ wc(P,W,L,T,X), optimize(P), holds(X). [W@L,T]
 
+% minors
 wc(A,B,C,D,E) :- #false, wc(A,B,C,D,E). % to avoid warnings
-
-#const use_get_sequence=1.
 
 #program weak(subset).
 wc(P,1,1,X,X) :- preference(P,subset), preference(P,_,_,for(X),_).
@@ -1215,59 +1157,32 @@ elem(P,@get(T,0),-@get(T,1),T,X) :- preference(P,maxmin), preference(P,_,_,for(X
 
 #program weak. % (as_minmax, uses as_minmax/1 and elem/5
 
-% preprocess
-min(P,G,C) :- as_minmax(P), elem(P,G,_,_,_),
-              C = #sum{ W,T : elem(P,G,W,T,_), W<0 }.
-min(P,C)   :- as_minmax(P), elem(P,_,_,_,_),
-              C = #min{ CC : min(P,G,CC) }.
-max(P,G,C) :- as_minmax(P), elem(P,G,_,_,_),
-              C = #sum{ W,T : elem(P,G,W,T,_), W>0 }.
-max(P,C)   :- as_minmax(P), elem(P,_,_,_,_),
-              C = #max{ CC : max(P,G,CC) }.
+% for P, in group G, there is a bit at position B
+bit(P,G,B) :- as_minmax(P), elem(P,G,_,_,_),
+              S = #sum{  W,T: elem(P,G,W,T,X), W>0;
+                        -W,T: elem(P,G,W,T,X), W<0},
+              B=0..(@log2up(S+1)-1).
 
-% pos(itions)
-pos(P,G,N,T1)   :- as_minmax(P), use_get_sequence=1,
-                   elem(P,G,_,T1,_),
-                   N=@get_sequence(("weak_minmax",P,G),T1).
+% for P, in group G, the bit B may be true
+{ true(bit(P,G,B)) } :- as_minmax(P), bit(P,G,B).
 
-pos(P,G,1,T1)   :- as_minmax(P), use_get_sequence!=1,
-                   elem(P,G,_,T1,_), T1 <= T2 : elem(P,G,_,T2,_).
-pos(P,G,N+1,T2) :- as_minmax(P), use_get_sequence!=1,
-                   pos(P,G,N,T1),
-                   elem(P,G,_,T2,_), T1 < T2,
-                   T2 <= T3 : elem(P,G,_,T3,_), T1 < T3.
-% cost 
-cost(P,G,0,C)   :- as_minmax(P),
-                   min(P,G,C).
-cost(P,G,N,C)   :- as_minmax(P),
-                   cost(P,G,N-1,C),
-                   pos(P,G,N,_).
-cost(P,G,N,C+W) :- as_minmax(P),
-                   cost(P,G,N-1,C),
-                   pos(P,G,N,T),
-                   elem(P,G,W,T,X), W>0, holds(X).
-cost(P,G,N,C-W) :- as_minmax(P),
-                   cost(P,G,N-1,C),
-                   pos(P,G,N,T),
-                   elem(P,G,W,T,X), W<0, not holds(X).
+% for P, in group G, atoms bit(P,G,B) encode in binary the value of the group
+:- as_minmax(P), elem(P,G,_,_,_),
+   0 != #sum{ -(@exp2(B)): true(bit(P,G,B));
+               W,T: elem(P,G,W,T,X), W>0,     holds(X);
+              -W,T: elem(P,G,W,T,X), W<0, not holds(X)}.
 
-% minmax
-holds(minmax(P,C))   :- as_minmax(P),
-                        pos(P,G,N,_), not pos(P,G,N+1,_),
-                        cost(P,G,N,C).
-holds(minmax(P,C-1)) :- as_minmax(P),
-                        holds(minmax(P,C)), min(P,MIN), C > MIN.
+% for P, bit B holds if it is true at some group which is not not-maximal
+holds(bit(P,B))  :- as_minmax(P),    true(bit(P,G,B)), not not_max(P,G,B).
 
-% domain(minmax)
-domain(minmax(P,C))   :- as_minmax(P),
-                         max(P,C).
-domain(minmax(P,C-1)) :- as_minmax(P),
-                         domain(minmax(P,C)), min(P,MIN), C > MIN.
+% for P, define when group G is not-maximal before bit B
+not_max(P,G,B-1) :- as_minmax(P), not true(bit(P,G,B)),  holds(bit(P,B)), B>0,
+                    elem(P,G,_,_,_).
+not_max(P,G,B-1) :- as_minmax(P), not_max(P,G,B), B>0.
 
-% minimize
-wc(P,1,1,C,minmax(P,C)) :- as_minmax(P),
-                           domain(minmax(P,C)), min(P,MIN).
-levels(P,1) :- as_minmax(P).
+% map to weak constraints
+wc(P,1,B+1,0,bit(P,B)) :- as_minmax(P), bit(P,_,B).
+levels(P,L) :- as_minmax(P), L = #sum{ 1,B: bit(P,_,B) }.
 
 % to avoid warnings
 as_minmax(P)    :- #false,    as_minmax(P).
@@ -1307,15 +1222,9 @@ levels(P,1)                       :- preference(P,aso), approx_aso=1.
 wc(P,-1,1,(Id,Idx),aso(P,Id,Idx)) :- preference(P,aso), approx_aso=1,
                                      index(P,Id,Idx).
 % option 2 (to lexico)
-pos(P,N,Id)   :- preference(P,aso), approx_aso=2, use_get_sequence=1,
+pos(P,N,Id)   :- preference(P,aso), approx_aso=2,
                  rule(P,Id,_),
                  N=@get_sequence(("weak_aso",P),Id).
-
-pos(P,1,Id1)   :- preference(P,aso), approx_aso=2, use_get_sequence!=1,
-                  rule(P,Id1,_), Id1 <= Id2 : rule(P,Id2,_).
-pos(P,N+1,Id2) :- preference(P,aso), approx_aso=2, use_get_sequence!=1,
-                  pos(P,N,Id1), rule(P,Id2,_), Id1 < Id2,
-                  Id2 <= Id3 : rule(P,Id3,_), Id1 < Id3.
 
 levels(P,L)                        :- preference(P,aso), approx_aso=2,
                                       L = #sum{ 1,Id: rule(P,Id,_) }.

@@ -28,6 +28,7 @@
 import clingo
 import controller
 import sys
+import math
 from threading import Condition
 from ..utils import printer
 from ..utils import utils
@@ -305,6 +306,12 @@ class Solver:
         else:
             self.sequences[string]  = 1
         return self.sequences[string]
+
+    def log2up(self, x):
+        return int(math.ceil(math.log(x.number,2)))
+
+    def exp2(self, x):
+        return int(math.pow(2,x.number))
 
     def append(self, elem, alist):
         if alist.name == "" and len(alist.arguments):
