@@ -762,60 +762,97 @@ error_type(X,Y) :- #false, error_type(X,Y).
 %
 
 #program heuristic.
+
+%
+% For some P, the levels L in
+%   heuristic(P,_,L,_)
+% have the form: 1, 2, ...
+%
+% To use composite preferences, we have to define
+%   levels(P,L)
+% where L is the number of (lexico) levels of P
+%
+
+% heuristic directive
 #heuristic holds(X) : heuristic(P,X,V,M), optimize(P). [V,M]
 
-minimize(A,B,C,D,E) :- #false, minimize(A,B,C,D,E). % to avoid warnings
-
 %
-% generate heuristic/4 from minimize/5
+% generate heuristic/4 from wc/5
 %
 
-% project minimize/5 on minimize/1
-minimize(P) :- minimize(P,_,_,_,_).
+% project wc/5 on wc/2
+wc(P,L) :- wc(P,_,L,_,_).
 
-% for P, there is a bit at position B
-bit(P,B) :- minimize(P),
-            S = #sum{  W,T: minimize(P,W,L,T,X), W>0;
-                      -W,T: minimize(P,W,L,T,X), W<0},
-            B=0..(@log2up(S+1)-1).
+% for P and L, there is a bit at position B
+bit(P,L,B) :- wc(P,L),
+              S = #sum{  W,T: wc(P,W,L,T,X), W>0;
+                        -W,T: wc(P,W,L,T,X), W<0},
+              B=0..(@log2up(S+1)-1).
 
-% for P, the bit B may hold
-{ holds(bit(P,B)) } :- minimize(P), bit(P,B).
+% for P and L, the bit B may hold
+{ holds(bit(P,L,B)) } :- wc(P,L), bit(P,L,B).
 
-% for P, atoms bit(P,B) encode in binary the value of the minimize
-:- minimize(P),
-   0 != #sum{ -(@exp2(B)): holds(bit(P,B));
-               W,T: minimize(P,W,L,T,X), W>0,     holds(X);
-              -W,T: minimize(P,W,L,T,X), W<0, not holds(X)}.
+% for P and L, atoms bit(P,L,B) encode in binary the value of the sum
+:- wc(P,L), 0 != #sum{ -(@exp2(B)): holds(bit(P,L,B));
+                               W,T: wc(P,W,L,T,X), W>0,     holds(X);
+                              -W,T: wc(P,W,L,T,X), W<0, not holds(X)}.
 
-% define heuristic/4
-heuristic(P,bit(P,B),B+1,false) :- minimize(P), bit(P,B).
+% define heuristic/4 and levels/2
+heuristic(P,bit(P,L1,B),1+B+S,false) :- wc(P,L1),
+                                        bit(P,L1,B),
+                                        S = #sum{ L3,L2: levels_per_level(P,L2,L3), L2<L1 }.
+levels_per_level(P,L1,L2) :- wc(P,L1),
+                             L2 = #sum{ 1,B: bit(P,L1,B) }.
+levels(P,L1) :- wc(P,_),
+                L1 = #sum{ L3,L2: levels_per_level(P,L2,L3) }.
+
+% minors
+wc(A,B,C,D,E) :- #false, wc(A,B,C,D,E). % to avoid warnings
 
 #program heuristic(subset).
 heuristic(P,X,1,false) :- preference(P,subset), preference(P,_,_,for(X),_).
+levels(P,1) :- preference(P,subset).
 
 #program heuristic(superset).
 heuristic(P,X,1,true) :- preference(P,superset), preference(P,_,_,for(X),_).
+levels(P,1) :- preference(P,superset).
 
 #program heuristic(less(cardinality)).
-minimize(P,1,1,X,X) :- preference(P,less(cardinality)),
-                       preference(P,_,_,for(X),_).
+wc(P,1,1,X,X) :- preference(P,less(cardinality)),
+                 preference(P,_,_,for(X),_).
+levels(P,1) :- preference(P,less(cardinality)).
 
 #program heuristic(more(cardinality)).
-minimize(P,-1,1,X,X) :- preference(P,more(cardinality)),
-                        preference(P,_,_,for(X),_).
+wc(P,-1,1,X,X) :- preference(P,more(cardinality)),
+                  preference(P,_,_,for(X),_).
+levels(P,1) :- preference(P,more(cardinality)).
 
 #program heuristic(less(weight)).
-minimize(P,@get(T,0),1,T,X) :- preference(P,less(weight)),
-                               preference(P,_,_,for(X),T).
+wc(P,@get(T,0),1,T,X) :- preference(P,less(weight)),
+                         preference(P,_,_,for(X),T).
+levels(P,1) :- preference(P,less(weight)).
 
 #program heuristic(more(weight)).
-minimize(P,-@get(T,0),1,T,X) :- preference(P,more(weight)),
-                                preference(P,_,_,for(X),T).
+wc(P,-@get(T,0),1,T,X) :- preference(P,more(weight)),
+                          preference(P,_,_,for(X),T).
+levels(P,1) :- preference(P,more(weight)).
 
 #program heuristic(clingo_minimize).
-minimize(P,W,L,T,X) :- preference(P,clingo_minimize), preference(P,_,_,for(X),T),
-                       W=@get(T,0), L=@get(T,1).
+
+% map levels to 1..n
+level(P,L1,L) :- preference(P,clingo_minimize),
+                 preference(P,_,_,_,T), L1=@get(T,1),
+                 L = #sum{1, L2: preference(P,_,_,_,TT), L2=@get(TT,1), L2 <= L1 }.
+
+% define wc/5
+wc(P,W,LL,T,X) :- preference(P,clingo_minimize),
+                  preference(P,_,_,for(X),T),
+                  W=@get(T,0), L=@get(T,1),
+                  level(P,L,LL).
+
+% number of levels (overestimation)
+levels(P,L) :- preference(P,clingo_minimize),
+               L = #max{ LL: level(P,_,LL); 0 }.
 
 #program heuristic(poset).
 
@@ -843,6 +880,8 @@ assigned(P,X) :- preference(P,poset), heuristic_poset=1,
 assigned(P,X) :- preference(P,poset), heuristic_poset=1,
                  poset(P,X), not holds(X).
 
+levels(P,1) :- preference(P,poset), heuristic_poset=1.
+
 % option 2
 
 step(P,X,1)   :- preference(P,poset), heuristic_poset=2,
@@ -857,13 +896,16 @@ heuristic(P,X,M-S+1,true) :- preference(P,poset), heuristic_poset=2,
                              max_step(P,M),
                              step(P,X,S), not step(P,X,S+1).
 
+levels(P,M) :- preference(P,poset), heuristic_poset=2,
+               max_step(P,M).
+
 % option 3
 
 cost(P,X,C+1) :- preference(P,poset), heuristic_poset=3,
                  poset(P,X),
                  C = #sum{ CC,Y : poset(P,X,Y), cost(P,Y,CC) }.
 
-minimize(P,-C,1,X,X) :- cost(P,X,C), heuristic_poset=3.
+wc(P,-C,1,X,X) :- cost(P,X,C), heuristic_poset=3.
 
 
 #program heuristic(aso).
@@ -894,6 +936,8 @@ holds(aso(P,Id,Idx)) :- preference(P,aso), opt12(P),
 % option 1
 heuristic(P,aso(P,Id,Idx),1,true) :- preference(P,aso), heuristic_aso=1,
                                      index(P,Id,Idx).
+levels(P,1) :- preference(P,aso), heuristic_aso=1.
+
 % option 2
 pos(P,N,Id1)   :- preference(P,aso), heuristic_aso=2,
                   rule(P,Id1,_),
@@ -901,6 +945,8 @@ pos(P,N,Id1)   :- preference(P,aso), heuristic_aso=2,
 
 heuristic(P,aso(P,Id,Idx),N,true) :- preference(P,aso), heuristic_aso=2,
                                      index(P,Id,Idx), pos(P,N,Id).
+levels(P,N) :- preference(P,aso), heuristic_aso=2,
+               pos(P,N,_), not pos(P,N+1,_).
 
 
 % option 3
@@ -920,148 +966,135 @@ max_index(P,I) :- preference(P,aso), heuristic_aso=3,
 
 heuristic(P,aso(P,Id,Idx),I-Idx+1,true) :- preference(P,aso), heuristic_aso=3,
                                            index(P,Id,Idx), max_index(P,I).
+levels(P,I) :- preference(P,aso), heuristic_aso=3,
+               max_index(P,I).
+
+%
+% minmax and maxmin
+%
 
 #program heuristic(minmax).
-
-% preprocess
-elem(P,@get(T,0),T,X) :- preference(P,minmax), preference(P,_,_,for(X),T).
-min(P,G,C) :- preference(P,minmax), elem(P,G,_,_),
-              C = #sum{ W,T : elem(P,G,T,_), W=@get(T,1), W<0 }.
-min(P,C)   :- preference(P,minmax),
-              C = #min{ CC : min(P,G,CC) }.
-max(P,G,C) :- preference(P,minmax), elem(P,G,_,_),
-              C = #sum{ W,T : elem(P,G,T,_), W=@get(T,1), W>0 }.
-max(P,C)   :- preference(P,minmax),
-              C = #max{ CC : max(P,G,CC) }.
-
-% pos(itions)
-pos(P,G,N,T1)   :- preference(P,minmax),
-                   elem(P,G,T1,_),
-                   N=@get_sequence(("heuristic_minmax",P,G),T1).
-
-% cost 
-cost(P,G,0,C)   :- preference(P,minmax),
-                   min(P,G,C).
-cost(P,G,N,C)   :- preference(P,minmax),
-                   cost(P,G,N-1,C),
-                   pos(P,G,N,_).
-cost(P,G,N,C+W) :- preference(P,minmax),
-                   cost(P,G,N-1,C),
-                   pos(P,G,N,T), W=@get(T,1), W>0,
-                   elem(P,G,T,X), holds(X).
-cost(P,G,N,C-W) :- preference(P,minmax),
-                   cost(P,G,N-1,C),
-                   pos(P,G,N,T), W=@get(T,1), W<0,
-                   elem(P,G,T,X), not holds(X).
-
-% minmax
-holds(minmax(P,C))   :- preference(P,minmax),
-                        pos(P,G,N,_), not pos(P,G,N+1,_),
-                        cost(P,G,N,C).
-holds(minmax(P,C-1)) :- preference(P,minmax),
-                        holds(minmax(P,C)), min(P,MIN), C > MIN.
-
-% domain(minmax)
-domain(minmax(P,C))   :- preference(P,minmax),
-                         max(P,C).
-domain(minmax(P,C-1)) :- preference(P,minmax),
-                         domain(minmax(P,C)), min(P,MIN), C > MIN.
-
-% heuristic
-heuristic(P,minmax(P,C),1,false) :- preference(P,minmax),
-                                    domain(minmax(P,C)), min(P,MIN).
+as_minmax(P)                     :- preference(P,minmax), preference(P,_,_,for(X),T).
+elem(P,@get(T,0), @get(T,1),T,X) :- preference(P,minmax), preference(P,_,_,for(X),T).
 
 #program heuristic(maxmin).
+as_minmax(P)                     :- preference(P,maxmin), preference(P,_,_,for(X),T).
+elem(P,@get(T,0),-@get(T,1),T,X) :- preference(P,maxmin), preference(P,_,_,for(X),T).
 
-% preprocess
-elem(P,@get(T,0),T,X) :- preference(P,maxmin), preference(P,_,_,for(X),T).
-min(P,G,C) :- preference(P,maxmin), elem(P,G,_,_),
-              C = #sum{ W,T : elem(P,G,T,_), W=-@get(T,1), W<0 }.
-min(P,C)   :- preference(P,maxmin),
-              C = #min{ CC : min(P,G,CC) }.
-max(P,G,C) :- preference(P,maxmin), elem(P,G,_,_),
-              C = #sum{ W,T : elem(P,G,T,_), W=-@get(T,1), W>0 }.
-max(P,C)   :- preference(P,maxmin),
-              C = #max{ CC : max(P,G,CC) }.
+#program heuristic. % (as_minmax, uses as_minmax/1 and elem/5
 
-% pos(itions)
-pos(P,G,N,T1)   :- preference(P,maxmin),
-                   elem(P,G,T1,_),
-                   N=@get_sequence(("heuristic_maxmin",P,G),T1).
+% for P, in group G, there is a bit at position B
+bit(P,G,B) :- as_minmax(P), elem(P,G,_,_,_),
+              S = #sum{  W,T: elem(P,G,W,T,X), W>0;
+                        -W,T: elem(P,G,W,T,X), W<0},
+              B=0..(@log2up(S+1)-1).
 
-% cost 
-cost(P,G,0,C)   :- preference(P,maxmin),
-                   min(P,G,C).
-cost(P,G,N,C)   :- preference(P,maxmin),
-                   cost(P,G,N-1,C),
-                   pos(P,G,N,_).
-cost(P,G,N,C+W) :- preference(P,maxmin),
-                   cost(P,G,N-1,C),
-                   pos(P,G,N,T), W=-@get(T,1), W>0,
-                   elem(P,G,T,X), holds(X).
-cost(P,G,N,C-W) :- preference(P,maxmin),
-                   cost(P,G,N-1,C),
-                   pos(P,G,N,T), W=-@get(T,1), W<0,
-                   elem(P,G,T,X), not holds(X).
+% for P, in group G, the bit B may be true
+{ true(bit(P,G,B)) } :- as_minmax(P), bit(P,G,B).
 
-% maxmin
-holds(maxmin(P,C))   :- preference(P,maxmin),
-                        pos(P,G,N,_), not pos(P,G,N+1,_),
-                        cost(P,G,N,C).
-holds(maxmin(P,C-1)) :- preference(P,maxmin),
-                        holds(maxmin(P,C)), min(P,MIN), C > MIN.
+% for P, in group G, atoms bit(P,G,B) encode in binary the value of the group
+:- as_minmax(P), elem(P,G,_,_,_),
+   0 != #sum{ -(@exp2(B)): true(bit(P,G,B));
+               W,T: elem(P,G,W,T,X), W>0,     holds(X);
+              -W,T: elem(P,G,W,T,X), W<0, not holds(X)}.
 
-% domain(maxmin)
-domain(maxmin(P,C))   :- preference(P,maxmin),
-                         max(P,C).
-domain(maxmin(P,C-1)) :- preference(P,maxmin),
-                         domain(maxmin(P,C)), min(P,MIN), C > MIN.
+% for P, bit B holds if it is true at some group which is not not-maximal
+holds(bit(P,B))  :- as_minmax(P),    true(bit(P,G,B)), not not_max(P,G,B).
 
-% heuristic
-heuristic(P,maxmin(P,C),1,false) :- preference(P,maxmin),
-                                    domain(maxmin(P,C)), min(P,MIN).
+% for P, define when group G is not-maximal before bit B
+not_max(P,G,B-1) :- as_minmax(P), not true(bit(P,G,B)),  holds(bit(P,B)), B>0,
+                    elem(P,G,_,_,_).
+not_max(P,G,B-1) :- as_minmax(P), not_max(P,G,B), B>0.
+
+% define heuristic/4 and levels/2
+heuristic(P,bit(P,B),B+1,false) :- as_minmax(P), bit(P,_,B).
+levels(P,L) :- as_minmax(P), L = #sum{ 1,B: bit(P,_,B) }.
+
+% to avoid warnings
+as_minmax(P)    :- #false,    as_minmax(P).
+elem(A,B,C,D,E) :- #false, elem(A,B,C,D,E).
+
+
+%
+% composite preference heuristic
+%
 
 #program heuristic(neg).
 heuristic(P,X,L,MM) :- preference(P,neg), preference(P,_,_,name(PP),_),
                        heuristic(PP,X,L,M), inverse(P,M,MM).
 inverse(P,true,false) :- preference(P,neg).
 inverse(P,false,true) :- preference(P,neg).
+levels(P,L) :- preference(P,neg), preference(P,_,_,name(PP),_), levels(PP,L).
+
+#program heuristic.  % (as lexico, uses as_lexico/1 and level/3)
+
+heuristic(P,X,L+S,M) :- as_lexico(P),
+                        level(P,P1,L1),
+                        heuristic(P1,X,L,M),
+                        S = #sum{ LS2,P2,L2: level(P,P2,L2), L2 < L1,
+                                             levels(P2,LS2)         }.
+
+% max level
+max_level(P,MAX) :- as_lexico(P),
+                    MAX = #max { L: level(P,_,L) }.
+
+% start
+sum_levels(P,MIN-1,0)  :- as_lexico(P),
+                          MIN = #min { L: level(P,_,L) }.
+% progress
+sum_levels(P,L+1,   S) :- as_lexico(P),
+                          sum_levels(P,L,S),
+                          max_level(P,MAX), L < MAX.
+sum_levels(P,L+1,SS+S) :- as_lexico(P),
+                          sum_levels(P,L,S),
+                          level(P,P1,L+1), levels(P1,SS).
+% sum up
+levels(P,S) :- as_lexico(P),
+               max_level(P,MAX), S = #max{ SS: sum_levels(P,MAX,SS); 0 }.
+               % 0 is added to avoid warnings, but it is not needed
+
+% to avoid warnings
+as_lexico(P) :- #false, as_lexico(P).
+level(A,B,C) :- #false, level(A,B,C).
 
 #program heuristic(lexico).
-heuristic(P,X,@append(L1,L),M) :- preference(P,lexico), 
-                                  preference(P,_,_,name(P1),L1),
-                                  heuristic(P1,X,L,M).
+
+%%%
+%%% With the next commented rule
+%%% clingo does not terminate grounding because of recursion through heuristic/4
+%%%
+%%% heuristic(P,X,L+O,M) :- preference(P,lexico),
+%%%                         preference(P,_,_,name(P1),L1), P != P1,
+%%%                         heuristic(P1,X,L,M),
+%%%                         O = #sum{ L3,L2 : preference(P,_,_,name(P2),L2),
+%%%                                           L2 < L1, P2 != P, P2 != P1,
+%%%                                           heuristic(P2,_,L3,_)}.
+%%% 
+
+as_lexico(P)  :- preference(P,lexico).
+level(P,P1,L) :- preference(P,lexico),
+                 preference(P,_,_,name(P1),L).
 
 #program heuristic(pareto).
 
 % 2 options
-#const heuristic_pareto=2. % changed for experiments
+#const heuristic_pareto=2.
 
 % option 1
-
 heuristic(P,X,L,M) :- preference(P,pareto), heuristic_pareto=1,
                       preference(P,_,_,name(P1),_),
                       heuristic(P1,X,L,M).
 
-% option 2 (TODO revise)
-lexico        :- preference(P,_,_,name(_),_), preference(P,pareto), heuristic_pareto=2.
-max_level(M)  :- preference(_,pareto), M = #max{ L: preference(P,_,_,name(P1),L), preference(P,pareto)}, heuristic_pareto=2.
-heuristic(P,X,@append(L1,L),M) :- preference(P,pareto), heuristic_pareto=2,
-                                  preference(P,_,_,name(P1),L1),
-                                  heuristic(P1,X,L,M).
-
-%%% % option 2 (same as lexico)
-%%% 
-%%% heuristic(P,X,L+O,M) :- preference(P,pareto), heuristic_pareto=2,
-%%%                         preference(P,_,_,name(P1),_),
-%%%                         heuristic(P1,X,L,M),
-%%%                         O = #sum{ L3,P2 : preference(P,_,_,name(P2),_), P2 < P1,
-%%%                                           heuristic(P2,_,L3,_)}.
+% option 2 (as lexico)
+as_lexico(P)  :- preference(P,pareto), heuristic_pareto=2.
+level(P,P1,L) :- preference(P,pareto), heuristic_pareto=2,
+                 preference(P,_,_,name(P1),_),
+                 L = #sum{1, P2: preference(P,_,_,name(P2),_), P2 <= P1 }.
 
 #program heuristic(and).
 
 % 2 options
-#const heuristic_and=1.
+#const heuristic_and=2.
 
 % option 1
 
@@ -1069,13 +1102,11 @@ heuristic(P,X,L,M) :- preference(P,and), heuristic_and=1,
                       preference(P,_,_,name(P1),_),
                       heuristic(P1,X,L,M).
 
-%%% % option 2 (same as lexico)
-%%% 
-%%% heuristic(P,X,L+O,M) :- preference(P,and), heuristic_and=2,
-%%%                         preference(P,_,_,name(P1),_),
-%%%                         heuristic(P1,X,L,M),
-%%%                         O = #sum{ L3,P2 : preference(P,_,_,name(P2),_), P2 < P1,
-%%%                                           heuristic(P2,_,L3,_)}.
+% option 2 (as lexico)
+as_lexico(P)  :- preference(P,and), heuristic_and=2.
+level(P,P1,L) :- preference(P,and), heuristic_and=2,
+                 preference(P,_,_,name(P1),_),
+                 L = #sum{1, P2: preference(P,_,_,name(P2),_), P2 <= P1 }.
 
 %
 % weak approximation programs:
@@ -1130,18 +1161,22 @@ levels(P,1) :- preference(P,more(weight)).
 %
 
 #program weak(clingo_minimize).
+
 % map levels to 1..n
 level(P,L1,L) :- preference(P,clingo_minimize),
                  preference(P,_,_,_,T), L1=@get(T,1),
                  L = #sum{1, L2: preference(P,_,_,_,TT), L2=@get(TT,1), L2 <= L1 }.
-% define minimize/5
+
+% define wc/5
 wc(P,W,LL,T,X) :- preference(P,clingo_minimize),
                   preference(P,_,_,for(X),T),
                   W=@get(T,0), L=@get(T,1),
                   level(P,L,LL).
+
 % number of levels (overestimation)
 levels(P,L) :- preference(P,clingo_minimize),
                L = #max{ LL: level(P,_,LL); 0 }.
+
 
 %
 % minmax and maxmin
@@ -1336,12 +1371,13 @@ level(A,B,C) :- #false, level(A,B,C).
 
 %%%
 %%% With the next commented rule
-%%% clingo does not terminate grounding because of recursion through minimize/5
+%%% clingo does not terminate grounding because of recursion through wc/5
 %%%
 %%% wc(P,W,L+O,T,X) :- preference(P,lexico),
 %%%                    preference(P,_,_,name(P1),L1), P != P1,
 %%%                    wc(P1,W,L,T,X),
-%%%                    O = #sum{ L3,L2 : preference(P,_,_,name(P2),L2), L2 < L1, P2 != P, P2 != P1,
+%%%                    O = #sum{ L3,L2 : preference(P,_,_,name(P2),L2),
+%%%                                      L2 < L1, P2 != P, P2 != P1,
 %%%                                      wc(P2,_,L3,_,_)}.
 %%% 
 
