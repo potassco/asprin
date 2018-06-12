@@ -40,11 +40,11 @@ OPTIONS = [
     ["--volatile-improving"],
     ["--volatile-optimal"],
     #["--preference-unsat $asprin/mine/asprin_lib_unsat.lp"],
-    #["--approximation=heuristic"],
-    #["--approximation=heuristic --const-nb heuristic_aso=2"],
-    #["--approximation=heuristic --const-nb heuristic_aso=2 --const-nb use_get_sequence=2 "],
-    #["""--approximation=heuristic --const-nb heuristic_poset=2 --const-nb heuristic_aso=3 \
-    # --const-nb heuristic_pareto=2 --const-nb heuristic_and=2"""],
+    ["--approximation=heuristic"],
+    ["--approximation=heuristic --const-nb heuristic_aso=2"],
+    ["--approximation=heuristic --const-nb heuristic_aso=2 --const-nb use_get_sequence=2 "],
+    ["""--approximation=heuristic --const-nb heuristic_poset=2 --const-nb heuristic_aso=3 \
+     --const-nb heuristic_pareto=2 --const-nb heuristic_and=2"""],
     ["--approximation=weak"],
     ["--approximation=weak --const-nb approx_aso=2"],
     ["--approximation=weak --const-nb approx_aso=2 --const-nb use_get_sequence=2 "],
