@@ -25,8 +25,8 @@
 
 import os
 import sys
-from . import yacc
-from .lex import LexToken
+from .ply import yacc
+from .ply.lex import LexToken
 from .spec_lexer import Lexer
 from ..utils import printer
 from ..utils import utils

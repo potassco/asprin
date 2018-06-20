@@ -23,7 +23,7 @@
 
 #!/usr/bin/python
 
-from . import lex
+from .ply import lex
 from ..utils import utils
 from ..utils import printer
 

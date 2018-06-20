@@ -55,6 +55,10 @@ System tests may be run with ```asprin --test```.
 
 For older releases, please click [here](https://pypi.org/project/asprin/#history).
 
+```asprin``` uses the ply library, version 3.11,
+which is bundled in https://github.com/potassco/asprin/tree/master/asprin/src/spec_parser/ply,
+and was retrieved from http://www.dabeaz.com/ply/.
+
 ## Examples
 ```
 $ cat examples/example1.lp
