@@ -51,7 +51,7 @@ If that does not work,
 you can always download the sources from [here](https://github.com/potassco/asprin/releases/download/v3.0.2/asprin-3.0.2.tar.gz) in some directory `dir`,
 and run `asprin` with `python dir/asprin/asprin/asprin.py`.
 
-System tests may be run with ```asprin --test```.
+System tests may be run with ```asprin --test``` and ```asprin --test --all```.
 
 For older releases, please click [here](https://pypi.org/project/asprin/#history).
 
