@@ -21,6 +21,7 @@
 # SOFTWARE.
 # -*- coding: utf-8 -*-
 
+from __future__ import print_function
 from collections import namedtuple
 
 
@@ -172,5 +173,5 @@ if __name__ == "__main__":
     tc = TransitiveClosure()
     for i in graph:
         tc.add_edge(NodeInfo(i[0],i[0]), NodeInfo(i[1],i[1]), i[2], True)
-    print tc
+    print(tc)
 

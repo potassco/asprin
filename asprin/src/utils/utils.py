@@ -24,6 +24,7 @@
 import os
 import tempfile
 import re
+import sys
 import clingo
 
 #
@@ -73,10 +74,7 @@ SHOW       = "show"
 HASH_SEM = "#sem"
 
 # ast
-try:
-    NO_SIGN = clingo.ast.Sign.None
-except Exception as e:
-    NO_SIGN = clingo.ast.Sign.NoSign
+NO_SIGN = clingo.ast.Sign.NoSign
 
 # errors
 ERROR_PROJECT = """\
@@ -109,6 +107,11 @@ error: syntax error, holds/1 predicate in the head of a heuristic \
 directive in a {} program depends on non domain atoms
   {}\n"""
 
+# messages (used by solver and controller)
+STR_MODEL_FOUND        = "MODEL FOUND"
+STR_MODEL_FOUND_STAR   = "MODEL FOUND *"
+SATISFIABLE            = "SATISFIABLE"
+
 #
 # global variables
 #
@@ -125,19 +128,22 @@ class Capturer:
         self.__original_fd      = stdx.fileno()
         self.__save_original_fd = os.dup(self.__original_fd)
         self.__tmp_file         = tempfile.TemporaryFile()
-        os.dup2(self.__tmp_file.fileno(),self.__original_fd)
+        os.dup2(self.__tmp_file.fileno(), self.__original_fd)
 
     def read(self):
         self.__tmp_file.flush()
         self.__tmp_file.seek(0)
-        return self.__tmp_file.read()
+        out = self.__tmp_file.read()
+        if isinstance(out, bytes):
+            out = out.decode()
+        return out
 
     def close(self):
-        os.dup2(self.__save_original_fd,self.__original_fd)
+        os.dup2(self.__save_original_fd, self.__original_fd)
         os.close(self.__save_original_fd)
         self.__tmp_file.close()
 
-    def translate_error(self,programs,program,string):
+    def translate_error(self, programs, program, string):
         if program != BASE:
             return string
         out = ""

@@ -26,8 +26,8 @@ import clingo
 import sys
 from ..utils import utils
 from ..utils import printer
-import preference
-import basic
+from . import preference
+from . import basic
 
 #
 # DEFINES

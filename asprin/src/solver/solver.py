@@ -26,10 +26,10 @@
 #
 
 import clingo
-import controller
 import sys
 import math
 from threading import Condition
+from . import controller
 from ..utils import printer
 from ..utils import utils
 
@@ -56,15 +56,15 @@ UNSAT         = "UNSAT"
 UNKNOWN       = "UNKNOWN"
 END_LOOP      = "END_LOOP"
 END           = "END"
-SATISFIABLE   = "SATISFIABLE"
+SATISFIABLE   = utils.SATISFIABLE                   # used also by controller
 UNSATISFIABLE = "UNSATISFIABLE"
 
 # strings
 STR_ANSWER             = "Answer: {}"
 STR_OPTIMUM_FOUND      = "OPTIMUM FOUND"
 STR_OPTIMUM_FOUND_STAR = "OPTIMUM FOUND *"
-STR_MODEL_FOUND        = "MODEL FOUND"
-STR_MODEL_FOUND_STAR   = "MODEL FOUND *"
+STR_MODEL_FOUND        = utils.STR_MODEL_FOUND      # used also by controller
+STR_MODEL_FOUND_STAR   = utils.STR_MODEL_FOUND_STAR # used also by controller
 STR_UNSATISFIABLE      = "UNSATISFIABLE"
 STR_SATISFIABLE        = "SATISFIABLE"
 STR_LIMIT              = "MODEL FOUND (SEARCH LIMIT)"
@@ -466,7 +466,8 @@ class Solver:
             with self.control.solve(
                 async=True, on_finish=self.stop, **kwargs
             ) as handle:
-                self.condition.wait(float("inf"))
+                timeout = float("inf") if sys.version_info[0] < 3 else None
+                self.condition.wait(timeout)
                 handle.wait()
         self.solving = False
         if self.options.benchmark:

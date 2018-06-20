@@ -21,7 +21,6 @@
 # SOFTWARE.
 # -*- coding: utf-8 -*-
 
-import solver as solver_module
 from ..utils import utils
 
 class GeneralController:
@@ -53,8 +52,8 @@ class GeneralController:
             # modifying options
             solver.options.non_optimal = True
         if solver.options.non_optimal:
-            solver.str_found      = solver_module.STR_MODEL_FOUND
-            solver.str_found_star = solver_module.STR_MODEL_FOUND_STAR
+            solver.str_found      = utils.STR_MODEL_FOUND
+            solver.str_found_star = utils.STR_MODEL_FOUND_STAR
             solver.add_unsat_to_preference_program()
 
 
@@ -314,7 +313,7 @@ class ImproveLimitController(MethodController):
         # reset previous limit
         self.conf.solve_limit = self.previous_limit
         # gather search results
-        if self.solver.solving_result == solver_module.SATISFIABLE:
+        if self.solver.solving_result == utils.SATISFIABLE:
             if self.solver.last_unsat:
                 self.search  = int(self.stats['conflicts'])
             elif self.option[1]:

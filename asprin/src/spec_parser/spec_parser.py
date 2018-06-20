@@ -25,12 +25,12 @@
 
 import os
 import sys
-import yacc
-from lex import LexToken
-from spec_lexer import Lexer
+from . import yacc
+from .lex import LexToken
+from .spec_lexer import Lexer
 from ..utils import printer
 from ..utils import utils
-import ast
+from . import ast
 
 
 #

@@ -62,7 +62,7 @@ class Printer:
         if not self.__last(string):
             sys.stdout.flush()
             print(string, file=sys.stderr, end = "")
-            self.__check_messages(int(string.count("\n")/2))
+            self.__check_messages(int(string.count("\n")//2))
 
     def print_error_location(self, location, string):
         self.__print_error("{}error: {}".format(location,string))

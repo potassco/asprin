@@ -24,9 +24,9 @@
 #!/usr/bin/python
 from __future__ import print_function
 import os
-import utils
 import sys
 import subprocess
+from . import utils
 
 PATH = os.path.dirname(os.path.realpath(__file__))
 DIR = "--test-dir="
@@ -84,7 +84,10 @@ class Tester:
                     subprocess.call(test.command, stdout=tmp,
                                     stderr=subprocess.STDOUT, shell=True)
                     tmp.seek(0)
-                    result = utils.Result(tmp.read())
+                    output = tmp.read()
+                    if isinstance(output, bytes):
+                        output = output.decode()
+                    result = utils.Result(output)
                 error = result.compare(test)
             if error:
                 errors = True
