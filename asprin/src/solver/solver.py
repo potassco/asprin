@@ -824,7 +824,6 @@ class Solver:
         self.more_models = False
 
     def on_model_unknown(self, model):
-        self.unknown_non_optimal = []
         atoms = model.symbols(atoms=True)
         for i in self.unknown:
             if not self.get_unsat_function(MODEL_DELETE_BETTER, i) in atoms:
@@ -847,6 +846,7 @@ class Solver:
                 self.get_external(MODEL_DELETE_BETTER, i), True
             )
         # solve
+        self.unknown_non_optimal = []
         if self.unknown:
             self.solve(assumptions = ass + self.assumptions,
                        on_model = self.on_model_unknown)
