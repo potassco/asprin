@@ -208,20 +208,19 @@ class Solver:
         self.models = 0
         self.more_models = True
         self.old_holds = None
-        self.old_nholds = None
         self.shown = []
         self.solving_result = None
         self.externals  = dict()
         self.improving  = []
-        self.not_improving  = set()
+        self.not_improving  = []
         self.store_nholds = True
-        self.holds_domain = set()
+        self.holds_domain = []
         self.approx_opt_models = []
         self.assumptions = []
         self.last_model = None
         self.sequences = {}
         self.unknown = []
-        self.unknown_non_optimal = set()
+        self.unknown_non_optimal = []
         self.grounded_delete_better = False
         self.mapping = {}
         # solving and signals
@@ -260,13 +259,14 @@ class Solver:
         return self.holds
 
     def get_holds_domain(self):
-        return list(self.holds_domain)
+        return self.holds_domain
 
     def set_holds_domain(self):
-        for i in self.control.symbolic_atoms.by_signature(self.holds_str, 2):
-            if str(i.symbol.arguments[1]) == "0":
-                self.holds_domain.add(i.symbol.arguments[0])
-        return self.holds_domain
+        self.holds_domain = [
+            i.symbol.arguments[0] for i in
+                self.control.symbolic_atoms.by_signature(self.holds_str, 2)
+                if str(i.symbol.arguments[1]) == "0"
+        ]
 
     def get_nholds(self):
         return self.nholds
@@ -318,21 +318,6 @@ class Solver:
             return clingo.Function("", [elem] + alist.arguments)
         else:
             return clingo.Function("", [elem] + [alist])
-
-    def get_level(self, levels, max_level, max_depth):
-        max_level = int(str(max_level))
-        max_depth = int(str(max_depth))
-        if str(levels.type) == "Number":
-            l = [int(str(levels))]
-        else:
-            l = [int(str(i)) for i in levels.arguments]
-        ###l, max_level, max_depth = [ 2, 1 ], 3, 6
-        # l (filled with zeros until max_depth digits) is a number in base max_level+1
-        level = 0
-        for idx, i in enumerate(l):
-            level += i * ((max_level + 1)**(max_depth - idx))
-        #print("{} <= {} {} {}".format(level, levels, max_level, max_depth))
-        return clingo.Number(level)
 
     def save_stats(self):
         if not self.saved_stats or check_clock(STR_BENCHMARK_CLOCK) > FREQUENCY:
@@ -430,7 +415,9 @@ class Solver:
             else:
                 self.shown.append(a)
         if self.store_nholds:
-            self.nholds = list(self.holds_domain.difference(self.holds))
+            self.nholds = [
+                x for x in self.holds_domain if x not in set(self.holds)
+            ]
 
     def signal(self):
         if not self.solving:
@@ -540,9 +527,6 @@ class Solver:
             self.printer.do_print(self.str_found)
         else:
             self.printer.do_print(self.str_found_star)
-        #if self.options.benchmark:
-        #    time = check_clock(STR_BENCHMARK_CLOCK)
-        #    self.printer.do_print(STR_BENCHMARK_MSG.format(self.opt_models, time))
 
     def print_steps_message(self):
         if self.opt_models == 0:
@@ -552,12 +536,10 @@ class Solver:
         self.printer.do_print(STR_UNSATISFIABLE)
 
     def check_last_model(self):
-        if self.old_holds  == self.holds and (
-           self.old_nholds == self.nholds):
-                self.printer.do_print()
-                raise Exception(SAME_MODEL)
+        if self.old_holds  == self.holds:
+            self.printer.do_print()
+            raise Exception(SAME_MODEL)
         self.old_holds  = self.holds
-        self.old_nholds = self.nholds
 
     def same_shown(self):
         if set(self.old_shown) == set(self.shown):
@@ -626,13 +608,13 @@ class Solver:
 
     def volatile_optimal_model(self, step, delete_worse, delete_better):
         if delete_worse:
-            self.not_improving.add((step,0))
+            self.not_improving.append((step,0))
         if delete_better:
-            self.not_improving.add((MODEL_DELETE_BETTER,step))
+            self.not_improving.append((MODEL_DELETE_BETTER,step))
         for x,y in self.not_improving:        #activate
             self.control.assign_external(self.get_external(x,y),True)
         if not self.options.no_opt_improving: #reset
-            self.not_improving = set()
+            self.not_improving = []
 
     def handle_optimal_model(self, step, delete_model_volatile,
                              delete_worse, delete_better, volatile):
@@ -719,8 +701,10 @@ class Solver:
         return self.approx_opt_models[int(str(i))]
 
     def get_nholds_approx(self, i):
-        _set = self.holds_domain.difference(self.approx_opt_models[int(str(i))])
-        return list(_set)
+        return [
+            x for x in self.holds_domain
+            if x not in set(self.approx_opt_models[int(str(i))])
+        ]
 
     def solve_approx(self):
         # set the domain of holds
@@ -818,7 +802,9 @@ class Solver:
                 return
             # pre
             self.holds  = holds.get(step, [])
-            self.nholds = list(self.holds_domain.difference(self.holds))
+            self.nholds = [
+                x for x in self.holds_domain if x not in set(self.holds)
+            ]
             delete_model = clingo.parse_term(
                 "{}({})".format(self.delete_str, step)
             )
@@ -836,11 +822,11 @@ class Solver:
         self.more_models = False
 
     def on_model_unknown(self, model):
-        self.unknown_non_optimal = set()
+        self.unknown_non_optimal = []
         atoms = model.symbols(atoms=True)
         for i in self.unknown:
             if not self.get_unsat_function(MODEL_DELETE_BETTER, i) in atoms:
-                self.unknown_non_optimal.add(i)
+                self.unknown_non_optimal.append(i)
 
     def handle_unknown_models(self, result):
         # if improve_no_check, add to unknown list if unknown
@@ -883,9 +869,10 @@ class Solver:
                 update_unknown.append(i)
         self.unknown = update_unknown
         # update not_improving
-        self.not_improving.difference_update(
-            [(x,0) for x in self.unknown_non_optimal]
-        )
+        self.not_improving = [
+            x for x in self.not_improving
+            if x not in set([(y,0) for y in self.unknown_non_optimal])
+        ]
         # if UNKNOWN, add delete better for last model (w/out unsat constraint)
         if result == UNKNOWN:
             x, y  = MODEL_DELETE_BETTER, self.last_model
