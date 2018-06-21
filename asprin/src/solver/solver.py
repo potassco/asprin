@@ -564,9 +564,10 @@ class Solver:
         self.shown = [i for i in true if i.name != self.holds_at_zero_str]
         # self.same_shown_function is modified by EnumerationController 
         # at controller.py
-        if self.opt_models != self.options.max_models and (
-            self.enumerate_flag or not self.same_shown_function()
-        ):
+        #if self.opt_models != self.options.max_models and (
+        #    self.enumerate_flag or not self.same_shown_function()
+        #):
+        if self.enumerate_flag or not self.same_shown_function():
             self.models     += 1
             self.opt_models += 1
             if self.options.quiet in {0,1}:
@@ -578,9 +579,10 @@ class Solver:
     def enumerate(self):
         # models
         control, solve_conf = self.control, self.control.configuration.solve
-        old_models = self.control.configuration.solve.models
+        old_models = solve_conf.models
         self.set_control_models()
-        if solve_conf.models != "0": # we repeat one
+        # we repeat one (unless using a limit)
+        if solve_conf.models != "0" and not self.options.improve_limit:
             solve_conf.models = str(int(solve_conf.models) + 1)
         # assumptions
         ass  = [ (self.get_holds_function(x,0),  True) for x in self.holds ]
@@ -590,7 +592,7 @@ class Solver:
         self.solve(assumptions = ass + self.assumptions,
                    on_model = self.on_model_enumerate)
         self.shown = self.old_shown
-        control.configuration.solve.models = old_models
+        solve_conf.models = old_models
 
     def relax_previous_models(self):
         for i in self.improving:
