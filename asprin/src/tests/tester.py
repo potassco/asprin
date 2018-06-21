@@ -104,13 +104,22 @@ def main(args):
         options = OPTIONS
     else:
         options = [args]
+    global_errors = []
     for opt in options:
         print("Options = {}".format(opt))
         errors = Tester().run(path, opt)
         if errors:
             print("ERROR: There were errors in the tests")
+            global_errors.append(opt)
         else:
             print("OK: All tests were successful")
+    if len(options) <= 1:
+        return
+    if global_errors:
+        e = " ".join(global_errors)
+        print("\nSUMMARY: There were errors with options: {}".format(e))
+    else:
+        print("\nSUMMARY: There were no errors.")
 
 if __name__ == "__main__":
     main()
