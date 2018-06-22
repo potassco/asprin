@@ -562,11 +562,13 @@ class Solver:
     def on_model_enumerate(self, model):
         true = model.symbols(shown=True)
         self.shown = [i for i in true if i.name != self.holds_at_zero_str]
-        # self.same_shown_function is modified by EnumerationController 
+        # we may enumerate one more model than what is needed,
+        # so we check whether we already computed all models
+        if self.options.max_models != 0 and \
+           self.options.max_models == self.opt_models:
+            return
+        # self.same_shown_function is modified by EnumerationController
         # at controller.py
-        #if self.opt_models != self.options.max_models and (
-        #    self.enumerate_flag or not self.same_shown_function()
-        #):
         if self.enumerate_flag or not self.same_shown_function():
             self.models     += 1
             self.opt_models += 1
@@ -576,13 +578,13 @@ class Solver:
                 self.print_str_answer()
             self.print_optimum_string(True)
 
-    def enumerate(self):
+    def enumerate(self, add_one=True):
         # models
         control, solve_conf = self.control, self.control.configuration.solve
         old_models = solve_conf.models
         self.set_control_models()
-        # we repeat one (unless using a limit)
-        if solve_conf.models != "0" and not self.options.improve_limit:
+        # we add one if not computing all and add_one (by default)
+        if solve_conf.models != "0" and add_one:
             solve_conf.models = str(int(solve_conf.models) + 1)
         # assumptions
         ass  = [ (self.get_holds_function(x,0),  True) for x in self.holds ]
@@ -769,19 +771,24 @@ class Solver:
                 self.opt_models == self.options.max_models)
 
     def enumerate_unknown(self):
+
         # if no unknowns, or computed all, or project: return
         if not self.unknown:
             self.more_models = False
             return
         if self.computed_all():
             return
-        if self.options.improve_limit[4]: # if improve_no_check
+        # if improve_no_check: assume project, and print message
+        if self.options.improve_limit[4]:
             self.print_unknown_nonoptimal_models(self.unknown, self.mapping)
             return
+        # if project and no reprint, print message and update opt_models
         if self.options.project and not self.options.improve_limit[3]:
             self.print_unknown_optimal_models(self.unknown, self.mapping)
             self.opt_models += len(self.unknown)
             return
+
+        # ELSE: no project or reprint: we have to print *shown* atoms
         # create boolean array representing unknown
         unknowns = [False] * (self.last_model + 1)
         for i in self.unknown:
@@ -796,6 +803,7 @@ class Solver:
                     alist.append(i.symbol.arguments[0])
             except:
                 pass
+
         # enumerate iterating over holds
         old = self.same_shown_function
         self.same_shown_function = self.same_shown_false
@@ -815,7 +823,7 @@ class Solver:
                 old = self.options.max_models
                 self.options.max_models = self.opt_models + 1
             # enumerate
-            self.enumerate()
+            self.enumerate(add_one=False)
             # post
             if self.options.project:
                 self.options.max_models = old
