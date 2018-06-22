@@ -91,11 +91,17 @@ for optimal models"""
 HELP_CONST_NONBASE = """R|: Replace term occurrences of <id> in non-base
   programs with <t>"""
 HELP_IMPROVE_LIMIT = """R|: Improving a model, stop search after x conflicts,
-  where x is <m> times the conflicts for the first model of the current iteration;
-  add ',all' to consider the conflicts for all the models of the current iteration,
+  where x is <m> times the conflicts for the first model of the current \
+iteration;
+  add ',all' to consider the conflicts for all the models of the current \
+iteration,
   add ',<min>' to search always for at least <min> conflicts,
-  add ',reprint' to reprint at the end the optimal models, 
-  add ',nocheck' to not reprint, to project, and to not check if models are optimal"""
+  add ',quick' to project and finish quickly with an info message,
+  add ',nocheck' to project and never check if the models computed are \
+optimal"""
+# quick projects and is complete, but does not reprint the unknown models
+# at the end, while nocheck projects and never checks if the unknown models are
+# optimal,  hence it is not complete
 HELP_CONFIGS = """R|: Run clingo configurations c1, ..., cn iteratively
   (use 'all' for running all configurations)"""
 
@@ -134,7 +140,9 @@ class SmartFormatter(argparse.RawDescriptionHelpFormatter):
     def _split_lines(self, text, width):
         if text.startswith('R|'):
             return text[2:].splitlines()
-        return argparse.RawDescriptionHelpFormatter._split_lines(self, text, width)
+        return argparse.RawDescriptionHelpFormatter._split_lines(
+            self, text, width
+        )
 
 
 #
@@ -209,7 +217,7 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
             return None
         try:
             out = [0, False, 0, False, False]
-            match = re.match(r'(\d+)(,all)?(,\d+)?(,reprint)?(,nocheck)?$',string)
+            match = re.match(r'(\d+)(,all)?(,\d+)?(,quick)?(,nocheck)?$',string)
             if not match:
                 raise Exception("incorrect value for option --improve-limit")
             out[0] = int(match.group(1))
@@ -384,9 +392,12 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
         options['constants_nb'] = self.__do_constants(options['constants_nb'])
 
         # handle improve_limit
-        options['improve_limit'] = self.__do_improve_limit(
+        option = self.__do_improve_limit(
             options['improve_limit']
         )
+        if option and (option[3] or option[4]):
+            options['project'] = True
+        options['improve_limit'] = option
 
         # handle configs all
         if options['configs'] and 'all' in options['configs']:

@@ -772,23 +772,23 @@ class Solver:
 
     def enumerate_unknown(self):
 
-        # if no unknowns, or computed all, or project: return
+        # if no unknowns, or computed all: return
         if not self.unknown:
             self.more_models = False
             return
         if self.computed_all():
             return
-        # if improve_no_check: assume project, and print message
-        if self.options.improve_limit[4]:
-            self.print_unknown_nonoptimal_models(self.unknown, self.mapping)
-            return
-        # if project and no reprint, print message and update opt_models
-        if self.options.project and not self.options.improve_limit[3]:
+        # if quick: print message and update opt_models
+        if self.options.improve_limit[3]:
             self.print_unknown_optimal_models(self.unknown, self.mapping)
             self.opt_models += len(self.unknown)
             return
+        # if improve_no_check: print message
+        if self.options.improve_limit[4]:
+            self.print_unknown_nonoptimal_models(self.unknown, self.mapping)
+            return
 
-        # ELSE: no project or reprint: we have to print *shown* atoms
+        # ELSE: print *shown* atoms
         # create boolean array representing unknown
         unknowns = [False] * (self.last_model + 1)
         for i in self.unknown:
@@ -838,12 +838,15 @@ class Solver:
                 self.unknown_non_optimal.append(i)
 
     def handle_unknown_models(self, result):
+
         # if improve_no_check, add to unknown list if unknown
         if self.options.improve_limit[4]:
             if result == UNKNOWN:
                 self.unknown.append(self.last_model)
                 self.mapping[self.last_model] = self.models
             return
+
+        # else check if some unknowns are worse than the latest model
         # assumptions
         ass  = [ (self.get_holds_function(x,0),  True) for x in self.holds ]
         ass += [ (self.get_holds_function(x,0), False) for x in self.nholds]

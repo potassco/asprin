@@ -50,8 +50,8 @@ OPTIONS = [
     ["--approximation=weak --const-nb approx_aso=2 --const-nb use_get_sequence=2 "],
     ["""--approximation=weak --const-nb approx_poset=2 --const-nb approx_aso=3 \
      --const-nb approx_pareto=2 --const-nb approx_and=2"""],
-    ["--improve-limit=0,10"],
-    ["--improve-limit=1,all,10,reprint"],
+    ["--improve-limit=0,5"],
+    ["--improve-limit=1,all,100"],
 ]
 
 class cd:

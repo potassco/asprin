@@ -295,7 +295,7 @@ class ImproveLimitController(MethodController):
         # get previous limit, and set limit
         self.previous_limit = self.conf.solve_limit
         if not self.solver.last_unsat:
-            self.limit = self.search * self.option[0]
+            self.limit = (1 if self.search==0 else self.search) * self.option[0]
             if self.limit < self.option[2]:
                 self.limit = self.option[2]
             self.conf.solve_limit = str(self.limit) + ",umax"
