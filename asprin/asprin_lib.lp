@@ -1,3 +1,26 @@
+% MIT License
+% 
+% Copyright (c) 2018 Javier Romero
+% 
+% Permission is hereby granted, free of charge, to any person obtaining a copy
+% of this software and associated documentation files (the "Software"), to deal
+% in the Software without restriction, including without limitation the rights
+% to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+% copies of the Software, and to permit persons to whom the Software is
+% furnished to do so, subject to the following conditions:
+% 
+% The above copyright notice and this permission notice shall be included in all
+% copies or substantial portions of the Software.
+% 
+% THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+% IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+% FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+% AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+% LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+% OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+% SOFTWARE.
+% -*- coding: utf-8 -*-
+
 #program preference.
 :- not better(P),  optimize(P).
 required(P,better) :- optimize(P).
@@ -27,9 +50,24 @@ error(("preference:",P,": error: preference specification error, type '",T,"' do
   preference(P,T), error_type(T,no_ordering),
   preference(P,_,R,_,_), R > 1.
 
+%%% ordering min length
+error(("preference:",P,": error: preference specification error, type '",T,"' requires at least ",N-1,"'>>'s.")) :-
+  preference(P,T), error_type(T,ordering_min_length(N)), N > 1,
+  not preference(P,_,N,_,_).
+
+%%% ordering max length
+error(("preference:",P,": error: preference specification error, type '",T,"' allows at most ",N-1,"'>>'s.")) :-
+  preference(P,T), error_type(T,ordering_max_length(N)),
+  preference(P,_,R,_,_), R > N.
+
 %%% no sets
 error(("preference:",P,": error: preference specification error, type '",T,"' does not allow sets.")) :-
   preference(P,T), error_type(T,no_sets),
+  preference(P,E,S,X,_), preference(P,E,S,Y,_), X > Y.
+
+%%% no sets at position S
+error(("preference:",P,": error: preference specification error, type '",T,"' does not allow sets at position",S,".")) :-
+  preference(P,T), error_type(T,no_sets(S)),
   preference(P,E,S,X,_), preference(P,E,S,Y,_), X > Y.
 
 %%% no names
@@ -1418,4 +1456,405 @@ as_lexico(P)  :- preference(P,and), approx_and=2.
 level(P,P1,L) :- preference(P,and), approx_and=2,
                  preference(P,_,_,name(P1),_),
                  L = #sum{1, P2: preference(P,_,_,name(P2),_), P2 <= P1 }.
+
+%
+%
+% CP nets
+%
+%
+
+
+#program preference(cp).
+
+
+%
+% Encoding
+%
+
+ #const cp_encoding=0. % general
+%#const cp_encoding=1. % tree cp net using flips/4
+%#const cp_encoding=2. % tree cp net using loops/4
+%#const cp_encoding=3. % tree cp net using loops/4 and fills/1
+
+ tree(P) :- preference(P,cp), cp_encoding = 1..3.
+flips(P) :- preference(P,cp), cp_encoding = 1.
+loops(P) :- preference(P,cp), cp_encoding = 2..3.
+fills(P) :- preference(P,cp), cp_encoding = 3.
+
+
+%
+% Preprocessing
+%
+
+atom(P,A) :- preference(P,cp), preference(P,_,_,for(    atom(A) ),_).
+atom(P,A) :- preference(P,cp), preference(P,_,_,for(neg(atom(A))),_).
+
+lits(P,    atom(A) , A, true) :- preference(P,cp), atom(P,A).
+lits(P,neg(atom(A)), A,false) :- preference(P,cp), atom(P,A).
+
+post(P,Id,A,VA) :- preference(P,cp), preference(P,Id,1,for(L),_), lits(P,L,A,VA).
+ pre(P,Id,A,VA) :- preference(P,cp), preference(P,Id,0,for(L),_), lits(P,L,A,VA).
+
+
+%
+% Define bettereq/1, eq/1, worseeq/1 and rel/2
+%
+
+required(P,better) :- preference(P,cp), required(P,bettereq).
+required(P,    eq) :- preference(P,cp), required(P,bettereq).
+bettereq(P) :- preference(P,cp), required(P,bettereq), better(P).
+bettereq(P) :- preference(P,cp), required(P,bettereq),     eq(P).
+
+eq(P) :- preference(P,cp), required(P,eq),
+         holds (atom(A)) : holds'(atom(A));
+         holds'(atom(A)) : holds (atom(A)).
+
+required(P,worse) :- preference(P,cp), required(P,worseeq).
+required(P,   eq) :- preference(P,cp), required(P,worseeq).
+worseeq(P) :- preference(P,cp), required(P,worseeq), worse(P).
+worseeq(P) :- preference(P,cp), required(P,worseeq),    eq(P).
+
+
+% rel(ation) better or worse
+rel(P,better) :- preference(P,cp), required(P,better).
+rel(P, worse) :- preference(P,cp), required(P, worse).
+
+
+%
+%
+% General cp nets
+%
+%
+
+
+%
+% Diameter
+%
+
+#const cp_diameter=0.
+
+% option 1: 2^|atoms|-1 ensures correctness in general
+diameter(P,(2**N)-1) :- preference(P,cp), not tree(P),
+                        N = { atom(P,A) }, cp_diameter=0.
+
+% option 2: |atoms|^2 ensures correctness for tree-like cp nets
+diameter(P,N**2) :- preference(P,cp), not tree(P),
+                    N = { atom(P,A) }, cp_diameter = tree.
+
+% option 3: use --cons-nb cp_diameter=<value>
+diameter(P,cp_diameter) :- preference(P,cp), not tree(P),
+                           cp_diameter != 0, cp_diameter != tree.
+
+% neither better nor worse if diameter is 0
+unsat(P,R) :- preference(P,cp), rel(P,R), diameter(P,0).
+
+
+%
+% Define better/1 and worse/1
+%
+
+required(P,eq) :- preference(P,cp), required(P,better), not tree(P).
+better(P)      :- preference(P,cp), required(P,better), not tree(P),
+                  not unsat(P,better), not eq(P).
+
+required(P,eq) :- preference(P,cp), required(P,worse), not tree(P).
+worse(P)       :- preference(P,cp), required(P,worse), not tree(P),
+                  not unsat(P,worse), not eq(P).
+
+
+%
+% Planning
+%
+
+% time (given by the diameter of the cp net)
+time(P,1..D) :- preference(P,cp), diameter(P,D), rel(P,_).
+
+% generate
+1 { occ(P,R,  Id,T) : post(P,Id,_,_) ;
+    occ(P,R,wait,T) :          T > 1 } 1 :- preference(P,cp), time(P,T), rel(P,R).
+unsat(P,R) :- preference(P,cp),
+              not occ(P,R,wait,T), occ(P,R,wait,T-1), time(P,T).
+
+% initial situation (for better and worse)
+holds(P,R,A,0) :- preference(P,cp), rel(P,R), R = better, not tree(P), atom(P,A), holds'(atom(A)).
+holds(P,R,A,0) :- preference(P,cp), rel(P,R), R =  worse, not tree(P), atom(P,A), holds (atom(A)).
+
+% add and delete effects
+holds(P,R,A,T) :- preference(P,cp), occ(P,R,Id,T), post(P,Id,A,true).
+holds(P,R,A,T) :- preference(P,cp), holds(P,R,A,T-1), time(P,T),
+                  not occ(P,R,Id,T) : post(P,Id,A,false).
+
+% preconditions
+unsat(P,R) :- preference(P,cp), occ(P,R,Id,T), post(P,Id,A, true),     holds(P,R,A,T-1).
+unsat(P,R) :- preference(P,cp), occ(P,R,Id,T), post(P,Id,A,false), not holds(P,R,A,T-1).
+unsat(P,R) :- preference(P,cp), occ(P,R,Id,T),  pre(P,Id,A, true), not holds(P,R,A,T-1).
+unsat(P,R) :- preference(P,cp), occ(P,R,Id,T),  pre(P,Id,A,false),     holds(P,R,A,T-1).
+
+% goal (for better and worse)
+unsat(P,R) :- preference(P,cp), rel(P,R), R = better, time(P,T), not time(P,T+1),     holds(P,R,A,T), not holds (atom(A)).
+unsat(P,R) :- preference(P,cp), rel(P,R), R = better, time(P,T), not time(P,T+1), not holds(P,R,A,T),     holds (atom(A)).
+unsat(P,R) :- preference(P,cp), rel(P,R), R =  worse, time(P,T), not time(P,T+1),     holds(P,R,A,T), not holds'(atom(A)).
+unsat(P,R) :- preference(P,cp), rel(P,R), R =  worse, time(P,T), not time(P,T+1), not holds(P,R,A,T),     holds'(atom(A)).
+
+% heuristics
+% #heuristic occ(P,R,A,T) : preference(P,cp), rel(P,R), post(P,Id,_,_), time(P,T), Id!=wait. [1,true]
+
+
+%
+%
+% Tree-structured cp nets
+%
+%
+
+
+%
+% Define better/1 and worse/1
+%
+
+better(P) :- preference(P,cp), required(P,better), tree(P), not unsat(P,better).
+ worse(P) :- preference(P,cp), required(P, worse), tree(P), not unsat(P, worse).
+
+
+%
+% Preprocessing
+%
+
+edge(P,A,AA) :- preference(P,cp), tree(P),
+                pre(P,Id1,A,_), post(P,Id1,AA,V1), post(P,Id2,AA,V2), Id1 != Id2, V1 != V2.
+
+
+%
+% Define eq/2, eqchange/3 and freeflip/4
+%
+
+% 1. A is eq(uivalent) if holds(A) <-> holds'(A)
+% 2. eq changes from A to AA if not eq(A) <-> eq(AA)
+% 3. We can flip freely once from A to AA if
+%    the precondition holds' and the postcondition does not hold' (for better), or
+%    the precondition holds  and the postcondition does not hold  (for  worse)
+
+eq(P,A)            :- preference(P,cp),  tree(P),    atom(P,A), { holds (atom(A)); holds'(atom( A)) } != 1. % 1
+eqchange(P,A,AA)   :- preference(P,cp), flips(P), edge(P,A,AA), {        eq(P,A) ;        eq(P,AA)  } == 1. % 2
+% for better and worse
+freeflip(P,R,A,AA) :- preference(P,cp),  tree(P), rel(P,R),                                                 % 3
+                      edge(P,A,AA), pre(P,Id,A,VA), post(P,Id,AA,VAA),
+                      #sum { 1,0: VA  = true;
+                             1,1: holds'(atom( A)), R = better; 1,1: holds (atom( A)), R = worse } != 1,
+                      #sum { 1,0: VAA = true;
+                             1,1: holds'(atom(AA)), R = better; 1,1: holds (atom(AA)), R = worse } == 1.
+
+
+%
+% Define flips/4 (First Encoding)
+%
+
+% 1. Leaf A flips 0 if it is eq, and 1 otherwise
+% 2. From A to AA if eq does not change,
+%    A does the same number of flips as AA
+% 3. From A to AA if eq does change, AA flips at least once and can flip freely,
+%    A does one flip less than AA
+% 3. From A to AA if eq does change, and either AA does not flip or cannot flip freely,
+%    A does one flip more than AA
+%
+% Predicate maxflips/3 is defined below
+%
+
+flips(P,R,A,F  ) :- preference(P,cp), flips(P), rel(P,R), atom(P,A), not edge(P,A,_), F = { not eq(P,A) }.                                              % 1
+flips(P,R,A,F  ) :- preference(P,cp), edge(P,A,AA), flips(P,R,AA,F), maxflips(P,AA,MF), F<=MF, not eqchange(P,A,AA).                                    % 2
+flips(P,R,A,F-1) :- preference(P,cp), edge(P,A,AA), flips(P,R,AA,F), maxflips(P,AA,MF), F<=MF,     eqchange(P,A,AA),     2 { F>0; freeflip(P,R,A,AA) }. % 3
+flips(P,R,A,F+1) :- preference(P,cp), edge(P,A,AA), flips(P,R,AA,F), maxflips(P,AA,MF), F<=MF,     eqchange(P,A,AA), not 2 { F>0; freeflip(P,R,A,AA) }. % 4
+
+%
+% Explanation from A to AA assuming AA flips F times:
+%   i) The first flip of AA may need a flip from A if it cannot flip freely (+1?)
+%   ii) The next F-1 flips of AA require A also to flip                     (F-1)
+%   iii) Afterwards A may require an extra flip to be equivalent            (+1?)
+% After (i) and (ii) AA flips either F-1 or F times,
+% and in the end, after (iii), AA flips either F-1, F or F+1 times.
+%
+% If there is no eq change and A and AA are     eq, they *both* must flip an even number of times.
+% If there is no eq change and A and AA are not eq, they *both* must flip an  odd number of times.
+% If there is no eq change and AA flipped F+1 or F-1 times, this would make A even and AA odd, or vice versa.
+% So if there is no eq change, AA must flip F times.
+%
+% Similarly, ff there is eq change, AA must flip either F-1 or F+1.
+% It only needs F-1 if A flipped at least once and the first flip is free.
+% Otherwise, it needs F+1 flips
+%
+
+% Additional constraint that bounds the number of flips for each atom
+% maxflips/3 is used to define flips/3 so that only flips below the bound are propagated
+maxflips(P,A,F  ) :- preference(P,cp), tree(P), atom(P,A), not edge(P,_,A), F = { not eq(P,A) }.
+maxflips(P,A,F+1) :- preference(P,cp), edge(P,AA,A), maxflips(P,AA,F).
+unsat(P,R) :- preference(P,cp), flips(P,R,A,F), maxflips(P,A,MF), F>MF.
+
+%
+% Define unsat/2 (First Encoding)
+%
+
+% holds is not better than holds' if:
+% 1. All atoms are equivalent
+% 2. Some root is not equivalent and has the good value
+% 3. Some root is     equivalent and does not flip 0
+% 4. Some root is not equivalent and does not flip 1
+
+
+unsat(P,R) :- preference(P,cp), tree(P), rel(P,R), eq(P,A) : atom(P,A).                          % 1
+% for better and worse
+unsat(P,R) :- preference(P,cp), tree(P), rel(P,R), atom(P,A), not edge(P,_,A), not eq(P,A),      % 2
+              #sum{ 1,0: post(P,Id,A,true);
+                    1,1: holds'(atom(A)), R = better; 1,1: holds (atom(A)), R =  worse } != 1.
+unsat(P,R) :- preference(P,cp), atom(P,A), not edge(P,_,A), flips(P,R,A,F),     eq(P,A), F != 0. % 3
+unsat(P,R) :- preference(P,cp), atom(P,A), not edge(P,_,A), flips(P,R,A,F), not eq(P,A), F != 1. % 4
+
+% Explanation:
+% 1. In this case, the root can never flip to the bad value
+%    We use the aggregate instead of simply
+%      { post(P,Id,A,true); holds'(atom(A)) } != 1
+%    to handle the case where we have, for example:
+%      post(p,id1,a,true) post(p,id2,a,true)
+% 2. Equivalent roots must not flip
+% 3. Non equivalent roots must flip once
+
+%
+% Define loops/4 (Second Encoding)
+%
+
+%
+% Explanation:
+%  In this encoding instead of counting the number of flips, we count the number of loops that
+%  an atom does. It holds that
+%   loops(P,R,A,F/2) :- preference(P,cp), flips(P,R,A,F).
+%  The number of loops/3 atoms needed by this encoding is close to half the number of
+%  flips/3 atoms needed by the other encoding.
+%
+%  A does one more loop than AA if AA is odd (not equivalent), A is even (equivalent),
+%  and A would flip F+1 according to Encoding 0.
+%  A does one less loop than AA if AA is even (equivalent), A is odd (not equivalent),
+%  and A would flip F-1 according to Encoding 0.
+%  Otherwise, A loops the same as AA.
+%
+
+% 1. Leafs never loop
+% 2. From A to AA if AA looped L times with L>0, A will loop at least L-1
+% 3. From A to AA if AA looped L times, A will loop at least L times unless
+%    L>0, AA can flip freely, and A is not equivalent but AA is
+% 4. From A to AA if AA looped L times, A will loop L times if
+%    AA cannot flip freely, and A is equivalent but AA is not
+%
+% Predicate maxloops/3 is defined below
+%
+
+loops(P,R,A,  0) :- preference(P,cp), loops(P), rel(P,R), atom(P,A), not edge(P,A,_).                                                                       % 1
+loops(P,R,A,L-1) :- preference(P,cp), edge(P,A,AA), loops(P,R,AA,L), maxloops(P,AA,ML), L<=ML, L>0.                                                         % 2
+loops(P,R,A,L  ) :- preference(P,cp), edge(P,A,AA), loops(P,R,AA,L), maxloops(P,AA,ML), L<=ML, #false : freeflip(P,R,A,AA), not eq(P,A),     eq(P,AA), L>0. % 3
+loops(P,R,A,L+1) :- preference(P,cp), edge(P,A,AA), loops(P,R,AA,L), maxloops(P,AA,ML), L<=ML,      not freeflip(P,R,A,AA),     eq(P,A), not eq(P,AA).      % 4
+
+% Note:
+%  If rule 4 fires, then 3 also fires. And 2 will fire whenever L>0.
+%  So even for a chained cp-net we may have loop(_,_,a,L) and loop(_,_,a,L+1) for the same a.
+%  But this is not a problem since only the highest L+1 matters for the check.
+
+% Optional:
+loops(P,R,A,L-1) :- preference(P,cp), fills(P), loops(P,R,A,L), L>0.
+
+% Additional constraint that bounds the number of loops for each atom
+% Uses rules for maxflips/3 from above
+maxloops(P,A,F/2) :- preference(P,cp), loops(P), maxflips(P,A,F).
+unsat(P,R) :- preference(P,cp), loops(P,R,A,L), maxloops(P,A,ML), L>ML.
+
+%
+% Define unsat/2 (Second Encoding)
+%
+
+% holds is not better than holds' if:
+% 1. All atoms are equivalent                           (see First Encoding)
+% 2. Some root is not equivalent and has the good value (see First Encoding)
+% 3. Some root loops
+unsat(P,R) :- preference(P,cp), atom(P,A), not edge(P,_,A), loops(P,R,A,L), L>0. % 3
+
+
+%
+% Display
+%
+
+#show.
+%#show flips(P,R,A,F) : flips(P,R,A,F).
+%#show loops(P,R,A,L) : loops(P,R,A,L).
+
+
+%
+%
+% Syntax Errors
+%
+%
+
+error_type(cp,no_weights).
+error_type(cp,no_naming).
+error_type(cp,ordering_max_length(2)).
+error_type(cp,no_sets(1..2)).
+
+% cp_encoding = 0..3
+error(("preference:",P,": error: preference specification error, type '",T,"' requires constant cp_encoding to have a value between 0 and 3.")) :-
+  preference(P,T), T = cp, cp_encoding != 0, cp_encoding != 1, cp_encoding != 2, cp_encoding != 3.
+
+% cp_encoding = 0 only works for computing one single optimal model
+warning(("preference:",P,": warning: preference specification warning, type '",T,"' with constant cp_encoding=0 (the default) works correctly only for computing a single optimal model.")) :-
+  preference(P,T), T = cp, cp_encoding = 0.
+
+% only literals
+error(("preference:",P,": error: preference specification error, type '",T,"' requires literals.")) :-
+  preference(P,T), T = cp,
+  preference(P,_,_,for(X),_), not lits(P,X,_,_).
+
+% 1 and 2 must be contrary literals
+error(("preference:",P,": error: preference specification error, type '",T,"' requires literals at positions 1 and 2 to be contrary. Position 2 may be left empty. ")) :-
+  preference(P,T), T = cp,
+  preference(P,E,1,for(X),_), lits(P,X,AX,VX),
+  preference(P,E,2,for(Y),_), lits(P,Y,AY,VY),
+  1 { AX != AY; VX == VY }.
+
+% heads may not appear in the condition
+error(("preference:",P,": error: preference specification error, type '",T,"' does not allow atoms in the first position of an element to appear in its condition.")) :-
+  preference(P,T), T = cp,
+  preference(P,E,1,for(X),_), lits(P,X,A,VX),
+  preference(P,E,0,for(Y),_), lits(P,Y,A,VY).
+
+%
+% Tree-structured cp net syntax errors
+%
+
+% only one literal at 0
+error(("preference:",P,": error: preference specification error, tree cp nets do not allow sets in the condition.")) :-
+  preference(P,T), T = cp, tree(P),
+  preference(P,E,S,X,_), preference(P,E,S,Y,_), S = 0, X > Y.
+
+% if no condition, then exactly one element
+error(("preference:",P,": error: preference specification error, tree cp nets require that every atom either appears in exactly one head without condition, or in exactly two heads with conditions that are contrary literals.")) :-
+  preference(P,T), T = cp, tree(P),
+  post(P,Id1,A,VA), not pre(P,Id1,_,_), not { post(P,I,A,V) } = 1.
+
+% if condition, then exactly two elements
+error(("preference:",P,": error: preference specification error, tree cp nets require that every atom either appears in exactly one head without condition, or in exactly two heads with conditions that are contrary literals.")) :-
+  preference(P,T), T = cp, tree(P),
+  post(P,Id1,A,VA), pre(P,Id1,_,_), not { post(P,I,A,V) } = 2.
+
+% if condition, then the two conditions must be contrary literals
+error(("preference:",P,": error: preference specification error, tree cp nets require that every atom either appears in exactly one head without condition, or in exactly two heads with conditions that are contrary literals.")) :-
+  preference(P,T), T = cp, tree(P),
+  post(P,Id1,A,VA1), pre(P,Id1,B1,VB1),
+  post(P,Id2,A,VA2), pre(P,Id2,B2,VB2), Id1 > Id2,
+  1 { B1 != B2; VB1 == VB2 }.
+
+% only one parent
+error(("preference:",P,": error: preference specification error, tree cp nets require that every atom has at most one parent in the corresponding graph.")) :-
+  preference(P,T), T = cp, tree(P),
+  edge(P,A1,A), edge(P,A2,A), A1 > A2.
+
+% acyclic
+tr(P,A,B) :- preference(P,cp), tree(P), edge(P,A,B).
+tr(P,A,B) :- preference(P,cp), tree(P), edge(P,A,C), tr(P,C,B).
+error(("preference:",P,": error: preference specification error, tree cp nets require that the corresponding graph is acyclic.")) :-
+  preference(P,T), T = cp, tree(P),
+  tr(A,A).
 

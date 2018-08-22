@@ -398,6 +398,11 @@ class Solver:
         pr, control, u = self.printer, self.control, self.underscores
         error = False
         for atom in control.symbolic_atoms.by_signature(
+            u + "_" + utils.WARN_PRED, 1
+        ):
+            string = "\n" + self.cat(atom.symbol.arguments[0])
+            pr.print_spec_warning(string)
+        for atom in control.symbolic_atoms.by_signature(
             u + "_" + utils.ERROR_PRED, 1
         ):
             string = "\n" + self.cat(atom.symbol.arguments[0])
