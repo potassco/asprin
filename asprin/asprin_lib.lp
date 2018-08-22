@@ -1775,15 +1775,6 @@ unsat(P,R) :- preference(P,cp), atom(P,A), not edge(P,_,A), loops(P,R,A,L), L>0.
 
 
 %
-% Display
-%
-
-#show.
-%#show flips(P,R,A,F) : flips(P,R,A,F).
-%#show loops(P,R,A,L) : loops(P,R,A,L).
-
-
-%
 %
 % Syntax Errors
 %
@@ -1852,9 +1843,8 @@ error(("preference:",P,": error: preference specification error, tree cp nets re
   edge(P,A1,A), edge(P,A2,A), A1 > A2.
 
 % acyclic
-tr(P,A,B) :- preference(P,cp), tree(P), edge(P,A,B).
-tr(P,A,B) :- preference(P,cp), tree(P), edge(P,A,C), tr(P,C,B).
+tr(P,A,B) :- preference(P,cp), tree(P), pre(P,Id,A,_), post(P,Id,B,_).
+tr(P,A,C) :- preference(P,cp), tree(P), pre(P,Id,A,_), post(P,Id,B,_), tr(P,B,C).
 error(("preference:",P,": error: preference specification error, tree cp nets require that the corresponding graph is acyclic.")) :-
   preference(P,T), T = cp, tree(P),
-  tr(A,A).
-
+  tr(P,A,A).
