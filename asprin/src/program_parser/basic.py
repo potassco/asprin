@@ -100,7 +100,8 @@ class BasicProgramVisitor(visitor.Visitor):
             self.__add(d)
 
     def visit_ShowSignature(self, sig):
-        self.__term_transformer.transform_signature(sig)
+        if statement.statement.name != "" or statement.statement.arity != 0:
+            self.__term_transformer.transform_signature(sig)
         self.__add(sig)
 
     def visit_ShowTerm(self, show):

@@ -284,7 +284,8 @@ class PreferenceProgramVisitor(visitor.Visitor):
         self.__statements.append(Statement("ShowSignature", sig))
 
     def finish_ShowSignature(self, statement, open_list):
-        self.__term_transformer.transform_signature(statement.statement)
+        if statement.statement.name != "" or statement.statement.arity != 0:
+            self.__term_transformer.transform_signature(statement.statement)
         return DET
 
     def visit_ShowTerm(self, show):
