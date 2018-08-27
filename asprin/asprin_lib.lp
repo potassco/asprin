@@ -32,14 +32,10 @@ required(P,better) :- optimize(P).
 #defined error/1.
 #defined error_type/2.
 
-%better(P)     :- #false, better(P).     % to avoid warnings
-%required(P,Q) :- #false, required(P,Q). % to avoid warnings
 
 %
 % errors
 %
-%error(X) :- #false, error(X).               % to avoid warnings
-%error_type(X,Y) :- #false, error_type(X,Y). % to avoid warnings
 
 %%% no formulas
 error(("preference:",P,": error: preference specification error, type '",T,"' does not allow formulas.")) :-
@@ -801,13 +797,6 @@ error_type(minmax,no_condition).
 error_type(minmax,no_sets).
 error_type(minmax,(min_weight_length,2)).
 
-#program preference. % to avoid warnings
-
-better(P)     :- #false, better(P).
-required(P,Q) :- #false, required(P,Q).
-
-error(X) :- #false, error(X).
-error_type(X,Y) :- #false, error_type(X,Y).
 
 %
 % heuristic approximation programs:
@@ -859,8 +848,11 @@ levels_per_level(P,L1,L2) :- wc(P,L1),
 levels(P,L1) :- wc(P,_),
                 L1 = #sum{ L3,L2: levels_per_level(P,L2,L3) }.
 
-% minors
-wc(A,B,C,D,E) :- #false, wc(A,B,C,D,E). % to avoid warnings
+
+% to avoid warnings
+#defined bit/3.
+#defined wc/5.
+#defined wc/2.
 
 #program heuristic(subset).
 heuristic(P,X,1,false) :- preference(P,subset), preference(P,_,_,for(X),_).
@@ -960,6 +952,7 @@ cost(P,X,C+1) :- preference(P,poset), heuristic_poset=3,
 
 wc(P,-C,1,X,X) :- cost(P,X,C), heuristic_poset=3.
 
+#defined step/3.
 
 #program heuristic(aso).
 
@@ -1022,6 +1015,10 @@ heuristic(P,aso(P,Id,Idx),I-Idx+1,true) :- preference(P,aso), heuristic_aso=3,
 levels(P,I) :- preference(P,aso), heuristic_aso=3,
                max_index(P,I).
 
+% to avoid warnings
+#defined rule/3.
+#defined pos/3.
+
 %
 % minmax and maxmin
 %
@@ -1064,9 +1061,9 @@ heuristic(P,bit(P,B),B+1,false) :- as_minmax(P), bit(P,_,B).
 levels(P,L) :- as_minmax(P), L = #sum{ 1,B: bit(P,_,B) }.
 
 % to avoid warnings
-as_minmax(P)    :- #false,    as_minmax(P).
-elem(A,B,C,D,E) :- #false, elem(A,B,C,D,E).
-
+#defined as_minmax/1.
+#defined elem/5.
+#defined bit/3.
 
 %
 % composite preference heuristic
@@ -1107,8 +1104,8 @@ levels(P,S) :- as_lexico(P),
                % 0 is added to avoid warnings, but it is not needed
 
 % to avoid warnings
-as_lexico(P) :- #false, as_lexico(P).
-level(A,B,C) :- #false, level(A,B,C).
+#defined as_lexico/1.
+#defined level/3.
 
 #program heuristic(lexico).
 
@@ -1180,8 +1177,8 @@ level(P,P1,L) :- preference(P,and), heuristic_and=2,
 
 :~ wc(P,W,L,T,X), optimize(P), holds(X). [W@L,T]
 
-% minors
-wc(A,B,C,D,E) :- #false, wc(A,B,C,D,E). % to avoid warnings
+% to avoid warnings
+#defined wc/5.
 
 #program weak(subset).
 wc(P,1,1,X,X) :- preference(P,subset), preference(P,_,_,for(X),_).
@@ -1273,9 +1270,9 @@ wc(P,1,B+1,0,bit(P,B)) :- as_minmax(P), bit(P,_,B).
 levels(P,L) :- as_minmax(P), L = #sum{ 1,B: bit(P,_,B) }.
 
 % to avoid warnings
-as_minmax(P)    :- #false,    as_minmax(P).
-elem(A,B,C,D,E) :- #false, elem(A,B,C,D,E).
-
+#defined as_minmax/1.
+#defined elem/5.
+#defined bit/3.
 
 %
 % aso
@@ -1339,6 +1336,10 @@ wc(P,-1,L-Idx+1,Id,aso(P,Id,Idx)) :- preference(P,aso), approx_aso=3,
 
 % we could also do a level per each position of each rule...
 
+% to avoid warnings
+#defined rule/3.
+#defined pos/3.
+
 %
 % poset
 %
@@ -1380,6 +1381,9 @@ levels(P,1)    :- preference(P,poset), approx_poset=2.
 wc(P,-C,1,X,X) :- preference(P,poset), approx_poset=2,
                   cost(P,X,C).
 
+% to avoid warnings
+#defined step/3.
+
 %
 % composite preference weak
 %
@@ -1417,8 +1421,8 @@ levels(P,S) :- as_lexico(P),
                % 0 is added to avoid warnings, but it is not needed
 
 % to avoid warnings
-as_lexico(P) :- #false, as_lexico(P).
-level(A,B,C) :- #false, level(A,B,C).
+#defined as_lexico/1.
+#defined level/3.
 
 #program weak(lexico).
 
