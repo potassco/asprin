@@ -288,6 +288,14 @@ class PreferenceProgramVisitor(visitor.Visitor):
             self.__term_transformer.transform_signature(statement.statement)
         return DET
 
+    def visit_Defined(self, defined):
+        self.__statements.append(Statement("Defined", defined))
+
+    def finish_Defined(self, statement, open_list):
+        if statement.statement.name != "" or statement.statement.arity != 0:
+            self.__term_transformer.transform_signature(statement.statement)
+        return DET
+
     def visit_ShowTerm(self, show):
         self.__statements.append(Statement("ShowTerm", show))
         self.__visit_body(show.body)

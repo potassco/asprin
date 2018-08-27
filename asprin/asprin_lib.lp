@@ -24,16 +24,22 @@
 #program preference.
 :- not better(P),  optimize(P).
 required(P,better) :- optimize(P).
-    
+
 % to avoid warnings
-better(P)     :- #false, better(P).     % to avoid warnings
-required(P,Q) :- #false, required(P,Q). % to avoid warnings
+#defined optimize/1.
+#defined better/1.
+#defined required/2.
+#defined error/1.
+#defined error_type/2.
+
+%better(P)     :- #false, better(P).     % to avoid warnings
+%required(P,Q) :- #false, required(P,Q). % to avoid warnings
 
 %
 % errors
 %
-error(X) :- #false, error(X).               % to avoid warnings
-error_type(X,Y) :- #false, error_type(X,Y). % to avoid warnings
+%error(X) :- #false, error(X).               % to avoid warnings
+%error_type(X,Y) :- #false, error_type(X,Y). % to avoid warnings
 
 %%% no formulas
 error(("preference:",P,": error: preference specification error, type '",T,"' does not allow formulas.")) :-
@@ -240,6 +246,8 @@ error_type(aso,no_naming).
 error_type(aso,no_weights).
 error_type(aso,no_sets).
 
+% to avoid warnings
+#defined rule/3.
 
 #program preference(less(cardinality)).
 
@@ -563,6 +571,9 @@ error(("preference:",P,
   ": error: preference specification error, type 'poset', ",
   "the order relation defined by the preference elements must be acyclic.")) :-
   preference(P,poset), poset(P,X,X).
+
+% to avoid warnings
+#defined better/2.
 
 #program preference(subset).
 
@@ -1882,6 +1893,13 @@ approximation_mode(P) :- preference(P,cp),      "weak" = @get_mode().
 acyclic(P,M) :- preference(P,cp), approximation_mode(P),
                 M = ("preference:",P,": error: preference specification error, the graphs of the cp nets using the approximation mode must be acyclic.").
 
+% to avoid warnings
+#defined rel/2.
+#defined pre/4.
+#defined post/4.
+#defined edge/3.
+#defined lits/4.
+#defined acyclic/2.
 
 %
 %

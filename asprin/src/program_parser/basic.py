@@ -104,6 +104,11 @@ class BasicProgramVisitor(visitor.Visitor):
             self.__term_transformer.transform_signature(sig)
         self.__add(sig)
 
+    def visit_Defined(self, defined):
+        if statement.statement.name != "" or statement.statement.arity != 0:
+            self.__term_transformer.transform_signature(defined)
+        self.__add(defined)
+
     def visit_ShowTerm(self, show):
         self.visit_children(show)
         show.term = self.__term_transformer.reify_term(show.term,

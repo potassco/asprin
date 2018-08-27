@@ -122,12 +122,12 @@ CHECK_SPEC = """
 AVOID_WARNINGS = """#program """ + utils.WARNINGS + """.
 
 % avoid clingo warnings
-##preference(A,B,C, for(D),E) :- #false, ##preference(A,B,C, for(D),E).
-##preference(A,B,C,name(D),E) :- #false, ##preference(A,B,C,name(D),E).
-##optimize(X) :- #false, ##optimize(X).
-##preference(X,Y) :- #false, ##preference(X,Y).
-##unsat(X,Y) :- #false, ##unsat(X,Y).
-##false :- #false, ##false.
+#defined ##preference/5.
+#defined ##preference/2.
+#defined ##optimize/1.
+#defined ##unsat/2.
+#defined ##false/0.
+#defined ##optimize/1.
 """
 
 # error printing

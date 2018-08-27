@@ -408,16 +408,16 @@ class Solver:
         for atom in control.symbolic_atoms.by_signature(
             u + "_" + utils.WARN_PRED, 1
         ):
-            string = "\n" + self.cat(atom.symbol.arguments[0])
+            string = self.cat(atom.symbol.arguments[0]) + "\n"
             pr.print_spec_warning(string)
         for atom in control.symbolic_atoms.by_signature(
             u + "_" + utils.ERROR_PRED, 1
         ):
-            string = "\n" + self.cat(atom.symbol.arguments[0])
+            string = self.cat(atom.symbol.arguments[0]) + "\n"
             pr.print_spec_error(string)
             error = True
         if error:
-            pr.do_print("")
+            # pr.do_print("")
             raise Exception("parsing failed")
 
     def on_model(self, model):
@@ -875,6 +875,9 @@ class Solver:
             #self.control.ground(parts, self)
             # also, add mapping
             self.mapping[self.last_model] = self.models
+        #
+        # leftover from merge 
+        #
         #self.not_improving.difference_update(
         #    [(x,0) for x in self.unknown_non_optimal]
         #)
