@@ -184,12 +184,13 @@ class Options:
 
 class Solver:
 
-    def __init__(self, control, options):
+    def __init__(self, control, options, control_proxy):
         # control and options
         self.control           = control
         self.options           = Options()
         for key, value in options.items():
             setattr(self.options, key, value)
+        self.control_proxy     = control_proxy
         # strings
         self.underscores       = utils.underscores
         self.volatile_str      = self.underscores + VOLATILE
@@ -223,10 +224,8 @@ class Solver:
         self.unknown_non_optimal = []
         self.grounded_delete_better = False
         self.mapping = {}
-        # solving and signals
-        self.condition = Condition()
-        self.interrupted = False
-        self.solving = False
+        # exiting
+        self.exited = False
         # functions
         self.get_preference_parts_opt = self.get_preference_parts
         self.same_shown_function = self.same_shown_underscores
@@ -342,7 +341,7 @@ class Solver:
     def add_encodings(self):
         for i in PROGRAMS:
             self.control.add(i[0], i[1], i[2].replace(TOKEN, self.underscores))
-        self.control.ground([(DO_HOLDS_AT_ZERO, [])], self)
+        self.ground([(DO_HOLDS_AT_ZERO, [])], self)
 
     def no_optimize(self):
         optimize = self.underscores + utils.OPTIMIZE
@@ -361,20 +360,20 @@ class Solver:
                              UNSAT_UNSATP[2].replace(TOKEN, self.underscores))
 
     def ground_heuristic(self):
-        self.control.ground([(HEURISTIC, [])], self)
+        self.ground([(HEURISTIC, [])], self)
 
     def ground_cmd_heuristic(self):
         params = [clingo.parse_term(i) for i in self.options.cmd_heuristic]
-        self.control.ground([(CMD_HEURISTIC, params)], self)
+        self.ground([(CMD_HEURISTIC, params)], self)
 
     def ground_preference_base(self):
-        self.control.ground([(PBASE, [])], self)
+        self.ground([(PBASE, [])], self)
 
     def ground_unsatp_base(self):
-        self.control.ground([(UNSATPBASE, [])], self)
+        self.ground([(UNSATPBASE, [])], self)
 
     def ground_holds(self, step):
-        self.control.ground([(DO_HOLDS, [step])], self)
+        self.ground([(DO_HOLDS, [step])], self)
 
     def get_preference_parts(self, x, y, better, volatile):
         parts = [(PREFP, [x, y])]
@@ -433,13 +432,6 @@ class Solver:
                 x for x in self.holds_domain if x not in set(self.holds)
             ]
 
-    def signal(self):
-        if not self.solving:
-            self.exit(1)
-        else:
-            self.control.interrupt()
-            self.interrupted = True
-
     def set_config(self):
         try:
             self.iconfigs = (self.iconfigs + 1) % len(self.options.configs)
@@ -447,7 +439,7 @@ class Solver:
             self.iconfigs = 0
         self.control.configuration.configuration = self.options.configs[self.iconfigs]
 
-    def stop(self, result):
+    def set_solving_result(self, result):
         # set solving result
         if result.satisfiable:
             self.solving_result = SATISFIABLE
@@ -455,26 +447,15 @@ class Solver:
             self.solving_result = UNSATISFIABLE
         else:
             self.solving_result = UNKNOWN
-        # notify
-        with self.condition:
-            self.condition.notify()
 
-    def solve(self, **kwargs):
+    def solve(self, *args, **kwargs):
         if self.options.configs is not None:
             self.set_config()
-        self.solving = True
-        with self.condition:
-            with self.control.solve(
-                async=True, on_finish=self.stop, **kwargs
-            ) as handle:
-                timeout = float("inf") if sys.version_info[0] < 3 else None
-                self.condition.wait(timeout)
-                handle.wait()
-        self.solving = False
-        if self.options.benchmark:
-            self.save_stats()
-        if self.interrupted:
-            self.exit(1)
+        result = self.control_proxy.solve(*args, **kwargs)
+        self.set_solving_result(result)
+
+    def ground(self, *args):
+        self.control_proxy.ground(*args)
 
     def solve_heuristic(self):
         h = []
@@ -617,7 +598,7 @@ class Solver:
 
     def ground_holds_delete_better(self):
         if not self.grounded_delete_better:
-            self.control.ground([(DO_HOLDS_DELETE_BETTER, [])], self)
+            self.ground([(DO_HOLDS_DELETE_BETTER, [])], self)
             self.grounded_delete_better = True
 
     def relax_optimal_models(self):
@@ -648,26 +629,12 @@ class Solver:
         if delete_better:
             parts += self.get_preference_parts_opt(MODEL_DELETE_BETTER, step,
                                                    False, volatile)
-        self.control.ground(parts, self)
+        self.ground(parts, self)
         if volatile:
             self.volatile_optimal_model(step, delete_worse, delete_better)
 
     def clean_up(self):
         self.control.cleanup()
-
-    def print_stats(self, file=sys.stdout):
-        self.printer.print_stats(self.control,             self.models,
-                                 self.more_models,         self.opt_models,
-                                 self.options.non_optimal, self.options.stats,
-                                 file)
-
-    def exit(self, code):
-        self.print_stats()
-        sys.exit(code)
-
-    def end(self):
-        self.print_stats()
-        raise EndException
 
     #
     # ground once method
@@ -676,7 +643,7 @@ class Solver:
     def ground_open_preference_program(self):
         parts = self.get_preference_parts(0, -1, True, True)
         parts.append((OPEN_HOLDS, [-1]))
-        self.control.ground(parts, self)
+        self.ground(parts, self)
 
     def turn_off_preference_program(self):
         self.control.assign_external(self.get_external(0,-1), False)
@@ -727,8 +694,8 @@ class Solver:
     def solve_approx(self):
         # set the domain of holds
         self.set_holds_domain()
-        # weak approximation programs
-        self.control.ground([(APPROX, [])], self)
+        # approximation programs
+        self.ground([(APPROX, [])], self)
         for i in PROGRAMS_APPROX:
             self.control.add(i[0], i[1], i[2].replace(TOKEN, self.underscores))
         # opt_mode
@@ -737,7 +704,7 @@ class Solver:
             self.control.configuration.solve.opt_mode = 'opt'
         # project
         if self.options.project:
-            self.control.ground([(PROJECT_APPROX,[])], self)
+            self.ground([(PROJECT_APPROX,[])], self)
             self.control.configuration.solve.project = 'project'
         # loop
         self.printer.do_print("Solving...")
@@ -764,7 +731,7 @@ class Solver:
                 parts += self.get_preference_parts(m, 0, False, False)
                 if self.options.delete_better:
                     parts += self.get_preference_parts(0, m, False, False)
-            self.control.ground(parts, self)
+            self.ground(parts, self)
         # end
         if self.options.max_models == 1 and satisfiable: # one model
             if self.options.quiet == 1:
@@ -904,13 +871,55 @@ class Solver:
         if result == UNKNOWN:
             x, y  = MODEL_DELETE_BETTER, self.last_model
             parts = [(PREFP, [x, y]), (VOLATILE_EXT,  [x,y])]
-            self.control.ground(parts, self)
+            self.ground(parts, self)
+            #self.control.ground(parts, self)
             # also, add mapping
             self.mapping[self.last_model] = self.models
+        #self.not_improving.difference_update(
+        #    [(x,0) for x in self.unknown_non_optimal]
+        #)
+        ## add delete better for last model (without unsat constraint)
+        #x, y  = MODEL_DELETE_BETTER, self.last_model
+        #parts = [(PREFP, [x, y]), (VOLATILE_EXT,  [x,y])]
+        #self.ground(parts, self)
 
 
     #
-    # RUN()
+    # exiting
+    #
+
+    def print_stats(self, interrupted=False, solved=True, copy_statistics=None):
+        self.printer.print_stats(
+            self.control, self.models, self.more_models, self.opt_models,
+            self.options.non_optimal, self.options.stats,
+            interrupted, solved, copy_statistics
+        )
+
+    def signal_on_solving(self):
+        self.print_stats(interrupted=True)
+        self.exit(1)
+
+    def signal_on_not_solving(self):
+        self.print_stats(
+            interrupted=True, copy_statistics=self.control_proxy.statistics
+        )
+        self.exit(1)
+
+    def signal_after_solving(self):
+        self.print_stats()
+
+    def exit(self, code):
+        self.exited = True
+        sys.exit(code)
+
+    def end(self):
+        self.print_stats()
+        raise EndException
+>>>>>>> develop
+
+
+    #
+    # run()
     #
 
     def run(self):
@@ -962,7 +971,9 @@ class Solver:
                 # END_LOOP
                 general.end_loop()
         except RuntimeError as e:
-            self.printer.print_error("ERROR (clingo): {}".format(e))
+            if not self.exited:
+                self.printer.print_error("ERROR (clingo): {}".format(e))
+            sys.exit(1)
         except EndException as e:
             # END
             pass

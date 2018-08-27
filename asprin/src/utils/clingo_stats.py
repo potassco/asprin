@@ -34,26 +34,33 @@ import json
 
 class Stats:
 
+
     def __init__(self):
         self.__width = 13
 
-    def __ratio(self,x,y):
+
+
+    def __ratio(self, x, y):
         return float(x)/float(y) if float(y)!=0 else 0
 
-    def __percent(self,x,y):
+
+    def __percent(self, x, y):
         return 100*self.__ratio(x,y)
 
-    def __print_key(self,key):
+
+    def __print_key(self, key):
         return key + " "*(self.__width-len(key)) + ": "
 
-    def __print_key_value(self,key,value):
+
+    def __print_key_value(self, key, value):
         return self.__print_key(key) + value
 
-    # requires Control initialized with --stats
-    def summary(self, control, models=True):
+
+    # requires the statistics from a Control object initialized with --stats
+    def summary(self, statistics, models=True):
 
         out = ""
-        summary = control.statistics['summary']
+        summary = statistics['summary']
         moreStr = "+" if int(summary['exhausted'])==0 else ""
         numEnum = int(summary['models']['enumerated'])
         if models:
@@ -64,8 +71,8 @@ class Stats:
         out += self.__print_key_value("Calls","{}\n".format(step+1))
 
         # return out if no stats
-        if not 'accu' in control.statistics: return out
-        times = control.statistics['accu']['times']
+        if not 'accu' in statistics: return out
+        times = statistics['accu']['times']
         out += self.__print_key("Time")
         totalTime = float(times['total'])
         solveTime = float(times['solve'])
@@ -84,13 +91,13 @@ class Stats:
 
 
     # requires Control initialized with --stats
-    def statistics(self, control):
+    def statistics(self, statistics):
 
         # return "" if no stats
-        if not 'accu' in control.statistics: return ""
+        if not 'accu' in statistics: return ""
 
         # choices...
-        solver      = control.statistics['accu']['solving']['solvers']
+        solver      = statistics['accu']['solving']['solvers']
         extra       = solver['extra']
         choices     = int(solver['choices'])
         domChoices  = int(extra['domain_choices'])
@@ -197,7 +204,7 @@ class Stats:
         out += "\n"
 
         # logic program
-        lp                 = control.statistics['problem']['lp']
+        lp                 = statistics['problem']['lp']
 
         # rules
         rOriginal          = int(lp['rules'])
@@ -282,7 +289,7 @@ class Stats:
         out += "\n"
 
         # problem
-        gen        = control.statistics['problem']['generator']
+        gen        = statistics['problem']['generator']
         vars       = int(gen['vars'])
         eliminated = int(gen['vars_eliminated'])
         frozen     = int(gen['vars_frozen'])
@@ -337,8 +344,8 @@ def run():
     control.solve(on_model=on_model)
     if satisfiable: sys.stdout.write("SATISFIABLE\n")
     else:           sys.stdout.write("UNSATISFIABLE\n")
-    sys.stdout.write(Stats().summary(control)+"\n")
-    sys.stdout.write(Stats().statistics(control)+"\n")
+    sys.stdout.write(Stats().summary(control.statistics)+"\n")
+    sys.stdout.write(Stats().statistics(control.statistics)+"\n")
 
     # with $clingo
     file = "tmp.lp"

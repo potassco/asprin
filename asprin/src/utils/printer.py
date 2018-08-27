@@ -24,6 +24,7 @@
 from __future__ import print_function
 from ..utils import clingo_stats
 from ..utils import utils
+from ..utils import clingo_signal_handler
 import sys
 
 BASE = utils.BASE
@@ -31,6 +32,9 @@ WARNING_INCLUDED_FILE = "<cmd>: warning: already included file:\n  {}\n"
 ERROR_INCLUDED_FILE = "file could not be opened:\n  {}\n"
 MESSAGE_LIMIT = 20
 TOO_MANY = "too many messages."
+INTERRUPT = clingo_signal_handler.INTERRUPT.format("asprin")
+SUMMARY_STR = clingo_signal_handler.SUMMARY_STR
+STATS_STR = clingo_signal_handler.STATS_STR
 
 class Printer:
 
@@ -102,18 +106,32 @@ class Printer:
     #
 
     def print_stats(self, ctl, models, more_models,
-                    opt_models, non_optimal, stats, file=sys.stdout):
-        out = "\nModels       : {}{}\n".format(
-                models,"+" if more_models else ""
-            )
+                    opt_models, non_optimal, stats,
+                    interrupted, solved, copy_statistics):
+        # interrupt
+        out = ""
+        if interrupted:
+            out = INTERRUPT
+        # first lines
+        out += "\nModels       : {}{}".format(models,"+" if more_models else "")
         if not non_optimal:
-            out += "  Optimum    : {}\n".format("yes" if opt_models>0 else "no")
+            out += "\n  Optimum    : {}".format("yes" if opt_models>0 else "no")
             if opt_models > 0:
-                out += "  Optimal    : {}\n".format(opt_models)
-        out += clingo_stats.Stats().summary(ctl, False) + "\n"
-        if stats:
-            accu = clingo_stats.Stats().statistics(ctl)
-            if accu:
-                out += accu + "\n"
-        print(out, end="", file=file)
+                out += "\n  Optimal    : {}".format(opt_models)
+        out += "\n"
+        # gather string
+        if not solved:
+            out += SUMMARY_STR + STATS_STR if stats else SUMMARY_STR
+        else:
+            # copy statistics dictionary
+            statistics = ctl.statistics
+            if copy_statistics is not None:
+                statistics = copy_statistics
+            # add statistics
+            out += clingo_stats.Stats().summary(statistics, False)
+            if stats:
+                out += "\n" + clingo_stats.Stats().statistics(statistics)
+        # print
+        print(out)
+        sys.stdout.flush()
 

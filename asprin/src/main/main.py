@@ -33,15 +33,14 @@ import argparse
 import sys
 import clingo
 import os
-import threading
-from ..spec_parser    import    spec_parser
-from ..program_parser import program_parser
-from ..solver         import         solver
-from ..utils          import        printer
-from ..utils          import          utils
-from .                import    clingo_help
 import errno
-import signal
+from ..spec_parser    import           spec_parser
+from ..program_parser import        program_parser
+from ..solver         import                solver
+from ..utils          import               printer
+from ..utils          import clingo_signal_handler
+from ..utils          import                 utils
+from .                import           clingo_help
 
 #
 # DEFINES
@@ -53,13 +52,15 @@ ERROR_INFO     = "*** Info : (asprin): Try '--help' for usage information"
 ERROR_OPEN     = "<cmd>: error: file could not be opened:\n  {}\n"
 ERROR_FATAL    = "Fatal error, this should not happen.\n"
 ERROR_PARSING  = "parsing failed"
-INTERRUPT      = """*** Info : (asprin): INTERRUPTED by signal!
-UNKNOWN
-
-INTERRUPTED  : 1"""
-ERROR_IMPROVE_1 = "options --stats and --improve-limit cannot be used together"
+#INTERRUPT      = """*** Info : (asprin): INTERRUPTED by signal!
+#UNKNOWN
+#
+#INTERRUPTED  : 1"""
+#ERROR_IMPROVE_1 = "options --stats and --improve-limit cannot be used together"
 ERROR_IMPROVE_2 = """incorrect value for option --improve-limit, \
 options reprint and nocheck cannot be used together"""
+=======
+>>>>>>> develop
 DEBUG          = "--debug"
 TEST           = "--test"
 ALL_CONFIGS    = ["tweety", "trendy", "frumpy", "crafty", "jumpy", "handy"]
@@ -267,6 +268,8 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
                            help=': Run system tests')
         basic.add_argument('--stats', dest='stats', action='store_true',
                            help=': Print statistics')
+        basic.add_argument('--stats-after-solving', dest='stats_after_solving', action='store_true',
+                           help=argparse.SUPPRESS)
         basic.add_argument('--quiet', '-q', dest='quiet', choices=[0,1,2],
                            metavar='<q>', type=int, default=0,
                            help=': print {0=all|1=optimal|2=no} models')
@@ -428,19 +431,25 @@ class Asprin:
 
     def __init__(self):
         self.control = None
-        self.solver = None
         self.options = None
 
-    def __update_constants(self,options,constants):
+    def __update_constants(self, options, constants):
         for i in constants:
             if i[0] not in options['constants']:
                 options['constants'][i[0]] = i[1]
 
-    def __get_control(self,clingo_options):
+    def __get_control(self, clingo_options):
         try:
             return clingo.Control(clingo_options)
         except Exception as e:
-            raise argparse.ArgumentError(None,e.message)
+            raise argparse.ArgumentError(None, e.message)
+
+    def __signal_on_not_solved(self):
+        printer.Printer().print_stats(self.control, 0, True, 0,
+                                      self.options['non_optimal'],
+                                      self.options['stats'], 
+                                      True, False, None)
+        sys.exit(1)
 
     def run_wild(self, args):
 
@@ -462,6 +471,13 @@ class Asprin:
         # create Control object
         self.control = self.__get_control(clingo_options)
 
+        # signal handler
+        control_proxy = clingo_signal_handler.ClingoSignalHandler(
+            self.control, "asprin",
+            print_after_solving=self.options['stats_after_solving'],
+            function_on_not_solved=self.__signal_on_not_solved
+        )
+
         # print prologue and warnings
         print(prologue)
         for i in warnings:
@@ -481,24 +497,16 @@ class Asprin:
         program_parser.Parser(self.control, programs, self.options).parse()
 
         # solving
-        self.solver = solver.Solver(self.control, self.options)
-        self.solver.run()
+        _solver = solver.Solver(
+            self.control, self.options, control_proxy
+        )
+        control_proxy.function_on_solving = _solver.signal_on_solving
+        control_proxy.function_on_not_solving = _solver.signal_on_not_solving
+        control_proxy.function_after_solving = _solver.signal_after_solving
+        _solver.run()
 
-    def signal_handler(self, signum, frame):
-        print(INTERRUPT, end='')
-        if self.solver is not None:
-            self.solver.signal()
-            return
-        elif self.control is not None:
-            printer.Printer().print_stats(self.control, 0, True, 0,
-                                          self.options['non_optimal'],
-                                          self.options['stats'])
-        sys.exit(1)
 
     def run(self, args):
-        # signals
-        signal.signal(signal.SIGTERM, self.signal_handler)
-        signal.signal(signal.SIGINT,  self.signal_handler)
         # try to run wild
         try:
             self.run_wild(args)
@@ -521,11 +529,13 @@ class Asprin:
             print(ERROR.format(ERROR_FATAL),file=sys.stderr)
             print(UNKNOWN,file=sys.stdout)
             sys.exit(65)
+        except SystemExit as e:
+            sys.exit(e.code)
         except Exception as e:
             print(ERROR.format(str(e)),file=sys.stderr)
             print(UNKNOWN,file=sys.stdout)
             sys.exit(65)
-
+        sys.exit(0)
 
 def main(args):
     if TEST in args:
