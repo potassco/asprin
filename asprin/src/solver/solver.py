@@ -915,7 +915,6 @@ class Solver:
     def end(self):
         self.print_stats()
         raise EndException
->>>>>>> develop
 
 
     #

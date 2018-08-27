@@ -59,8 +59,6 @@ ERROR_PARSING  = "parsing failed"
 #ERROR_IMPROVE_1 = "options --stats and --improve-limit cannot be used together"
 ERROR_IMPROVE_2 = """incorrect value for option --improve-limit, \
 options reprint and nocheck cannot be used together"""
-=======
->>>>>>> develop
 DEBUG          = "--debug"
 TEST           = "--test"
 ALL_CONFIGS    = ["tweety", "trendy", "frumpy", "crafty", "jumpy", "handy"]
