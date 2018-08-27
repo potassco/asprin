@@ -4,7 +4,7 @@ import threading
 import sys
 import signal
 import copy
-import clingo_stats
+from . import clingo_stats
 
 # defines
 INTERRUPT  = """*** Info : ({}): INTERRUPTED by signal!
@@ -129,7 +129,11 @@ class ClingoSignalHandler:
             with control.solve(
                 async=True, on_finish=self.stop, *args, **kwargs
             ) as handle:
-                self.condition.wait(float("inf"))
+                # In Python 2, Condition.wait() isn't interruptible when called without a timeout.
+                # In Python 3, infinite timeouts lead to overflow errors.
+                # To accomodate for both Python versions, a switch on the timeout is necessary.
+                # More information available at: https://bugs.python.org/issue8844
+                self.condition.wait(timeout = float("inf") if sys.version_info[0] < 3 else None)
                 handle.wait()
 
     # public
