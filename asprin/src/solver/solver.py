@@ -246,6 +246,7 @@ class Solver:
     #
     # AUXILIARY
     #
+
     def get_external(self, m1, m2):
         external = self.externals.get((m1,m2))
         if external is None:
@@ -281,37 +282,11 @@ class Solver:
             self.underscores, MODEL, y
             ))
 
-    def get(self, atuple, index):
-        try:
-            return atuple.arguments[index.number]
-        except:
-            return atuple
-
-    def length(self, atuple):
-        try:
-            return len(atuple.arguments)
-        except:
-            return 1 
-
     def cat(self, tuple):
         if tuple.arguments:
             return "".join([str(i) for i in tuple.arguments]).replace('"',"")
         else:
             return str(tuple)
-
-    def get_sequence(self, name, elem):
-        string = str(name)
-        if string in self.sequences:
-            self.sequences[string] += 1
-        else:
-            self.sequences[string]  = 1
-        return self.sequences[string]
-
-    def log2up(self, x):
-        return int(math.ceil(math.log(x.number,2)))
-
-    def exp2(self, x):
-        return int(math.pow(2,x.number))
 
     def append(self, elem, alist):
         if alist.name == "" and len(alist.arguments):
@@ -325,6 +300,40 @@ class Solver:
             with open(STR_BENCHMARK_FILE, 'w') as f:
                 self.print_stats(file=f)
             start_clock(STR_BENCHMARK_CLOCK)
+
+
+    #
+    # USED BY ASPRIN LIBRARY
+    #
+
+    def exp2(self, x):
+        return int(math.pow(2,x.number))
+
+    def get(self, atuple, index):
+        try:
+            return atuple.arguments[index.number]
+        except:
+            return atuple
+
+    def get_mode(self):
+        return self.options.solving_mode
+
+    def get_sequence(self, name, elem):
+        string = str(name)
+        if string in self.sequences:
+            self.sequences[string] += 1
+        else:
+            self.sequences[string]  = 1
+        return self.sequences[string]
+
+    def length(self, atuple):
+        try:
+            return len(atuple.arguments)
+        except:
+            return 1 
+
+    def log2up(self, x):
+        return int(math.ceil(math.log(x.number,2)))
 
     #
     # CLINGO PROXY
@@ -911,7 +920,7 @@ class Solver:
         optimal = controller.GeneralControllerHandleOptimal(self)
         enumeration = controller.EnumerationController(self)
         # MethodController
-        if self.options.solving_mode == "approx":
+        if self.options.solving_mode == "weak":
             method = controller.ApproxMethodController(self)
         elif self.options.solving_mode == "heuristic":
             method = controller.HeurMethodController(self)

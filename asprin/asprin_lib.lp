@@ -109,31 +109,35 @@ error(("preference:",P,": error: preference specification error, type '",T,"' re
 % and may be called using @function() syntax
 % (see, for example, less(weight) preference program)
 %
-
+%
+%    def exp2(self, x):
+%        return int(math.pow(2,x.number))
 %
 %    def get(self, atuple, index):
 %        try:
-%            return atuple.arguments[index]
+%            return atuple.arguments[index.number]
 %        except:
 %            return atuple
 %
-%    def length(self, atuple):
-%        try:
-%            return len(atuple.arguments)
-%        except:
-%            return 1
-%
-%    def log2up(x):
-%        return int(math.ceil(math.log(x.number,2)))
+%    def get_mode(self):
+%        return self.options.solving_mode
 %
 %    def get_sequence(self, name, elem):
 %        string = str(name)
-%        # self.sequences is initially {}
 %        if string in self.sequences:
 %            self.sequences[string] += 1
 %        else:
 %            self.sequences[string]  = 1
 %        return self.sequences[string]
+%
+%    def length(self, atuple):
+%        try:
+%            return len(atuple.arguments)
+%        except:
+%            return 1 
+%
+%    def log2up(self, x):
+%        return int(math.ceil(math.log(x.number,2)))
 %
 
 #program preference(and).
@@ -1486,6 +1490,13 @@ fills(P) :- preference(P,cp), cp_encoding = 3.
 % Preprocessing
 %
 
+h (P,A) :- preference(P,cp),     preference(P,_,_,for(    atom(A) ),_),     holds (    atom(A) ).
+h (P,A) :- preference(P,cp),     preference(P,_,_,for(neg(atom(A))),_), not holds (neg(atom(A))),
+                             not preference(P,_,_,for(    atom(A) ),_).
+h'(P,A) :- preference(P,cp),     preference(P,_,_,for(    atom(A) ),_),     holds'(    atom(A) ).
+h'(P,A) :- preference(P,cp),     preference(P,_,_,for(neg(atom(A))),_), not holds'(neg(atom(A))),
+                             not preference(P,_,_,for(    atom(A) ),_).
+
 atom(P,A) :- preference(P,cp), preference(P,_,_,for(    atom(A) ),_).
 atom(P,A) :- preference(P,cp), preference(P,_,_,for(neg(atom(A))),_).
 
@@ -1506,14 +1517,13 @@ bettereq(P) :- preference(P,cp), required(P,bettereq), better(P).
 bettereq(P) :- preference(P,cp), required(P,bettereq),     eq(P).
 
 eq(P) :- preference(P,cp), required(P,eq),
-         holds (atom(A)) : holds'(atom(A));
-         holds'(atom(A)) : holds (atom(A)).
+         h (P,A) : h'(P,A);
+         h'(P,A) : h (P,A).
 
 required(P,worse) :- preference(P,cp), required(P,worseeq).
 required(P,   eq) :- preference(P,cp), required(P,worseeq).
 worseeq(P) :- preference(P,cp), required(P,worseeq), worse(P).
 worseeq(P) :- preference(P,cp), required(P,worseeq),    eq(P).
-
 
 % rel(ation) better or worse
 rel(P,better) :- preference(P,cp), required(P,better).
@@ -1522,7 +1532,7 @@ rel(P, worse) :- preference(P,cp), required(P, worse).
 
 %
 %
-% General cp nets
+% General CP nets
 %
 %
 
@@ -1576,8 +1586,8 @@ unsat(P,R) :- preference(P,cp),
               not occ(P,R,wait,T), occ(P,R,wait,T-1), time(P,T).
 
 % initial situation (for better and worse)
-holds(P,R,A,0) :- preference(P,cp), rel(P,R), R = better, not tree(P), atom(P,A), holds'(atom(A)).
-holds(P,R,A,0) :- preference(P,cp), rel(P,R), R =  worse, not tree(P), atom(P,A), holds (atom(A)).
+holds(P,R,A,0) :- preference(P,cp), rel(P,R), R = better, not tree(P), atom(P,A), h'(P,A).
+holds(P,R,A,0) :- preference(P,cp), rel(P,R), R =  worse, not tree(P), atom(P,A), h (P,A).
 
 % add and delete effects
 holds(P,R,A,T) :- preference(P,cp), occ(P,R,Id,T), post(P,Id,A,true).
@@ -1591,10 +1601,10 @@ unsat(P,R) :- preference(P,cp), occ(P,R,Id,T),  pre(P,Id,A, true), not holds(P,R
 unsat(P,R) :- preference(P,cp), occ(P,R,Id,T),  pre(P,Id,A,false),     holds(P,R,A,T-1).
 
 % goal (for better and worse)
-unsat(P,R) :- preference(P,cp), rel(P,R), R = better, time(P,T), not time(P,T+1),     holds(P,R,A,T), not holds (atom(A)).
-unsat(P,R) :- preference(P,cp), rel(P,R), R = better, time(P,T), not time(P,T+1), not holds(P,R,A,T),     holds (atom(A)).
-unsat(P,R) :- preference(P,cp), rel(P,R), R =  worse, time(P,T), not time(P,T+1),     holds(P,R,A,T), not holds'(atom(A)).
-unsat(P,R) :- preference(P,cp), rel(P,R), R =  worse, time(P,T), not time(P,T+1), not holds(P,R,A,T),     holds'(atom(A)).
+unsat(P,R) :- preference(P,cp), rel(P,R), R = better, time(P,T), not time(P,T+1),     holds(P,R,A,T), not h (P,A).
+unsat(P,R) :- preference(P,cp), rel(P,R), R = better, time(P,T), not time(P,T+1), not holds(P,R,A,T),     h (P,A).
+unsat(P,R) :- preference(P,cp), rel(P,R), R =  worse, time(P,T), not time(P,T+1),     holds(P,R,A,T), not h'(P,A).
+unsat(P,R) :- preference(P,cp), rel(P,R), R =  worse, time(P,T), not time(P,T+1), not holds(P,R,A,T),     h'(P,A).
 
 % heuristics
 % #heuristic occ(P,R,A,T) : preference(P,cp), rel(P,R), post(P,Id,_,_), time(P,T), Id!=wait. [1,true]
@@ -1602,7 +1612,7 @@ unsat(P,R) :- preference(P,cp), rel(P,R), R =  worse, time(P,T), not time(P,T+1)
 
 %
 %
-% Tree-structured cp nets
+% Tree-structured CP nets
 %
 %
 
@@ -1633,15 +1643,17 @@ edge(P,A,AA) :- preference(P,cp), tree(P),
 %    the precondition holds' and the postcondition does not hold' (for better), or
 %    the precondition holds  and the postcondition does not hold  (for  worse)
 
-eq(P,A)            :- preference(P,cp),  tree(P),    atom(P,A), { holds (atom(A)); holds'(atom( A)) } != 1. % 1
-eqchange(P,A,AA)   :- preference(P,cp), flips(P), edge(P,A,AA), {        eq(P,A) ;        eq(P,AA)  } == 1. % 2
+eq(P,A)            :- preference(P,cp),  tree(P),    atom(P,A), not h(P,A), not h'(P,A).   % 1
+eq(P,A)            :- preference(P,cp),  tree(P),    atom(P,A),     h(P,A),     h'(P,A).   % 1
+eqchange(P,A,AA)   :- preference(P,cp), flips(P), edge(P,A,AA), not eq(P,A),     eq(P,AA). % 2
+eqchange(P,A,AA)   :- preference(P,cp), flips(P), edge(P,A,AA),     eq(P,A), not eq(P,AA). % 2
 % for better and worse
-freeflip(P,R,A,AA) :- preference(P,cp),  tree(P), rel(P,R),                                                 % 3
+freeflip(P,R,A,AA) :- preference(P,cp),  tree(P), rel(P,R),                                % 3
                       edge(P,A,AA), pre(P,Id,A,VA), post(P,Id,AA,VAA),
                       #sum { 1,0: VA  = true;
-                             1,1: holds'(atom( A)), R = better; 1,1: holds (atom( A)), R = worse } != 1,
+                             1,1: h'(P, A), R = better; 1,1: h(P, A), R = worse } != 1,
                       #sum { 1,0: VAA = true;
-                             1,1: holds'(atom(AA)), R = better; 1,1: holds (atom(AA)), R = worse } == 1.
+                             1,1: h'(P,AA), R = better; 1,1: h(P,AA), R = worse } == 1.
 
 
 %
@@ -1653,16 +1665,17 @@ freeflip(P,R,A,AA) :- preference(P,cp),  tree(P), rel(P,R),                     
 %    A does the same number of flips as AA
 % 3. From A to AA if eq does change, AA flips at least once and can flip freely,
 %    A does one flip less than AA
-% 3. From A to AA if eq does change, and either AA does not flip or cannot flip freely,
+% 4. From A to AA if eq does change, and either AA does not flip or cannot flip freely,
 %    A does one flip more than AA
 %
 % Predicate maxflips/3 is defined below
 %
 
-flips(P,R,A,F  ) :- preference(P,cp), flips(P), rel(P,R), atom(P,A), not edge(P,A,_), F = { not eq(P,A) }.                                              % 1
-flips(P,R,A,F  ) :- preference(P,cp), edge(P,A,AA), flips(P,R,AA,F), maxflips(P,AA,MF), F<=MF, not eqchange(P,A,AA).                                    % 2
-flips(P,R,A,F-1) :- preference(P,cp), edge(P,A,AA), flips(P,R,AA,F), maxflips(P,AA,MF), F<=MF,     eqchange(P,A,AA),     2 { F>0; freeflip(P,R,A,AA) }. % 3
-flips(P,R,A,F+1) :- preference(P,cp), edge(P,A,AA), flips(P,R,AA,F), maxflips(P,AA,MF), F<=MF,     eqchange(P,A,AA), not 2 { F>0; freeflip(P,R,A,AA) }. % 4
+flips(P,R,A,F  ) :- preference(P,cp), flips(P), rel(P,R), atom(P,A), not edge(P,A,_), F = { not eq(P,A) }.                                          % 1
+flips(P,R,A,F  ) :- preference(P,cp), edge(P,A,AA), flips(P,R,AA,F), maxflips(P,AA,MF), F<=MF, not eqchange(P,A,AA).                                % 2
+flips(P,R,A,F-1) :- preference(P,cp), edge(P,A,AA), flips(P,R,AA,F), maxflips(P,AA,MF), F<=MF,     eqchange(P,A,AA), F > 0,     freeflip(P,R,A,AA). % 3
+flips(P,R,A,F+1) :- preference(P,cp), edge(P,A,AA), flips(P,R,AA,F), maxflips(P,AA,MF), F<=MF,     eqchange(P,A,AA), F = 0.                         % 4
+flips(P,R,A,F+1) :- preference(P,cp), edge(P,A,AA), flips(P,R,AA,F), maxflips(P,AA,MF), F<=MF,     eqchange(P,A,AA),        not freeflip(P,R,A,AA). % 4
 
 %
 % Explanation from A to AA assuming AA flips F times:
@@ -1703,7 +1716,7 @@ unsat(P,R) :- preference(P,cp), tree(P), rel(P,R), eq(P,A) : atom(P,A).         
 % for better and worse
 unsat(P,R) :- preference(P,cp), tree(P), rel(P,R), atom(P,A), not edge(P,_,A), not eq(P,A),      % 2
               #sum{ 1,0: post(P,Id,A,true);
-                    1,1: holds'(atom(A)), R = better; 1,1: holds (atom(A)), R =  worse } != 1.
+                    1,1: h'(P,A), R = better; 1,1: h(P,A), R =  worse } != 1.
 unsat(P,R) :- preference(P,cp), atom(P,A), not edge(P,_,A), flips(P,R,A,F),     eq(P,A), F != 0. % 3
 unsat(P,R) :- preference(P,cp), atom(P,A), not edge(P,_,A), flips(P,R,A,F), not eq(P,A), F != 1. % 4
 
@@ -1790,7 +1803,7 @@ error(("preference:",P,": error: preference specification error, type '",T,"' re
   preference(P,T), T = cp, cp_encoding != 0, cp_encoding != 1, cp_encoding != 2, cp_encoding != 3.
 
 % cp_encoding = 0 only works for computing one single optimal model
-warning(("preference:",P,": warning: preference specification warning, type '",T,"' with constant cp_encoding=0 (the default) works correctly only for computing a single optimal model.")) :-
+warning(("preference:",P,": warning: preference specification warning, type '",T,"' with constant cp_encoding=0 (the default) works correctly only for computing a single optimal model of consistent cp nets.")) :-
   preference(P,T), T = cp, cp_encoding = 0.
 
 % only literals
@@ -1811,8 +1824,15 @@ error(("preference:",P,": error: preference specification error, type '",T,"' do
   preference(P,E,1,for(X),_), lits(P,X,A,VX),
   preference(P,E,0,for(Y),_), lits(P,Y,A,VY).
 
+% a simple but incomplete consistency check (which is complete for acyclic cp nets)
+error(("preference:",P,": error: preference specification error, type '",T,"' requires the cp net to be consistent.")) :-
+  preference(P,T), T = cp,
+  post(P,Id1,A,VA1), post(P,Id2,A,VA2), Id1 > Id2, VA1 != VA2,
+  #false : pre(P,Id1,B,VB1), pre(P,Id2,B,VB2), VB1 != VB2.
+
+
 %
-% Tree-structured cp net syntax errors
+% Tree-structured CP net syntax errors
 %
 
 % only one literal at 0
@@ -1843,8 +1863,237 @@ error(("preference:",P,": error: preference specification error, tree cp nets re
   edge(P,A1,A), edge(P,A2,A), A1 > A2.
 
 % acyclic
-tr(P,A,B) :- preference(P,cp), tree(P), pre(P,Id,A,_), post(P,Id,B,_).
-tr(P,A,C) :- preference(P,cp), tree(P), pre(P,Id,A,_), post(P,Id,B,_), tr(P,B,C).
-error(("preference:",P,": error: preference specification error, tree cp nets require that the corresponding graph is acyclic.")) :-
-  preference(P,T), T = cp, tree(P),
+acyclic(P,M) :- preference(P,cp), tree(P),
+                M = ("preference:",P,": error: preference specification error, tree cp nets require that the corresponding graph is acyclic.").
+tr(P,A,B)  :- preference(P,cp), acyclic(P,_), pre(P,Id,A,_), post(P,Id,B,_).
+tr(P,A,C)  :- preference(P,cp), acyclic(P,_), pre(P,Id,A,_), post(P,Id,B,_), tr(P,B,C).
+error(M) :-
+  preference(P,T), T = cp, acyclic(P,M),
   tr(P,A,A).
+
+
+%
+% Syntax errors using the approximation mode for CP nets
+%
+
+% acyclic (uses the rules above)
+approximation_mode(P) :- preference(P,cp), "heuristic" = @get_mode(),
+approximation_mode(P) :- preference(P,cp),      "weak" = @get_mode(),
+acyclic(P,M) :- preference(P,cp), approximation_mode(P),
+                M = ("preference:",P,": error: preference specification error, the graphs of the cp nets using the approximation mode must be acyclic."), 
+
+
+%
+%
+% Acyclic CP nets approximation
+%
+%
+
+%
+% Explanation of the approximation of acyclic CP nets by poset
+%
+%
+% Let C be an acyclic CP net over the set of atoms A with rules of the form
+%   l > -l : { l1, ..., ln }
+% where l, -l, l1, ..., ln are literals over A.
+% For every atom a, let cp(A) be the formula
+%   a <-> (l1 and ... ln) or (l1' and ... ln') ...
+% where the rules with head
+%   a > -a
+% are
+%   a > -a : { l1 , ..., ln  }
+%   a > -a : { l1', ..., ln' }
+%   ...
+% Consider the poset P(C) = ({ cp(a) | a \in A }, >)
+% where cp(x) > cp(y) if x is an ancestor of y in C.
+% Theorem. The preference relation defined by P(C) is an e-approximation
+% of the preference relation defined by C (for some e).
+% (Informal) Proof. We prove that 
+% if in P(C) I is not better than J then
+%    in   C  I is not better than J.
+% If I is not better than J in P(C), then there is some atom a such that
+% for all the ancestors b of a, J satisfies cp(b) iff I satisfies cp(b), and
+% J satisfies cp(a) while I does not satisfy cp(a).
+% This means that all the ancestors of a are interpreted the same way in I and J,
+% and J has the preferred value for a, so I is not better than J.
+%
+% The translation also holds if the CP net is incomplete.
+% The translation assumes that by default -a is preferred to -a (for all a),
+% and (in a way) completes any incomplete CP net assuming that default.
+% Regards the proof, if in C I is not better than J in the completed net,
+% it cannot be better in any incomplete version of it.
+% Hence, the theorem holds even when C is incomplete.
+%
+
+%
+% weak approximation
+%
+
+#program weak(cp).
+
+%
+% Preprocessing
+%
+
+h(P,A) :- preference(P,cp),     preference(P,_,_,for(    atom(A) ),_),     holds(    atom(A) ).
+h(P,A) :- preference(P,cp),     preference(P,_,_,for(neg(atom(A))),_), not holds(neg(atom(A))),
+                            not preference(P,_,_,for(    atom(A) ),_).
+
+atom(P,A) :- preference(P,cp), preference(P,_,_,for(    atom(A) ),_).
+atom(P,A) :- preference(P,cp), preference(P,_,_,for(neg(atom(A))),_).
+
+lits(P,    atom(A) , A, true) :- preference(P,cp), atom(P,A).
+lits(P,neg(atom(A)), A,false) :- preference(P,cp), atom(P,A).
+
+post(P,Id,A,VA) :- preference(P,cp), preference(P,Id,1,for(L),_), lits(P,L,A,VA).
+ pre(P,Id,A,VA) :- preference(P,cp), preference(P,Id,0,for(L),_), lits(P,L,A,VA).
+
+edge(P,A,AA) :- preference(P,cp), pre(P,Id,A,_), post(P,Id,AA,_).
+
+
+%
+% Mapping acyclic CP to poset
+%
+
+% Some condition for A true holds
+cond(P,A) :- preference(P,cp), atom(P,A), post(P,Id,A,true),
+                 h(P,AA) : pre(P,Id,AA, true);
+             not h(P,AA) : pre(P,Id,AA,false).
+
+% holds(cp(A)) if holds(A) <-> cond(P,A)
+holds(cp(A)) :- preference(P,cp), atom(P,A),     h(P,A),     cond(P,A).
+holds(cp(A)) :- preference(P,cp), atom(P,A), not h(P,A), not cond(P,A).
+
+% poset definition
+poset(P,cp(A)       ) :- preference(P,cp), atom(P,A).
+poset(P,cp(A),cp(AA)) :- preference(P,cp), edge(P,A,AA).
+
+
+%
+% Approximation (copied from poset, replacing 'poset' by 'cp')
+%
+
+#const approx_tc_cp=1.
+poset(P,X,Y) :- preference(P,cp),
+                poset(P,X,Z), poset(P,Z,Y), approx_tc_poset=1.
+
+% 2 options
+#const approx_cp=2.
+
+% option 1
+
+step(P,X,1)   :- preference(P,cp), approx_cp=1,
+                 poset(P,X).
+step(P,X,S+1) :- preference(P,cp), approx_cp=1,
+                 step(P,X,S), step(P,Y,S), poset(P,Y,X).
+
+
+levels(P,S) :- preference(P,cp), approx_cp=1,
+               step(P,_,S), not step(P,_,S+1).
+wc(P,-1,-S,X,X) :- preference(P,cp), approx_cp=1,
+                   step(P,X,S), not step(P,X,S+1).
+
+% option 2
+
+cost(P,X,C+1) :- preference(P,cp), approx_cp=2,
+                 poset(P,X),
+                 C = #sum{ CC,Y : poset(P,X,Y), cost(P,Y,CC) }.
+
+levels(P,1)    :- preference(P,cp), approx_cp=2.
+wc(P,-C,1,X,X) :- preference(P,cp), approx_cp=2,
+                  cost(P,X,C).
+
+
+%
+% heuristic approximation
+%
+
+#program heuristic(cp).
+
+%
+% Preprocessing (copied from weak(cp))
+%
+
+h(P,A) :- preference(P,cp),     preference(P,_,_,for(    atom(A) ),_),     holds(    atom(A) ).
+h(P,A) :- preference(P,cp),     preference(P,_,_,for(neg(atom(A))),_), not holds(neg(atom(A))),
+                            not preference(P,_,_,for(    atom(A) ),_).
+
+atom(P,A) :- preference(P,cp), preference(P,_,_,for(    atom(A) ),_).
+atom(P,A) :- preference(P,cp), preference(P,_,_,for(neg(atom(A))),_).
+
+lits(P,    atom(A) , A, true) :- preference(P,cp), atom(P,A).
+lits(P,neg(atom(A)), A,false) :- preference(P,cp), atom(P,A).
+
+post(P,Id,A,VA) :- preference(P,cp), preference(P,Id,1,for(L),_), lits(P,L,A,VA).
+ pre(P,Id,A,VA) :- preference(P,cp), preference(P,Id,0,for(L),_), lits(P,L,A,VA).
+
+edge(P,A,AA) :- preference(P,cp), pre(P,Id,A,_), post(P,Id,AA,_).
+
+
+%
+% Mapping acyclic CP to poset (copied from weak(cp))
+%
+
+% Some condition for A true holds
+cond(P,A) :- preference(P,cp), atom(P,A), post(P,Id,A,true),
+                 h(P,AA) : pre(P,Id,AA, true);
+             not h(P,AA) : pre(P,Id,AA,false).
+
+% holds(cp(A)) if holds(A) <-> cond(P,A)
+holds(cp(A)) :- preference(P,cp), atom(P,A), not h(P,A), not cond(P,A).
+holds(cp(A)) :- preference(P,cp), atom(P,A),     h(P,A),     cond(P,A).
+
+% poset definition
+poset(P,cp(A)       ) :- preference(P,cp), atom(P,A).
+poset(P,cp(A),cp(AA)) :- preference(P,cp), edge(P,A,AA).
+
+
+%
+% Approximation (copied from poset, replacing 'poset' by 'cp')
+%
+
+#const heuristic_tc_cp=1.
+poset(P,X,Y) :- preference(P,cp),
+                poset(P,X,Z), poset(P,Z,Y), heuristic_tc_cp=1.
+
+% 3 options
+#const heuristic_cp=2.
+
+% option 1
+
+heuristic(P,X,1,true) :- preference(P,cp), heuristic_cp=1,
+                         poset(P,X),
+                         assigned(P,Y) : poset(P,Y,X).
+
+assigned(P,X) :- preference(P,cp), heuristic_cp=1,
+                 poset(P,X),     holds(X).
+assigned(P,X) :- preference(P,cp), heuristic_cp=1,
+                 poset(P,X), not holds(X).
+
+levels(P,1) :- preference(P,cp), heuristic_cp=1.
+
+% option 2
+
+step(P,X,1)   :- preference(P,cp), heuristic_cp=2,
+                 poset(P,X).
+step(P,X,S+1) :- preference(P,cp), heuristic_cp=2,
+                 step(P,X,S), step(P,Y,S), poset(P,Y,X).
+
+max_step(P,S) :- preference(P,cp), heuristic_cp=2,
+                 step(P,_,S), not step(P,_,S+1).
+
+heuristic(P,X,M-S+1,true) :- preference(P,cp), heuristic_cp=2,
+                             max_step(P,M),
+                             step(P,X,S), not step(P,X,S+1).
+
+levels(P,M) :- preference(P,cp), heuristic_cp=2,
+               max_step(P,M).
+
+% option 3
+
+cost(P,X,C+1) :- preference(P,cp), heuristic_cp=3,
+                 poset(P,X),
+                 C = #sum{ CC,Y : poset(P,X,Y), cost(P,Y,CC) }.
+
+wc(P,-C,1,X,X) :- cost(P,X,C), heuristic_cp=3.
+

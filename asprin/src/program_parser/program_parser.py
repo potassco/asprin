@@ -237,7 +237,7 @@ class Parser:
         programs = [(PREFERENCE, ERROR_NO_PREF_PROGRAM)]
         if self.__options['solving_mode'] == 'heuristic':
             programs.append((HEURISTIC, ERROR_NO_HEURISTIC_PROGRAM))
-        elif self.__options['solving_mode'] == 'approx':
+        elif self.__options['solving_mode'] == 'weak':
             programs.append((APPROX, ERROR_NO_APPROX_PROGRAM))
         if self.__options['preference_unsat']:
             programs.append((UNSATP, ERROR_NO_UNSATP_PROGRAM))
@@ -339,7 +339,7 @@ class Parser:
         v = preference.PreferenceProgramVisitor(builder, PREFP,
                                                 U_PREFP, constants)
         visitors = [(PREFP, v)]
-        if self.__options['solving_mode'] == 'approx':
+        if self.__options['solving_mode'] == 'weak':
             v = basic.BasicProgramVisitor(builder, APPROX, U_APPROX, constants)
             visitors.append((APPROX,v))
         elif self.__options['solving_mode'] == 'heuristic':

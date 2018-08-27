@@ -406,7 +406,7 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
         # handle solving_mode
         options['solving_mode'] = 'normal'
         if options.get('approximation','') == 'weak':
-            options['solving_mode'] = "approx"
+            options['solving_mode'] = "weak"
         elif options.get('approximation','') == 'heuristic':
             options['solving_mode'] = "heuristic"
         options.pop('approximation',None)
