@@ -1895,7 +1895,7 @@ error(M) :-
 approximation_mode(P) :- preference(P,cp), "heuristic" = @get_mode().
 approximation_mode(P) :- preference(P,cp),      "weak" = @get_mode().
 acyclic(P,M) :- preference(P,cp), approximation_mode(P),
-                M = ("preference:",P,": error: preference specification error, the graphs of the cp nets using the approximation mode must be acyclic.").
+                M = ("preference:",P,": error: preference specification error, the graph of cp nets using the approximation mode must be acyclic.").
 
 % to avoid warnings
 #defined rel/2.
@@ -2025,6 +2025,10 @@ levels(P,1)    :- preference(P,cp), approx_cp=2.
 wc(P,-C,1,X,X) :- preference(P,cp), approx_cp=2,
                   cost(P,X,C).
 
+% to avoid warnings
+#defined pre/4.
+#defined post/4.
+#defined step/3.
 
 %
 % heuristic approximation
@@ -2119,3 +2123,7 @@ cost(P,X,C+1) :- preference(P,cp), heuristic_cp=3,
 
 wc(P,-C,1,X,X) :- cost(P,X,C), heuristic_cp=3.
 
+% to avoid warnings
+#defined pre/4.
+#defined post/4.
+#defined step/3.
