@@ -107,6 +107,12 @@ error: syntax error, holds/1 predicate in the head of a heuristic \
 directive in a {} program depends on non domain atoms
   {}\n"""
 
+# used by option --on-opt-heur
+POS        = 0
+NEG        = 1
+SHOWN_ATOM = 0
+PREF_ATOM  = 1
+
 # messages (used by solver and controller)
 STR_MODEL_FOUND        = "MODEL FOUND"
 STR_MODEL_FOUND_STAR   = "MODEL FOUND *"

@@ -46,6 +46,12 @@ from .                import           clingo_help
 # DEFINES
 #
 
+# for --on-opt-heur
+POS        = utils.POS
+NEG        = utils.NEG
+SHOWN_ATOM = utils.SHOWN_ATOM
+PREF_ATOM  = utils.PREF_ATOM
+#
 UNKNOWN        = "UNKNOWN"
 ERROR          = "*** ERROR: (asprin): {}"
 ERROR_INFO     = "*** Info : (asprin): Try '--help' for usage information"
@@ -66,6 +72,10 @@ HELP_PROJECT   = """R|: Enable projective solution enumeration,
   projecting on the formulas of the specification"""
 HELP_HEURISTIC = """R|: Apply domain heuristics with value <v> and modifier <m>
   on formulas of the preference specification"""
+HELP_ON_OPT_HEURISTIC = """R|: Apply domain heuristics depending on the last optimal model
+  <t> has the form [+|-],[s|p],<v>,<m> and applies value <v> and modifier <m>
+  to the atoms that are either true (+) or false (-) in the last optimal model 
+  and that either are shown (s) or appear in the preference specification (p)"""
 HELP_DELETE_BETTER = """R|: After computing an optimal model,
   add a program to delete models better than that one"""
 HELP_TOTAL_ORDER = """R|: Do not add programs for optimal models after the \
@@ -234,6 +244,22 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
         except Exception as e:
             self.__cmd_parser.error(str(e))
 
+    def __do_on_opt_heur(self, on_opt_heur):
+        out = []
+        try:
+            for e in on_opt_heur:
+                match = re.match(r'([+|-]),([s|p]),(\d+),(\w+)$', e)
+                if not match:
+                    raise Exception("incorrect value for option --on-opt-heur")
+                sign = POS if match.group(1) == '+' else NEG
+                atom = SHOWN_ATOM if match.group(2) == 's' else PREF_ATOM
+                value = match.group(3)
+                modifier = match.group(4)
+                out.append((sign, atom, value, modifier))
+        except Exception as e:
+            self.__cmd_parser.error(str(e))
+        return out
+
     def run(self, args):
 
         # command parser
@@ -312,6 +338,9 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
         solving.add_argument('--dom-heur', dest='cmd_heuristic',
                               nargs=2, metavar=('<v>','<m>'),
                               help=HELP_HEURISTIC)
+        solving.add_argument('--on-opt-heur', dest='on_opt_heur',
+                              metavar='<t>', action='append',
+                              help=HELP_ON_OPT_HEURISTIC)
         solving.add_argument('--configs', dest='configs',
                               metavar='<ci>', action='append',
                               help=HELP_CONFIGS)
@@ -403,6 +432,13 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
         # handle configs all
         if options['configs'] and 'all' in options['configs']:
             options['configs'] = ALL_CONFIGS
+
+        # handle on_opt_heur
+        on_opt_heur = options['on_opt_heur']
+        if on_opt_heur:
+            options['on_opt_heur'] = self.__do_on_opt_heur(on_opt_heur)
+            print(options['on_opt_heur'])
+        sys.exit(0)
 
         # handle solving_mode
         options['solving_mode'] = 'normal'
