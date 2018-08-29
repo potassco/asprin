@@ -1847,13 +1847,21 @@ error_type(cp,no_naming).
 error_type(cp,ordering_max_length(2)).
 error_type(cp,no_sets(1..2)).
 
-% cp_encoding = 0..3
-error(("preference:",P,": error: preference specification error, type '",T,"' requires constant cp_encoding to have a value between 0 and 3.")) :-
-  preference(P,T), T = cp, cp_encoding != 0, cp_encoding != 1, cp_encoding != 2, cp_encoding != 3.
+% cp_tree = 0..1
+error(("preference:",P,": error: preference specification error, type '",T,"' requires constant cp_tree to have a value between 0 and 1.")) :-
+  preference(P,T), T = cp, cp_tree != 0, cp_tree != 1.
 
-% cp_encoding = 0 only works for computing one single optimal model
-warning(("preference:",P,": warning: preference specification warning, type '",T,"' with constant cp_encoding=0 (the default) works correctly only for computing a single optimal model of consistent cp nets.")) :-
-  preference(P,T), T = cp, cp_encoding = 0.
+% cp_nontree_parallel = 0..1
+error(("preference:",P,": error: preference specification error, type '",T,"' requires constant cp_nontree_parallel to have a value between 0 and 1.")) :-
+  preference(P,T), T = cp, cp_nontree_parallel != 0, cp_nontree_parallel != 1.
+
+% cp_tree_encoding = 0..2
+error(("preference:",P,": error: preference specification error, type '",T,"' requires constant cp_tree_encoding to have a value between 0 and 2.")) :-
+  preference(P,T), T = cp, cp_tree_encoding != 0, cp_tree_encoding != 1, cp_tree_encoding != 2.
+
+% cp_tree = 0 only works for computing one single optimal model
+warning(("preference:",P,": warning: preference specification warning, type '",T,"' with constant cp_tree=0 (the default) works correctly only for computing a single optimal model of consistent cp nets.")) :-
+  preference(P,T), T = cp, cp_tree = 0.
 
 % only literals
 error(("preference:",P,": error: preference specification error, type '",T,"' requires literals.")) :-
