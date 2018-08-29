@@ -1584,9 +1584,10 @@ diameter(P,(2**N)-1) :- preference(P,cp), not tree(P),
 diameter(P,N**2) :- preference(P,cp), not tree(P),
                     N = { atom(P,A) }, cp_nontree_diameter = tree.
 
-% option 3: use --cons-nb cp_diameter=<value>
-diameter(P,cp_diameter) :- preference(P,cp), not tree(P),
-                           cp_diameter != 0, cp_nontree_diameter != tree.
+% option 3: use --cons-nb cp_nontree_diameter=<value>
+diameter(P,cp_nontree_diameter) :- preference(P,cp), not tree(P),
+                                   cp_nontree_diameter != 0,
+                                   cp_nontree_diameter != tree.
 
 % neither better nor worse if diameter is 0
 unsat(P,R) :- preference(P,cp), rel(P,R), diameter(P,0).
