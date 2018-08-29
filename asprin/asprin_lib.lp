@@ -1592,7 +1592,7 @@ worse(P)       :- preference(P,cp), required(P,worse), not tree(P),
 %
 
 %#const cp_parallel_planning = 0.
- #const cp_parallel_planning = 1.
+ #const cp_parallel_planning = 0.
 parallel(P) :- preference(P,cp), not tree(P), cp_parallel_planning = 1.
 
 % time (given by the diameter of the CP net)
@@ -2019,7 +2019,7 @@ poset(P,X,Y) :- preference(P,cp),
                 poset(P,X,Z), poset(P,Z,Y), approx_tc_cp=1.
 
 % 2 options
-#const approx_cp=2.
+#const approx_cp=1.
 
 % option 1
 
@@ -2102,7 +2102,7 @@ poset(P,X,Y) :- preference(P,cp),
                 poset(P,X,Z), poset(P,Z,Y), heuristic_tc_cp=1.
 
 % 3 options
-#const heuristic_cp=2.
+#const heuristic_cp=1.
 
 % option 1
 
