@@ -1487,18 +1487,37 @@ level(P,P1,L) :- preference(P,and), approx_and=2,
 
 
 %
+% Variants
+%
+
+% Tree or not Tree
+ #const cp_tree=0.                % general cp nets
+%#const cp_tree=1.                % tree-structured cp nets
+
+% if cp_tree = 0: diameter for general cp nets
+ #const cp_nontree_diameter=0.    % 2**|atoms| - 1
+%#const cp_nontree_diameter=tree. % N**2 for tree-structured cp nets
+%#const cp_nontree_diameter=5.    % some input diameter (e.g., 5)
+
+% if cp_tree = 0: parallel planning for general cp nets?
+ #const cp_nontree_parallel=0.    % sequential planning
+%#const cp_nontree_parallel=1.    % parallel planning
+
+% if cp_tree = 1: type of encoding
+%#const cp_tree_encoding=0.       % tree cp net using flips/4
+%#const cp_tree_encoding=1.       % tree cp net using loops/4
+ #const cp_tree_encoding=2.       % tree cp net using loops/4 and fills/1
+
+
+%
 % Encoding
 %
 
- #const cp_encoding=0. % general
-%#const cp_encoding=1. % tree cp net using flips/4
-%#const cp_encoding=2. % tree cp net using loops/4
-%#const cp_encoding=3. % tree cp net using loops/4 and fills/1
-
- tree(P) :- preference(P,cp), cp_encoding = 1..3.
-flips(P) :- preference(P,cp), cp_encoding = 1.
-loops(P) :- preference(P,cp), cp_encoding = 2..3.
-fills(P) :- preference(P,cp), cp_encoding = 3.
+parallel(P) :- preference(P,cp), cp_tree=0, cp_nontree_parallel = 1.
+    tree(P) :- preference(P,cp), cp_tree=1.
+   flips(P) :- preference(P,cp), cp_tree=1, cp_tree_encoding=0.
+   loops(P) :- preference(P,cp), cp_tree=1, cp_tree_encoding=1..2.
+   fills(P) :- preference(P,cp), cp_tree=1, cp_tree_encoding=2.
 
 
 %
@@ -1556,19 +1575,18 @@ rel(P, worse) :- preference(P,cp), required(P, worse).
 % Diameter
 %
 
-#const cp_diameter=0.
 
 % option 1: 2^|atoms|-1 ensures correctness in general
 diameter(P,(2**N)-1) :- preference(P,cp), not tree(P),
-                        N = { atom(P,A) }, cp_diameter=0.
+                        N = { atom(P,A) }, cp_nontree_diameter=0.
 
 % option 2: |atoms|^2 ensures correctness for tree-like cp nets
 diameter(P,N**2) :- preference(P,cp), not tree(P),
-                    N = { atom(P,A) }, cp_diameter = tree.
+                    N = { atom(P,A) }, cp_nontree_diameter = tree.
 
 % option 3: use --cons-nb cp_diameter=<value>
 diameter(P,cp_diameter) :- preference(P,cp), not tree(P),
-                           cp_diameter != 0, cp_diameter != tree.
+                           cp_diameter != 0, cp_nontree_diameter != tree.
 
 % neither better nor worse if diameter is 0
 unsat(P,R) :- preference(P,cp), rel(P,R), diameter(P,0).
@@ -1590,10 +1608,6 @@ worse(P)       :- preference(P,cp), required(P,worse), not tree(P),
 %
 % Planning
 %
-
-%#const cp_parallel_planning = 0.
- #const cp_parallel_planning = 0.
-parallel(P) :- preference(P,cp), not tree(P), cp_parallel_planning = 1.
 
 % time (given by the diameter of the CP net)
 time(P,1..D) :- preference(P,cp), diameter(P,D), rel(P,_).
