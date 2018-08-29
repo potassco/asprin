@@ -1591,12 +1591,28 @@ worse(P)       :- preference(P,cp), required(P,worse), not tree(P),
 % Planning
 %
 
-% time (given by the diameter of the cp net)
+%#const cp_parallel_planning = 0.
+ #const cp_parallel_planning = 1.
+parallel(P) :- preference(P,cp), not tree(P), cp_parallel_planning = 1.
+
+% time (given by the diameter of the CP net)
 time(P,1..D) :- preference(P,cp), diameter(P,D), rel(P,_).
 
+% if parallel and the CP net is not acyclic, we use the forall encoding
+% if the CP net is acyclic, there is no need to inforce serializability
+tr(P,A,B)  :- preference(P,cp), parallel(P), pre(P,Id,A,_), post(P,Id,B,_).
+tr(P,A,C)  :- preference(P,cp), parallel(P), pre(P,Id,A,_), post(P,Id,B,_), tr(P,B,C).
+forall(P)  :- preference(P,cp), parallel(P), tr(P,A,A).
+
 % generate
+% sequential
 1 { occ(P,R,  Id,T) : post(P,Id,_,_) ;
-    occ(P,R,wait,T) :          T > 1 } 1 :- preference(P,cp), time(P,T), rel(P,R).
+    occ(P,R,wait,T) :          T > 1 } 1 :- preference(P,cp), time(P,T), rel(P,R), not parallel(P).
+% parallel
+1 { occ(P,R,  Id,T) : post(P,Id,_,_) ;
+    occ(P,R,wait,T) :          T > 1 }   :- preference(P,cp), time(P,T), rel(P,R),     parallel(P).
+unsat(P,R) :- occ(P,R,wait,T), occ(P,R,A,T), A != wait,                                parallel(P).
+% sequential and parallel
 unsat(P,R) :- preference(P,cp),
               not occ(P,R,wait,T), occ(P,R,wait,T-1), time(P,T).
 
@@ -1614,6 +1630,9 @@ unsat(P,R) :- preference(P,cp), occ(P,R,Id,T), post(P,Id,A, true),     holds(P,R
 unsat(P,R) :- preference(P,cp), occ(P,R,Id,T), post(P,Id,A,false), not holds(P,R,A,T-1).
 unsat(P,R) :- preference(P,cp), occ(P,R,Id,T),  pre(P,Id,A, true), not holds(P,R,A,T-1).
 unsat(P,R) :- preference(P,cp), occ(P,R,Id,T),  pre(P,Id,A,false),     holds(P,R,A,T-1).
+% parallel planning for cyclic CP nets: forall encoding
+unsat(P,R) :- preference(P,cp), occ(P,R,Id,T),  pre(P,Id,A, true), not holds(P,R,A,T  ), forall(P).
+unsat(P,R) :- preference(P,cp), occ(P,R,Id,T),  pre(P,Id,A,false),     holds(P,R,A,T  ), forall(P).
 
 % goal (for better and worse)
 unsat(P,R) :- preference(P,cp), rel(P,R), R = better, time(P,T), not time(P,T+1),     holds(P,R,A,T), not h (P,A).
@@ -1929,20 +1948,20 @@ acyclic(P,M) :- preference(P,cp), approximation_mode(P),
 % Consider the poset P(C) = ({ cp(a) | a \in A }, >)
 % where cp(x) > cp(y) if x is an ancestor of y in C.
 % Theorem. The preference relation defined by P(C) is an e-approximation
-% of the preference relation defined by C (for some e).
-% (Informal) Proof. We prove that 
+% of the preference relation defined by C (for some e that has to be defined).
+% (Informal) Proof. We prove that
 % if in P(C) I is not better than J then
 %    in   C  I is not better than J.
 % If I is not better than J in P(C), then there is some atom a such that
 % for all the ancestors b of a, J satisfies cp(b) iff I satisfies cp(b), and
 % J satisfies cp(a) while I does not satisfy cp(a).
-% This means that all the ancestors of a are interpreted the same way in I and J,
-% and J has the preferred value for a, so I is not better than J.
+% This means that (1) all the ancestors of a are interpreted the same way in I and J,
+% and (2) J has the preferred value for a, so (3) I is not better than J.
 %
 % The translation also holds if the CP net is incomplete.
-% The translation assumes that by default -a is preferred to -a (for all a),
+% The translation assumes that by default -a is preferred to a (for all a),
 % and (in a way) completes any incomplete CP net assuming that default.
-% Regards the proof, if in C I is not better than J in the completed net,
+% Regards the proof, if in C the model I is not better than J in the completed net,
 % it cannot be better in any incomplete version of it.
 % Hence, the theorem holds even when C is incomplete.
 %
@@ -1997,7 +2016,7 @@ poset(P,cp(A),cp(AA)) :- preference(P,cp), edge(P,A,AA).
 
 #const approx_tc_cp=1.
 poset(P,X,Y) :- preference(P,cp),
-                poset(P,X,Z), poset(P,Z,Y), approx_tc_poset=1.
+                poset(P,X,Z), poset(P,Z,Y), approx_tc_cp=1.
 
 % 2 options
 #const approx_cp=2.
