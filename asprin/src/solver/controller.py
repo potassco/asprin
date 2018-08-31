@@ -35,10 +35,14 @@ class GeneralController:
         solver, options = self.solver, self.solver.options
         if options.trans_ext is not None:
             solver.control.configuration.asp.trans_ext = options.trans_ext
+        # store nholds and set holds domain
         if solver.options.max_models != 1:
             solver.store_nholds = True
         if solver.store_nholds:
-            solver.set_holds_domain()
+            solver.set_holds_domain = True
+        if solver.set_holds_domain:
+            solver.do_set_holds_domain()
+        #
         solver.add_encodings()
         solver.ground_preference_base()
         if options.cmd_heuristic is not None:
@@ -333,6 +337,7 @@ class ImproveLimitController(MethodController):
 
 HOLDS      = utils.HOLDS
 LAST_HOLDS = utils.LAST_HOLDS
+LAST_SHOWN = utils.LAST_SHOWN
 POS        = utils.POS
 NEG        = utils.NEG
 SHOWN_ATOM = utils.SHOWN_ATOM
@@ -343,62 +348,109 @@ ON_OPT_HEUR_RULE = """
 #heuristic ##""" + HOLDS + """(X,0) : not ##""" + LAST_HOLDS + """(X). [#v,#m]
 """
 
-ON_OPT_HEUR_EXTERNAL = """
+ON_OPT_HEUR_EXTERNAL_HOLDS = """
 #external ##""" + LAST_HOLDS + """(X) : X = @get_holds_domain().
-%#show ##""" + LAST_HOLDS + """/1.
+"""
+ON_OPT_HEUR_EXTERNAL_SHOWN = """
+#external ##""" + LAST_SHOWN + """(X) : X = @get_shown_domain().
 """
 
 
 # DONE: TODO: Activate Heuristic
-# TODO: Add shown case
+# DONE: TODO: Add shown case
+# TODO: Add strong negation
+# TODO: Add to weak and heuristic modes
 # TODO: Move to solver
 # TODO: Test
-# TODO: Add to weak and heuristic modes
-# Do I always get the get_holds_domain()?
-# Can I get the previous optimal model? (to simplify the final loop)
+# DONE: Do I always get the get_holds_domain()?
+# SKIP: Can I get the previous optimal model? (to simplify the final loop)
 
 class OnOptimal:
 
     def __init__(self, solver):
-        self.solver       = solver
-        self.grounded     = False
-        self.heuristic    = False
-        self.external_name = solver.underscores + LAST_HOLDS
+        self.solver     = solver
+        self.grounded   = False
+        self.heuristic  = False
+        self.pref       = False
+        self.shown      = False
+        self.shown_rule = ""
+        # for on_opt_heur
         if self.solver.options.on_opt_heur:
             self.heuristic = True
+            # activate domain heuristic
             for _solver in solver.control.configuration.solver:
                 _solver.heuristic="Domain"
+            # find PREF_ATOM and SHOWN_ATOM options, and update domain flags
+            for sign, atom_type, value, modifier in solver.options.on_opt_heur:
+                if atom_type == PREF_ATOM:
+                    self.pref = True
+                    self.solver.set_holds_domain = True
+                elif atom_type == SHOWN_ATOM:
+                    self.shown = True
+                    self.solver.set_shown_domain = True
+
+    def create_shown_heuristic_rules(self):
+        # gather signatures
+        sigs = set()
+        for atom in self.solver.shown_domain:
+            sigs.add((atom.name, len(atom.arguments)))
+        sigs = sorted(list(sigs))
+        # for every signature, add heuristics and externals
+        for name, arity in sigs:
+            atom = name
+            if arity > 0:
+                variables = ",".join(["X" + str(i) for i in range(arity)])
+                atom += "(" + variables + ")"
+            rule = ON_OPT_HEUR_RULE.replace("##" + HOLDS + "(X,0)", atom)
+            rule = rule.replace(LAST_HOLDS, LAST_SHOWN)
+            rule = rule.replace("(X).", "(" + atom + ").")
+            self.shown_rule += rule
 
     def start_loop(self):
+
         solver = self.solver
         # return if no heuristics, or not unsat, or first step
         if not self.heuristic or not solver.last_unsat or solver.step == 1:
             return
+
         # ground if not grounded
         if not self.grounded:
             self.grounded = True
+            # if needed: create shown heuristic rules
+            if self.shown == True:
+                self.create_shown_heuristic_rules()
             # create heuristic program
             program = ""
+            ## iterate over options
             for sign, atom_type, value, modifier in solver.options.on_opt_heur:
                 rule = ON_OPT_HEUR_RULE
+                if atom_type == SHOWN_ATOM:
+                    rule = self.shown_rule
                 if sign == POS:
                     rule = rule.replace(": not ", ": ")
                 rule = rule.replace("#v", value)
                 rule = rule.replace("#m", modifier)
                 program += rule
-            program += ON_OPT_HEUR_EXTERNAL
+            ## add externals
+            if self.pref:
+                program += ON_OPT_HEUR_EXTERNAL_HOLDS
+            if self.shown:
+                program += ON_OPT_HEUR_EXTERNAL_SHOWN
+            ## replace ##
             program = program.replace("##", solver.underscores)
             # add and ground it
             solver.add_and_ground(ON_OPT_HEUR_PROGRAM, [], program, [])
-        # MOVE THIS TO SOLVER
-        # assign externals
-        holds_domain = solver.get_holds_domain()
-        holds = set(solver.get_holds())
-        # note: other options could be tried for this loop
-        for i in holds_domain:
-            external = clingo.Function(self.external_name, [i])
-            if i in holds:
-                solver.control.assign_external(external, True)
-            else:
-                solver.control.assign_external(external, False)
 
+        # assign externals
+        if self.pref:
+            solver.assign_heuristic_externals(
+                solver.get_holds_domain(),
+                set(solver.get_holds()),
+                solver.underscores + LAST_HOLDS
+            )
+        if self.shown:
+            solver.assign_heuristic_externals(
+                solver.get_shown_domain(),
+                set(solver.get_shown()),
+                solver.underscores + LAST_SHOWN
+            )

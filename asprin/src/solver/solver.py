@@ -215,7 +215,6 @@ class Solver:
         self.improving  = []
         self.not_improving  = []
         self.store_nholds = False
-        self.holds_domain = []
         self.approx_opt_models = []
         self.assumptions = []
         self.last_model = None
@@ -224,6 +223,11 @@ class Solver:
         self.unknown_non_optimal = []
         self.grounded_delete_better = False
         self.mapping = {}
+        # holds and shown domains
+        self.set_holds_domain = False
+        self.holds_domain = []
+        self.set_shown_domain = False
+        self.shown_domain = []
         # exiting
         self.exited = False
         # functions
@@ -261,7 +265,7 @@ class Solver:
     def get_holds_domain(self):
         return self.holds_domain
 
-    def set_holds_domain(self):
+    def do_set_holds_domain(self):
         self.holds_domain = [
             i.symbol.arguments[0] for i in
                 self.control.symbolic_atoms.by_signature(self.holds_str, 2)
@@ -421,11 +425,37 @@ class Solver:
             pr.print_spec_error(string)
             error = True
         if error:
-            # pr.do_print("")
             raise Exception("parsing failed")
+
+    def get_shown(self):
+        return self.shown
+
+    def get_shown_domain(self):
+        return self.shown_domain
+
+    def add_to_shown_domain(self, atom):
+        if atom.type == clingo.SymbolType.Function and len(atom.name) > 0:
+            self.shown_domain.append(atom)
+            #name = ("-" if atom.negative else "") + atom.name
+            #self.shown_domain.add((name, len(atom.arguments)))
+
+    def do_set_shown_domain(self, model):
+        self.set_shown_domain = False
+        # gather all true and false atoms
+        tatoms = model.symbols(atoms=True)
+        fatoms = model.symbols(atoms=True, complement=True)
+        # add shown elements that are true and false atoms
+        for atom in model.symbols(shown=True):
+            if atom in tatoms:
+                self.append_to_shown_domain(atom)
+        for atom in model.symbols(shown=True, complement=True):
+            if atom in fatoms:
+                self.append_to_shown_domain(atom)
 
     def on_model(self, model):
         self.holds, self.nholds, self.shown = [], [], []
+        if self.set_shown_domain:
+            self.do_set_shown_domain(model)
         for a in model.symbols(shown=True):
             if a.name == self.holds_at_zero_str:
                 self.holds.append(a.arguments[0])
@@ -639,6 +669,18 @@ class Solver:
 
     def clean_up(self):
         self.control.cleanup()
+
+    #
+    # on_opt_heur option
+    #
+
+    def assign_heuristic_externals(self, domain, atoms, external_name):
+        for i in domain:
+            external = clingo.Function(external_name, [i])
+            if i in atoms:
+                self.control.assign_external(external, True)
+            else:
+                self.control.assign_external(external, False)
 
     #
     # ground once method

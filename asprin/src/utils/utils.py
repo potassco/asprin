@@ -71,6 +71,7 @@ ERROR_PRED = "error"
 WARN_PRED  = "warning"
 SHOW       = "show"
 LAST_HOLDS = "last_holds"
+LAST_SHOWN = "last_shown"
 
 # translation tokens
 HASH_SEM = "#sem"
