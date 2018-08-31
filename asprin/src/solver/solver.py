@@ -738,8 +738,6 @@ class Solver:
         ]
 
     def solve_approx(self):
-        # set the domain of holds
-        #self.set_holds_domain()
         # approximation programs
         self.ground([(APPROX, [])], self)
         for i in PROGRAMS_APPROX:
