@@ -214,7 +214,7 @@ class Solver:
         self.externals  = dict()
         self.improving  = []
         self.not_improving  = []
-        self.store_nholds = True
+        self.store_nholds = False
         self.holds_domain = []
         self.approx_opt_models = []
         self.assumptions = []
@@ -234,8 +234,8 @@ class Solver:
         self.str_found_star = STR_OPTIMUM_FOUND_STAR
         # printer
         self.printer = printer.Printer()
-        if self.options.max_models == 1 and not self.options.improve_limit:
-            self.store_nholds = False
+        #if self.options.max_models == 1 and not self.options.improve_limit:
+        #    self.store_nholds = False
         self.saved_stats = False
         if self.options.benchmark:
             start_clock(STR_BENCHMARK_CLOCK)
@@ -697,7 +697,7 @@ class Solver:
 
     def solve_approx(self):
         # set the domain of holds
-        self.set_holds_domain()
+        #self.set_holds_domain()
         # approximation programs
         self.ground([(APPROX, [])], self)
         for i in PROGRAMS_APPROX:

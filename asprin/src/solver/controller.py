@@ -35,7 +35,10 @@ class GeneralController:
         solver, options = self.solver, self.solver.options
         if options.trans_ext is not None:
             solver.control.configuration.asp.trans_ext = options.trans_ext
-        solver.set_holds_domain()
+        if solver.options.max_models != 1:
+            solver.store_nholds = True
+        if solver.store_nholds:
+            solver.set_holds_domain()
         solver.add_encodings()
         solver.ground_preference_base()
         if options.cmd_heuristic is not None:
@@ -251,6 +254,7 @@ class ApproxMethodController(MethodController):
 
     def __init__(self, solver):
         MethodController.__init__(self, solver)
+        self.solver.store_nholds = True
 
     def start(self):
         self.solver.solve_approx()
@@ -287,6 +291,8 @@ class ImproveLimitController(MethodController):
         self.search     = 0
         # limits
         self.previous_limit, self.limit = "", 0
+        # store nholds
+        self.solver.store_nholds = True
 
     def start(self):
         self.controller.start()
