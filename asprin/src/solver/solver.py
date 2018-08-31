@@ -976,7 +976,7 @@ class Solver:
         general = controller.GeneralController(self)
         optimal = controller.GeneralControllerHandleOptimal(self)
         enumeration = controller.EnumerationController(self)
-        on_optimal = controller.OnOptimal(self)
+        on_optimal = controller.OnOptimalController(self)
         # MethodController
         if self.options.solving_mode == "weak":
             method = controller.ApproxMethodController(self)
@@ -1000,7 +1000,6 @@ class Solver:
             while True:
                 # START_LOOP
                 method.start_loop()
-                on_optimal.start_loop()
                 # SOLVE
                 method.solve()
                 if self.solving_result == SATISFIABLE:
@@ -1013,11 +1012,13 @@ class Solver:
                     method.unsat()
                     enumeration.unsat()
                     optimal.unsat()
+                    on_optimal.unsat()
                 elif self.solving_result == UNKNOWN:
                     # UNKNOWN
                     general.unknown()
                     method.unsat()
                     optimal.unknown()
+                    on_optimal.unsat()
                 # END_LOOP
                 general.end_loop()
         except RuntimeError as e:

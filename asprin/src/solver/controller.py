@@ -22,7 +22,6 @@
 # -*- coding: utf-8 -*-
 
 from ..utils import utils
-import clingo
 
 class GeneralController:
 
@@ -335,6 +334,12 @@ class ImproveLimitController(MethodController):
         self.controller.unsat()
         self.solver.handle_unknown_models(result)
 
+
+#
+# class OnOptimal
+#
+
+# defines (from utils)
 HOLDS      = utils.HOLDS
 LAST_HOLDS = utils.LAST_HOLDS
 LAST_SHOWN = utils.LAST_SHOWN
@@ -344,28 +349,23 @@ SHOWN_ATOM = utils.SHOWN_ATOM
 PREF_ATOM  = utils.PREF_ATOM
 ON_OPT_HEUR_PROGRAM = utils.ON_OPT_HEUR_PROGRAM
 
-ON_OPT_HEUR_RULE = """
+# heuristic and external rules
+HEUR_RULE = """
 #heuristic ##""" + HOLDS + """(X,0) : not ##""" + LAST_HOLDS + """(X). [#v,#m]
 """
-
-ON_OPT_HEUR_EXTERNAL_HOLDS = """
+HEUR_EXTERNAL_HOLDS = """
 #external ##""" + LAST_HOLDS + """(X) : X = @get_holds_domain().
 """
-ON_OPT_HEUR_EXTERNAL_SHOWN = """
+HEUR_EXTERNAL_SHOWN = """
 #external ##""" + LAST_SHOWN + """(X) : X = @get_shown_domain().
 """
 
+#
+# Note: Option --on-opt-heur does not change anything while enumerating
+#       optimal models with the same preference atoms (OPTIMUM FOUND *)
+#
 
-# DONE: TODO: Activate Heuristic
-# DONE: TODO: Add shown case
-# TODO: Add strong negation
-# TODO: Add to weak and heuristic modes
-# TODO: Move to solver
-# TODO: Test
-# DONE: Do I always get the get_holds_domain()?
-# SKIP: Can I get the previous optimal model? (to simplify the final loop)
-
-class OnOptimal:
+class OnOptimalController:
 
     def __init__(self, solver):
         self.solver     = solver
@@ -401,17 +401,17 @@ class OnOptimal:
             if arity > 0:
                 variables = ",".join(["X" + str(i) for i in range(arity)])
                 atom += "(" + variables + ")"
-            rule = ON_OPT_HEUR_RULE.replace("##" + HOLDS + "(X,0)", atom)
+            rule = HEUR_RULE.replace("##" + HOLDS + "(X,0)", atom)
             rule = rule.replace(LAST_HOLDS, LAST_SHOWN)
             rule = rule.replace("(X).", "(" + atom + ").")
             self.shown_rule += rule
 
-    def start_loop(self):
+    def unsat(self):
 
-        solver = self.solver
-        # return if no heuristics, or not unsat, or first step
-        if not self.heuristic or not solver.last_unsat or solver.step == 1:
+        # return if no heuristics
+        if not self.heuristic:
             return
+        solver = self.solver
 
         # ground if not grounded
         if not self.grounded:
@@ -423,7 +423,7 @@ class OnOptimal:
             program = ""
             ## iterate over options
             for sign, atom_type, value, modifier in solver.options.on_opt_heur:
-                rule = ON_OPT_HEUR_RULE
+                rule = HEUR_RULE
                 if atom_type == SHOWN_ATOM:
                     rule = self.shown_rule
                 if sign == POS:
@@ -433,9 +433,9 @@ class OnOptimal:
                 program += rule
             ## add externals
             if self.pref:
-                program += ON_OPT_HEUR_EXTERNAL_HOLDS
+                program += HEUR_EXTERNAL_HOLDS
             if self.shown:
-                program += ON_OPT_HEUR_EXTERNAL_SHOWN
+                program += HEUR_EXTERNAL_SHOWN
             ## replace ##
             program = program.replace("##", solver.underscores)
             # add and ground it
@@ -454,3 +454,14 @@ class OnOptimal:
                 set(solver.get_shown()),
                 solver.underscores + LAST_SHOWN
             )
+
+# DONE: TODO: Activate Heuristic
+# DONE: TODO: Add shown case
+# DONE: TODO: Add strong negation
+# DONE: TODO: Move to solver
+# DONE: TODO: Add to heuristic mode
+# TODO: Add to weak mode
+# TODO: Test
+# DONE: Do I always get the get_holds_domain()?
+# SKIP: Can I get the previous optimal model? (to simplify the final loop)
+
