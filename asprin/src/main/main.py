@@ -248,7 +248,7 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
         out = []
         try:
             for e in on_opt_heur:
-                match = re.match(r'([+|-]),([s|p]),(\d+),(\w+)$', e)
+                match = re.match(r'([+|-]),([s|p]),(-?\d+),(\w+)$', e)
                 if not match:
                     raise Exception("incorrect value for option --on-opt-heur")
                 sign = POS if match.group(1) == '+' else NEG
@@ -437,8 +437,6 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
         on_opt_heur = options['on_opt_heur']
         if on_opt_heur:
             options['on_opt_heur'] = self.__do_on_opt_heur(on_opt_heur)
-            print(options['on_opt_heur'])
-        sys.exit(0)
 
         # handle solving_mode
         options['solving_mode'] = 'normal'

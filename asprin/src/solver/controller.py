@@ -22,6 +22,7 @@
 # -*- coding: utf-8 -*-
 
 from ..utils import utils
+import clingo
 
 class GeneralController:
 
@@ -324,5 +325,74 @@ class ImproveLimitController(MethodController):
         self.controller.unsat()
         self.solver.handle_unknown_models(result)
 
+HOLDS      = utils.HOLDS
+LAST_HOLDS = utils.LAST_HOLDS
+POS        = utils.POS
+NEG        = utils.NEG
+SHOWN_ATOM = utils.SHOWN_ATOM
+PREF_ATOM  = utils.PREF_ATOM
+ON_OPT_HEUR_PROGRAM = utils.ON_OPT_HEUR_PROGRAM
 
+ON_OPT_HEUR_RULE = """
+#heuristic ##""" + HOLDS + """(X,0) : not ##""" + LAST_HOLDS + """(X). [#v,#m]
+"""
+
+ON_OPT_HEUR_EXTERNAL = """
+#external ##""" + LAST_HOLDS + """(X) : X = @get_holds_domain().
+%#show ##""" + LAST_HOLDS + """/1.
+"""
+
+
+# DONE: TODO: Activate Heuristic
+# TODO: Add shown case
+# TODO: Move to solver
+# TODO: Test
+# TODO: Add to weak and heuristic modes
+# Do I always get the get_holds_domain()?
+# Can I get the previous optimal model? (to simplify the final loop)
+
+class OnOptimal:
+
+    def __init__(self, solver):
+        self.solver       = solver
+        self.grounded     = False
+        self.heuristic    = False
+        self.external_name = solver.underscores + LAST_HOLDS
+        if self.solver.options.on_opt_heur:
+            self.heuristic = True
+            for _solver in solver.control.configuration.solver:
+                _solver.heuristic="Domain"
+
+    def start_loop(self):
+        solver = self.solver
+        # return if no heuristics, or not unsat, or first step
+        if not self.heuristic or not solver.last_unsat or solver.step == 1:
+            return
+        # ground if not grounded
+        if not self.grounded:
+            self.grounded = True
+            # create heuristic program
+            program = ""
+            for sign, atom_type, value, modifier in solver.options.on_opt_heur:
+                rule = ON_OPT_HEUR_RULE
+                if sign == POS:
+                    rule = rule.replace(": not ", ": ")
+                rule = rule.replace("#v", value)
+                rule = rule.replace("#m", modifier)
+                program += rule
+            program += ON_OPT_HEUR_EXTERNAL
+            program = program.replace("##", solver.underscores)
+            # add and ground it
+            solver.add_and_ground(ON_OPT_HEUR_PROGRAM, [], program, [])
+        # MOVE THIS TO SOLVER
+        # assign externals
+        holds_domain = solver.get_holds_domain()
+        holds = set(solver.get_holds())
+        # note: other options could be tried for this loop
+        for i in holds_domain:
+            external = clingo.Function(self.external_name, [i])
+            if i in holds:
+                solver.control.assign_external(external, True)
+            else:
+                solver.control.assign_external(external, False)
 

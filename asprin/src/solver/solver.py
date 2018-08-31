@@ -359,6 +359,10 @@ class Solver:
             self.control.add(UNSAT_UNSATP[0], UNSAT_UNSATP[1],
                              UNSAT_UNSATP[2].replace(TOKEN, self.underscores))
 
+    def add_and_ground(self, name, params, program, params_instances):
+        self.control.add(name, params, program)
+        self.ground([(name, params_instances)], self)
+
     def ground_heuristic(self):
         self.ground([(HEURISTIC, [])], self)
 
@@ -930,6 +934,7 @@ class Solver:
         general = controller.GeneralController(self)
         optimal = controller.GeneralControllerHandleOptimal(self)
         enumeration = controller.EnumerationController(self)
+        on_optimal = controller.OnOptimal(self)
         # MethodController
         if self.options.solving_mode == "weak":
             method = controller.ApproxMethodController(self)
@@ -953,6 +958,7 @@ class Solver:
             while True:
                 # START_LOOP
                 method.start_loop()
+                on_optimal.start_loop()
                 # SOLVE
                 method.solve()
                 if self.solving_result == SATISFIABLE:

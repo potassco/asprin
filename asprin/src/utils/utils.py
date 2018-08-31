@@ -44,6 +44,7 @@ WARNINGS   = "warnings"
 UNSATP     = "preference_unsat"
 UNSATPBASE = "preference_unsat_base"
 CONSTANTS_NB = "constants_nonbase"
+ON_OPT_HEUR_PROGRAM  = "on_opt_heuristic"
 
 # map preference programs to their bases
 mapbase = { PREFP  : PBASE,
@@ -69,6 +70,7 @@ UNSAT      = "unsat"
 ERROR_PRED = "error"
 WARN_PRED  = "warning"
 SHOW       = "show"
+LAST_HOLDS = "last_holds"
 
 # translation tokens
 HASH_SEM = "#sem"
