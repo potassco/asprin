@@ -393,11 +393,11 @@ class OnOptimal:
         # gather signatures
         sigs = set()
         for atom in self.solver.shown_domain:
-            sigs.add((atom.name, len(atom.arguments)))
+            sigs.add((atom.negative, atom.name, len(atom.arguments)))
         sigs = sorted(list(sigs))
         # for every signature, add heuristics and externals
-        for name, arity in sigs:
-            atom = name
+        for negative, name, arity in sigs:
+            atom = ("-" if negative else "") + name
             if arity > 0:
                 variables = ",".join(["X" + str(i) for i in range(arity)])
                 atom += "(" + variables + ")"

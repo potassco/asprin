@@ -139,6 +139,7 @@ class ClingoSignalHandler:
     # public
     def solve(self, *args, **kwargs):
         self.solving = True
+        # self.control.solve(*args, **kwargs)
         self.do_solve(self.control, *args, **kwargs)
         self.solved = True
         self.solving = False

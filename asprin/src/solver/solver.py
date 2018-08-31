@@ -433,7 +433,7 @@ class Solver:
     def get_shown_domain(self):
         return self.shown_domain
 
-    def add_to_shown_domain(self, atom):
+    def append_to_shown_domain(self, atom):
         if atom.type == clingo.SymbolType.Function and len(atom.name) > 0:
             self.shown_domain.append(atom)
             #name = ("-" if atom.negative else "") + atom.name
