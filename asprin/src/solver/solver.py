@@ -764,6 +764,12 @@ class Solver:
             # break if unsat or computed all
             if not satisfiable or self.options.max_models == self.opt_models:
                 break
+            # if on on_optimal
+            if on_on_optimal:
+                self.control.configuration.solve.opt_mode = 'ignore'
+                self.enumerate()
+                self.control.configuration.solve.opt_mode = 'optN'
+                self.on_optimal.unsat()
             # add programs
             parts = []
             for mm in range(1, len(self.approx_opt_models)):
@@ -777,8 +783,6 @@ class Solver:
                     parts += self.get_preference_parts(0, m, False, False)
             self.ground(parts, self)
             # if on_optimal
-            if on_on_optimal:
-                self.on_optimal.unsat()
         # end
         if self.opt_models == 0:
             self.print_unsat()
