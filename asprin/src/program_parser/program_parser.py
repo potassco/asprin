@@ -128,6 +128,7 @@ AVOID_WARNINGS = """#program """ + utils.WARNINGS + """.
 #defined ##unsat/2.
 #defined ##false/0.
 #defined ##optimize/1.
+#defined ##holds/2.
 """
 
 # error printing

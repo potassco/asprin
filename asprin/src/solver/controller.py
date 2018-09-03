@@ -389,6 +389,9 @@ class OnOptimalController:
                     self.shown = True
                     self.solver.set_shown_domain = True
 
+    def on(self):
+        return self.heuristic
+
     def create_shown_heuristic_rules(self):
         # gather signatures
         sigs = set()

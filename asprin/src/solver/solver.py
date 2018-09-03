@@ -223,6 +223,9 @@ class Solver:
         self.unknown_non_optimal = []
         self.grounded_delete_better = False
         self.mapping = {}
+        # for weak mode
+        self.optN = False
+        self.on_optimal = None
         # holds and shown domains
         self.set_holds_domain = False
         self.holds_domain = []
@@ -717,8 +720,6 @@ class Solver:
             if self.options.quiet == 0:
                 self.on_model(model)
                 self.print_shown()
-            elif self.options.quiet == 1 and self.options.max_models == 1:
-                self.on_model(model)                            # one model
             return
         # for models proved to be optimal
         self.on_model(model)
@@ -742,10 +743,10 @@ class Solver:
         self.ground([(APPROX, [])], self)
         for i in PROGRAMS_APPROX:
             self.control.add(i[0], i[1], i[2].replace(TOKEN, self.underscores))
-        # opt_mode
+        # is on on_optimal?
+        on_on_optimal = self.on_optimal.on()
+        # set opt_mode
         self.control.configuration.solve.opt_mode = 'optN'
-        if self.options.max_models == 1:                        # one model
-            self.control.configuration.solve.opt_mode = 'opt'
         # project
         if self.options.project:
             self.ground([(PROJECT_APPROX,[])], self)
@@ -756,13 +757,12 @@ class Solver:
             # solve
             prev_opt_models, self.approx_opt_models = self.opt_models, [[]]
             self.set_control_models()
-            if self.options.max_models == 1:                    # one model
-                self.control.configuration.solve.models = 0
+            if on_on_optimal: # go one by one
+                self.control.configuration.solve.models = 1
             self.solve(on_model=self.on_model_approx)
             satisfiable = self.solving_result == SATISFIABLE
-            # break if unsat or computed all or one model
-            if not satisfiable or self.options.max_models == self.opt_models or \
-                self.options.max_models == 1:                   # one model
+            # break if unsat or computed all
+            if not satisfiable or self.options.max_models == self.opt_models:
                 break
             # add programs
             parts = []
@@ -776,16 +776,15 @@ class Solver:
                 if self.options.delete_better:
                     parts += self.get_preference_parts(0, m, False, False)
             self.ground(parts, self)
+            # if on_optimal
+            if on_on_optimal:
+                self.on_optimal.unsat()
         # end
-        if self.options.max_models == 1 and satisfiable: # one model
-            if self.options.quiet == 1:
-                self.print_shown()
-            self.opt_models += 1
-            self.print_optimum_string()
         if self.opt_models == 0:
             self.print_unsat()
         self.more_models = True if satisfiable else False
         self.end()
+
 
     #
     # unknown (--improve-limit)
@@ -978,6 +977,7 @@ class Solver:
         # MethodController
         if self.options.solving_mode == "weak":
             method = controller.ApproxMethodController(self)
+            self.on_optimal = on_optimal
         elif self.options.solving_mode == "heuristic":
             method = controller.HeurMethodController(self)
         else:
