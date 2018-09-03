@@ -457,14 +457,3 @@ class OnOptimalController:
                 set(solver.get_shown()),
                 solver.underscores + LAST_SHOWN
             )
-
-# DONE: TODO: Activate Heuristic
-# DONE: TODO: Add shown case
-# DONE: TODO: Add strong negation
-# DONE: TODO: Move to solver
-# DONE: TODO: Add to heuristic mode
-# TODO: Add to weak mode
-# TODO: Test
-# DONE: Do I always get the get_holds_domain()?
-# SKIP: Can I get the previous optimal model? (to simplify the final loop)
-
