@@ -748,7 +748,7 @@ class Solver:
         # set opt_mode
         self.control.configuration.solve.opt_mode = 'optN'
         # project
-        if self.options.project:
+        if self.options.project and not on_on_optimal:
             self.ground([(PROJECT_APPROX,[])], self)
             self.control.configuration.solve.project = 'project'
         # loop
@@ -766,9 +766,10 @@ class Solver:
                 break
             # if on on_optimal
             if on_on_optimal:
-                self.control.configuration.solve.opt_mode = 'ignore'
-                self.enumerate()
-                self.control.configuration.solve.opt_mode = 'optN'
+                if not self.options.project:
+                    self.control.configuration.solve.opt_mode = 'ignore'
+                    self.enumerate()
+                    self.control.configuration.solve.opt_mode = 'optN'
                 self.on_optimal.unsat()
             # add programs
             parts = []
