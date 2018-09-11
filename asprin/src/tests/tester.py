@@ -52,6 +52,8 @@ OPTIONS = [
      --const-nb approx_pareto=2 --const-nb approx_and=2"""],
     ["--improve-limit=0,5"],
     ["--improve-limit=1,all,100"],
+    ["--on-opt-heur=+,p,-1,sign --on-opt-heur=-,p,1,sign"],
+    ["--on-opt-heur=+,s,1,true --on-opt-heur=-,s,1,false"],
 ]
 
 class cd:

@@ -22,6 +22,7 @@
 # -*- coding: utf-8 -*-
 
 from ..utils import utils
+#from .meta import meta
 
 class GeneralController:
 
@@ -281,6 +282,16 @@ class HeurMethodController(MethodController):
     def unsat(self):
         self.solver.ground_holds(self.solver.last_model)
 
+
+class MetaMethodController(MethodController):
+
+    def __init__(self, solver):
+        MethodController.__init__(self, solver)
+        self.solver.store_nholds = True
+
+    def start(self):
+        self.solver.end()
+        # finishes asprin
 
 class ImproveLimitController(MethodController):
 

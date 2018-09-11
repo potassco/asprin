@@ -184,13 +184,14 @@ class Options:
 
 class Solver:
 
-    def __init__(self, control, options, control_proxy):
+    def __init__(self, control, options, control_proxy, observer):
         # control and options
         self.control           = control
         self.options           = Options()
         for key, value in options.items():
             setattr(self.options, key, value)
         self.control_proxy     = control_proxy
+        self.observer = observer
         # strings
         self.underscores       = utils.underscores
         self.volatile_str      = self.underscores + VOLATILE
@@ -985,6 +986,8 @@ class Solver:
             self.on_optimal = on_optimal
         elif self.options.solving_mode == "heuristic":
             method = controller.HeurMethodController(self)
+        elif self.options.meta:
+            method = controller.MetaMethodController(self)
         else:
             if self.options.ground_once:
                 method = controller.GroundOnceMethodController(self)
@@ -998,7 +1001,7 @@ class Solver:
             # START
             general.start()
             optimal.start()
-            method.start()
+            method.start() # Approx and Meta finish here
             self.printer.do_print("Solving...")
             while True:
                 # START_LOOP

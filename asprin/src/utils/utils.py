@@ -240,3 +240,20 @@ class ProgramPosition(object):
         self.col      = col
         self.lines    = lines # number of lines
 
+
+class Observer:
+
+    def __init__(self, control, replace = False):
+        control.register_observer(self, replace)
+        self.rules = []
+        self.weight_rules = []
+        self.output_atoms = []
+
+    def rule(self, choice, head, body):
+        self.rules.append((choice, head, body))
+
+    def weight_rule(self, choice, head, lower_bound, body):
+        self.weight_rules.append((choice, head, lower_bound, body))
+
+    def output_atom(self, symbol, atom):
+        self.output_atoms.append((symbol, atom))

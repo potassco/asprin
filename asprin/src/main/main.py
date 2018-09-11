@@ -113,6 +113,7 @@ optimal"""
 # optimal,  hence it is not complete
 HELP_CONFIGS = """R|: Run clingo configurations c1, ..., cn iteratively
   (use 'all' for running all configurations)"""
+HELP_META = """R|: Use meta-interpretation techniques"""
 
 #
 # VERSION
@@ -335,6 +336,8 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
                              help=""": Run {weak|heuristic} \
                                        approximation mode""",
                              choices=["weak", "heuristic"])
+        solving.add_argument('--meta', dest='meta', help=HELP_META,
+                             action='store_true')
         solving.add_argument('--dom-heur', dest='cmd_heuristic',
                               nargs=2, metavar=('<v>','<m>'),
                               help=HELP_HEURISTIC)
@@ -446,6 +449,9 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
             options['solving_mode'] = "heuristic"
         options.pop('approximation',None)
 
+        # handle meta
+        options['observe'] = True if options['meta'] else False
+
         # statistics
         # if options['stats']:
         clingo_options.append('--stats')
@@ -525,12 +531,18 @@ class Asprin:
                                                      sp.parse_files()
         self.__update_constants(self.options, base_constants)
 
+        # observer
+        observer = None
+        if self.options['observe']:
+            observer = utils.Observer(self.control)
+        
+
         # preference programs parsing
         program_parser.Parser(self.control, programs, self.options).parse()
 
         # solving
         _solver = solver.Solver(
-            self.control, self.options, control_proxy
+            self.control, self.options, control_proxy, observer
         )
         control_proxy.function_on_solving = _solver.signal_on_solving
         control_proxy.function_on_not_solving = _solver.signal_on_not_solving
