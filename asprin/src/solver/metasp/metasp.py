@@ -26,6 +26,9 @@
 #
 
 import clingo
+import subprocess
+import tempfile
+import re
 from . import meta_programs
 from . import scc
 from ...utils import utils
@@ -48,13 +51,66 @@ METAPREF_BASIC = """
 #const ##m2=1.
 """
 
-BINDING = """
+BINDING_A = """
 **true(atom(A)) :-     ##holds(X,0), **output(##holds(X,1),A).           % from base
 **fail(atom(A)) :- not ##holds(X,0), **output(##holds(X,1),A).           % from base
 **true(atom(A)) :- $$true(atom(B)), $$output_term(##holds_at_zero(X),B), % from meta_base
                    **output(##holds(X,0),A).
 **fail(atom(A)) :- $$fail(atom(B)), $$output_term(##holds_at_zero(X),B), % from meta_base
                    **output(##holds(X,0),A).
+**bot :- $$bot.
+$$bot :- **bot.
+:- not **bot.
+"""
+
+BINDING_B = """
+**true(atom(A)) :-     ##holds(X,0), **output(##holds(X,1),B), **literal_tuple(B,A). % from base
+**fail(atom(A)) :- not ##holds(X,0), **output(##holds(X,1),B), **literal_tuple(B,A). % from base
+**true(atom(A)) :- $$true(atom(B)), $$output_term(##holds_at_zero(X),B),             % from meta_base
+                   **output(##holds(X,0),C), **literal_tuple(C,A).
+**fail(atom(A)) :- $$fail(atom(B)), $$output_term(##holds_at_zero(X),B),             % from meta_base
+                   **output(##holds(X,0),C), **literal_tuple(C,A).
+**bot :- $$bot.
+$$bot :- **bot.
+:- not **bot.
+"""
+
+ASPRIN_LIBRARY_PY = """
+#script(python)
+
+import math
+
+def exp2(x):
+    return int(math.pow(2,x.number))
+
+def get(atuple, index):
+    try:
+        return atuple.arguments[index.number]
+    except:
+        return atuple
+
+def get_mode():
+    return 'normal'
+
+sequences = {}
+def get_sequence(name, elem):
+    string = str(name)
+    if string in sequences:
+        sequences[string] += 1
+    else:
+        sequences[string]  = 1
+    return sequences[string]
+
+def length(atuple):
+    try:
+        return len(atuple.arguments)
+    except:
+        return 1 
+
+def log2up(x):
+    return int(math.ceil(math.log(x.number,2)))
+
+#end.
 """
 
 class Observer:
@@ -103,18 +159,16 @@ class Observer:
         self.constants_nb = (program, old, new)
 
 
-class Metasp:
-
+# abstract class
+class AbstractMetasp:
+    
     def __init__(self, solver):
         self.solver = solver
         # uses solver.control, solver.observer and solver.underscores
-
+   
+    # to be defined by subclasses
     def get_meta_program(self):
-        prefix = self.solver.underscores + "_"*U_METABASE
-        meta_base = self.get_meta_from_observer(self.solver.observer, prefix)
-        meta_pref = self.get_meta_pref()
-        meta_bind = self.get_meta_bind()
-        return meta_base + meta_pref + meta_bind
+        return None
 
     # TODO: Implement option where we take care about repeated heads and bodies
     def get_meta_from_observer(self, observer, prefix=""):
@@ -194,9 +248,10 @@ class Metasp:
         return str(statement)
 
     def get_specification(self):
-        signatures = [(PREFERENCE, 2),
-                      (PREFERENCE, 5),
-                      (  OPTIMIZE, 1)]
+        underscores = self.solver.underscores
+        signatures = [(underscores + PREFERENCE, 2),
+                      (underscores + PREFERENCE, 5),
+                      (underscores +   OPTIMIZE, 1)]
         symbolic_atoms = self.solver.control.symbolic_atoms
         spec = ""
         for name, arity in signatures:
@@ -220,6 +275,71 @@ class Metasp:
         # return
         return basic + specification + preference_program + constants
 
+    def get_meta_bind(self, binding):
+        out = binding.replace("##", self.solver.underscores)
+        prefix_base = self.solver.underscores + "_"*U_METABASE
+        prefix_pref = self.solver.underscores + "_"*U_METAPREF
+        return out.replace("$$", prefix_base).replace("**", prefix_pref)
+
+
+# Uses clingo binary
+class MetaspB(AbstractMetasp):
+
+    def __init__(self, solver):
+        AbstractMetasp.__init__(self, solver)
+        # CHECK CLINGO BINARY VERSION
+
+    def get_meta_program(self):
+        prefix = self.solver.underscores + "_"*U_METABASE
+        # DO THIS WITH BINARY
+        meta_base = self.get_meta_from_observer(self.solver.observer, prefix)
+        meta_pref = self.get_meta_pref()
+        meta_bind = self.get_meta_bind(BINDING_B)
+        return meta_base + meta_pref + meta_bind
+
+    def get_meta_using_binary(self, program, prefix):
+        with tempfile.NamedTemporaryFile() as file_in:
+            # write program to file_in
+            file_in.write(program.encode())
+            file_in.flush()
+            with tempfile.TemporaryFile() as file_out:
+                # execute clingo
+                command = ["clingo", "--output=reify", file_in.name]
+                subprocess.call(command, stdout=file_out)
+                # read output
+                file_out.seek(0)
+                output = file_out.read()
+        if isinstance(output, bytes):
+            output = output.decode()
+        # CHANGE NEXT LINES 
+        #output = re.sub(r'^(\w+)', r'' + prefix + r'\1', output)
+        output = re.sub(r'\n(\w+)', r'\n' + prefix + r'\1', "\n" + output)
+        output += meta_programs.metaD_program.replace("##", prefix)
+        return output
+
+    def get_meta_pref(self):
+        preference_program = self.get_pref()
+        # DO WELL
+        preference_program += " ".join([self.solver.underscores + "holds_domain({}).".format(x) for x in self.solver.holds_domain])
+        preference_program = preference_program.replace("X = @get_holds_domain()", self.solver.underscores + "holds_domain(X)")
+        preference_program += ASPRIN_LIBRARY_PY
+        prefix = self.solver.underscores + "_"*U_METAPREF
+        return self.get_meta_using_binary(preference_program, prefix)
+
+
+# Uses the observer
+class MetaspA(AbstractMetasp):
+
+    def __init__(self, solver):
+        AbstractMetasp.__init__(self, solver)
+
+    def get_meta_program(self):
+        prefix = self.solver.underscores + "_"*U_METABASE
+        meta_base = self.get_meta_from_observer(self.solver.observer, prefix)
+        meta_pref = self.get_meta_pref()
+        meta_bind = self.get_meta_bind(BINDING_A)
+        return meta_base + meta_pref + meta_bind
+
     def get_meta_pref(self):
         ctl = clingo.Control([])
         observer = Observer(ctl, True)
@@ -228,12 +348,8 @@ class Metasp:
         prefix = self.solver.underscores + "_"*U_METAPREF
         return self.get_meta_from_observer(observer, prefix)
 
-    def get_meta_bind(self):
-        out = BINDING.replace("##", self.solver.underscores)
-        prefix_base = self.solver.underscores + "_"*U_METABASE
-        prefix_pref = self.solver.underscores + "_"*U_METAPREF
-        return out.replace("$$", prefix_base).replace("**", prefix_pref)
 
+# REDO
 def run(base, metaD=False):
 
     # observe rules

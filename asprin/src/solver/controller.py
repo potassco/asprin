@@ -289,7 +289,8 @@ class MetaMethodController(MethodController):
         MethodController.__init__(self, solver)
         self.solver = solver
         self.solver.set_holds_domain = True # TODO: CHECK IF/WHEN NEEDED
-        self.meta = metasp.Metasp(solver)
+        #self.meta = metasp.MetaspA(solver)
+        self.meta = metasp.MetaspB(solver)
 
     def start(self):
         # get meta program
@@ -307,15 +308,15 @@ class MetaMethodController(MethodController):
                 count += 1
             print(handle.get())
         print(count)
-        self.solver.end()
         # finishes asprin
         self.solver.end()
 
     def get_specification(self):
         control = self.solver.control
-        signatures = [("_preference", 2),
-                      ("_preference", 5),
-                      ("_optimize",   1)]
+        underscores = self.solver.underscores
+        signatures = [(underscores +   "preference", 2),
+                      (underscores + "##preference", 5),
+                      (underscores +    "_optimize", 1)]
         spec = ""
         for name, arity in signatures:
             spec += " ".join([
