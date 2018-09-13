@@ -158,13 +158,25 @@ class BuilderProxy:
         self.builder.add(statement)
 
 
+class PrefBuilderProxy:
+
+    def __init__(self, builder, observer):
+        self.builder = builder
+        self.observer = observer
+
+    def add(self, statement):
+        self.builder.add(statement)
+        self.observer.add_statement(statement)
+
+
 class Parser:
 
-    def __init__(self, control, programs, options):
+    def __init__(self, control, programs, options, observer):
         self.__control = control
         self.__programs = programs
         self.__options = options
         self.__underscores = utils.underscores
+        self.__observer = observer
 
     def __add_and_ground(self, name, params, string, list):
         capturer = utils.Capturer(sys.stderr)
@@ -198,6 +210,10 @@ class Parser:
         self.__add_and_ground(BASE,old,string,[(BASE,new)])
         string =  programs[GENERATE][""].get_string()
         self.__add_and_ground(GENERATE,[],string,[(GENERATE,[])])
+        # observe
+        if self.__observer:
+            self.__observer.add_base(string, old, new)
+
 
     def get_domains(self):
         out, control, u = "", self.__control, self.__underscores
@@ -298,6 +314,10 @@ class Parser:
                 if not ok:
                     errors = True
 
+        # observe
+        if self.__observer:
+            self.__observer.add_specification(string, old, new)
+        
         # if errors
         if errors:
             raise Exception("parsing failed")
@@ -332,11 +352,15 @@ class Parser:
         constants_nb = self.__options['constants_nb'].items()
         program = " ".join("#const {}={}.".format(x,y) for x,y in constants_nb)
         self.__add_and_ground(CONSTANTS_NB, [], program, [(CONSTANTS_NB,[])])
+        # observe
+        if self.__observer:
+            self.__observer.add_constants_nb(program, [], [])
 
-    def add_programs(self, types, builder):
+    def add_programs(self, types, builder, pref_builder=None):
         # visitors
         constants = self.__options['constants_nb']
-        v = preference.PreferenceProgramVisitor(builder, PREFP,
+        pref_builder = pref_builder if pref_builder else builder
+        v = preference.PreferenceProgramVisitor(pref_builder, PREFP,
                                                 U_PREFP, constants)
         visitors = [(PREFP, v)]
         if self.__options['solving_mode'] == 'weak':
@@ -386,5 +410,8 @@ class Parser:
 
         # translate and add the rest of the programs
         with self.__control.builder() as builder:
-            self.add_programs(types, builder)
+            pref_builder = None
+            if self.__observer:
+                pref_builder = PrefBuilderProxy(builder, self.__observer)
+            self.add_programs(types, builder, pref_builder)
 

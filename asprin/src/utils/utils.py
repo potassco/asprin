@@ -45,6 +45,7 @@ UNSATP     = "preference_unsat"
 UNSATPBASE = "preference_unsat_base"
 CONSTANTS_NB = "constants_nonbase"
 ON_OPT_HEUR_PROGRAM  = "on_opt_heuristic"
+METAPROGRAM = "metaprogram"
 
 # map preference programs to their bases
 mapbase = { PREFP  : PBASE,
@@ -55,7 +56,8 @@ U_PREFP     = 1
 U_APPROX    = 2
 U_HEURISTIC = 3
 U_UNSATP    = 4
-
+U_METABASE  = 5
+U_METAPREF  = 6
 
 # predicate names
 DOM        = "dom" 
@@ -241,19 +243,3 @@ class ProgramPosition(object):
         self.lines    = lines # number of lines
 
 
-class Observer:
-
-    def __init__(self, control, replace = False):
-        control.register_observer(self, replace)
-        self.rules = []
-        self.weight_rules = []
-        self.output_atoms = []
-
-    def rule(self, choice, head, body):
-        self.rules.append((choice, head, body))
-
-    def weight_rule(self, choice, head, lower_bound, body):
-        self.weight_rules.append((choice, head, lower_bound, body))
-
-    def output_atom(self, symbol, atom):
-        self.output_atoms.append((symbol, atom))

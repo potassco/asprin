@@ -191,7 +191,7 @@ class Solver:
         for key, value in options.items():
             setattr(self.options, key, value)
         self.control_proxy     = control_proxy
-        self.observer = observer
+        self.observer = observer 
         # strings
         self.underscores       = utils.underscores
         self.volatile_str      = self.underscores + VOLATILE
@@ -310,7 +310,7 @@ class Solver:
 
 
     #
-    # USED BY ASPRIN LIBRARY
+    # USED BY ASPRIN LIBRARY (copied at metasp/metalib.py)
     #
 
     def exp2(self, x):

@@ -20,7 +20,6 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 # -*- coding: utf-8 -*-
-
 #!/usr/bin/python
 
 #
@@ -41,6 +40,8 @@ from ..utils          import               printer
 from ..utils          import clingo_signal_handler
 from ..utils          import                 utils
 from .                import           clingo_help
+from ..solver.metasp  import                metasp
+
 
 #
 # DEFINES
@@ -442,7 +443,7 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
             options['on_opt_heur'] = self.__do_on_opt_heur(on_opt_heur)
 
         # handle solving_mode
-        options['solving_mode'] = 'normal'
+        options['solving_mode'] = 'normal' # used in meta
         if options.get('approximation','') == 'weak':
             options['solving_mode'] = "weak"
         elif options.get('approximation','') == 'heuristic':
@@ -530,15 +531,19 @@ class Asprin:
         programs, utils.underscores, base_constants, self.options['show'] = \
                                                      sp.parse_files()
         self.__update_constants(self.options, base_constants)
+        del sp
 
         # observer
         observer = None
         if self.options['observe']:
-            observer = utils.Observer(self.control)
-        
+            observer = metasp.Observer(self.control) # registers the observer
 
         # preference programs parsing
-        program_parser.Parser(self.control, programs, self.options).parse()
+        _program_parser = program_parser.Parser(
+            self.control, programs, self.options, observer
+        )
+        _program_parser.parse()
+        del _program_parser
 
         # solving
         _solver = solver.Solver(

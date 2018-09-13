@@ -28,6 +28,34 @@
 import clingo
 from . import meta_programs
 from . import scc
+from ...utils import utils
+
+#
+# DEFINES
+#
+
+U_METAPREF = utils.U_METAPREF
+U_METABASE = utils.U_METABASE
+PREFERENCE = utils.PREFERENCE
+OPTIMIZE   = utils.OPTIMIZE
+
+METAPREF_BASIC = """
+{ ##holds(X,0..1) } :- X = @get_holds_domain().
+##volatile(##m(0),##m(1)).
+:- ##unsat(##m(0),##m(1)).
+#show ##holds/2.
+#const ##m1=0.
+#const ##m2=1.
+"""
+
+BINDING = """
+**true(atom(A)) :-     ##holds(X,0), **output(##holds(X,1),A).           % from base
+**fail(atom(A)) :- not ##holds(X,0), **output(##holds(X,1),A).           % from base
+**true(atom(A)) :- $$true(atom(B)), $$output_term(##holds_at_zero(X),B), % from meta_base
+                   **output(##holds(X,0),A).
+**fail(atom(A)) :- $$fail(atom(B)), $$output_term(##holds_at_zero(X),B), % from meta_base
+                   **output(##holds(X,0),A).
+"""
 
 class Observer:
 
@@ -77,8 +105,19 @@ class Observer:
 
 class Metasp:
 
+    def __init__(self, solver):
+        self.solver = solver
+        # uses solver.control, solver.observer and solver.underscores
+
+    def get_meta_program(self):
+        prefix = self.solver.underscores + "_"*U_METABASE
+        meta_base = self.get_meta_from_observer(self.solver.observer, prefix)
+        meta_pref = self.get_meta_pref()
+        meta_bind = self.get_meta_bind()
+        return meta_base + meta_pref + meta_bind
+
     # TODO: Implement option where we take care about repeated heads and bodies
-    def reify(self, observer, prefix=""):
+    def get_meta_from_observer(self, observer, prefix=""):
 
         # start
         out = ""
@@ -147,7 +186,53 @@ class Metasp:
 
         return out + meta_programs.metaD_program.replace("##", p)
 
+    def statement_to_str(self, statement):
+        if str(statement.type) == "Definition": # to avoid printing [default]
+            return "#const {}={}.".format(statement.name, statement.value)
+        elif str(statement.type) == "Program":
+            return "" # IMPORTANT: program statements are skipped
+        return str(statement)
 
+    def get_specification(self):
+        signatures = [(PREFERENCE, 2),
+                      (PREFERENCE, 5),
+                      (  OPTIMIZE, 1)]
+        symbolic_atoms = self.solver.control.symbolic_atoms
+        spec = ""
+        for name, arity in signatures:
+            spec += " ".join([
+                str(atom.symbol) + "."
+                for atom in symbolic_atoms.by_signature(name, arity)
+            ]) + "\n"
+        return spec
+
+    def get_pref(self):
+        # basic program
+        basic = METAPREF_BASIC.replace("##", self.solver.underscores)
+        # preference specification
+        specification = self.get_specification()
+        # preference program
+        preference_program = "\n".join([
+            self.statement_to_str(s) for s in self.solver.observer.statements
+        ])
+        # constants
+        constants = self.solver.observer.constants_nb[0]
+        # return
+        return basic + specification + preference_program + constants
+
+    def get_meta_pref(self):
+        ctl = clingo.Control([])
+        observer = Observer(ctl, True)
+        ctl.add("base", [], self.get_pref())
+        ctl.ground([("base",[])], self.solver)
+        prefix = self.solver.underscores + "_"*U_METAPREF
+        return self.get_meta_from_observer(observer, prefix)
+
+    def get_meta_bind(self):
+        out = BINDING.replace("##", self.solver.underscores)
+        prefix_base = self.solver.underscores + "_"*U_METABASE
+        prefix_pref = self.solver.underscores + "_"*U_METAPREF
+        return out.replace("$$", prefix_base).replace("**", prefix_pref)
 
 def run(base, metaD=False):
 
@@ -182,7 +267,7 @@ def run(base, metaD=False):
         # print(handle.get())
     models1 = sorted(models1)
 
-    # check and print
+   # check and print
     print("ERROR" if models0 != models1 else "OK")
     if models0 != models1:
         print(models0)
