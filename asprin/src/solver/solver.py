@@ -986,7 +986,7 @@ class Solver:
             self.on_optimal = on_optimal
         elif self.options.solving_mode == "heuristic":
             method = controller.HeurMethodController(self)
-        elif self.options.meta:
+        elif self.options.meta or self.options.meta_bin:
             method = controller.MetaMethodController(self)
         else:
             if self.options.ground_once:

@@ -131,8 +131,24 @@ def get_holds_domain():
 
 class Observer:
 
-    def __init__(self, control, replace = False):
-        control.register_observer(self, replace)
+    def __init__(
+        self,
+        control,
+        register_observer = False,
+        replace = False,
+        bool_add_statement = False,
+        bool_add_base = False,
+        bool_add_specification = False,
+        bool_add_constants_nb = False
+    ):
+        # flags
+        self.bool_add_statement     = bool_add_statement
+        self.bool_add_base          = bool_add_base
+        self.bool_add_specification = bool_add_specification
+        self.bool_add_constants_nb  = bool_add_constants_nb
+        if register_observer:
+            control.register_observer(self, replace)
+        # observations
         self.rules = []
         self.weight_rules = []
         self.output_atoms = []
@@ -163,16 +179,20 @@ class Observer:
     #
 
     def add_statement(self, statement):
-        self.statements.append(statement)
+        if self.bool_add_statement:
+            self.statements.append(statement)
 
     def add_base(self, program, old, new):
-        self.base = (program, old, new)
+        if self.bool_add_base:
+            self.base = (program, old, new)
 
     def add_specification(self, program, old, new):
-        self.specification = (program, old, new)
+        if self.bool_add_specification:
+            self.specification = (program, old, new)
 
     def add_constants_nb(self, program, old, new):
-        self.constants_nb = (program, old, new)
+        if self.bool_add_constants_nb:
+            self.constants_nb = (program, old, new)
 
 
 # abstract class
@@ -186,100 +206,9 @@ class AbstractMetasp:
     def get_meta_program(self):
         return None
 
-    # TODO: Implement option where we take care about repeated heads and bodies
-    def get_meta_from_observer(self, observer, prefix=""):
-
-        # start
-        out = ""
-        literal_tuple, wliteral_tuple, atom_tuple = 1, 1, 1
-        p = prefix
-
-        # fact 0
-        # out += "% fact 0\n"
-        out += "{}rule(disjunction(0),normal(0)). {}atom_tuple(0,0). {}literal_tuple(0).\n\n".format(p, p, p)
-
-        # start graph
-        graph = scc.Graph()
-
-        # normal rules
-        for choice, head, body in observer.rules:
-
-            # out += "% normal rule\n"
-            # body
-            out += "{}literal_tuple({}).".format(p, literal_tuple) + "\n"
-            out += " ".join(["{}literal_tuple({},{}).".format(p, literal_tuple, l) for l in body]) + "\n"
-            # head
-            head_type = "choice" if choice else "disjunction"
-            out += "{}rule({}({}),normal({})).".format(p, head_type, atom_tuple, literal_tuple) + "\n"
-            out += " ".join(["{}atom_tuple({},{}).".format(p, atom_tuple, l) for l in head]) + "\n\n"
-            # update counters
-            literal_tuple += 1
-            atom_tuple += 1
-            # update graph (this can be interwined with the rules above)
-            for l in body:
-                if l >= 0:
-                    for atom in head:
-                        graph.add_edge(atom, l)
-
-
-        # weight rules
-        for choice, head, lower_bound, body in observer.weight_rules:
-            # out += "% weighted rule\n"
-            # body
-            out += " ".join(["{}weighted_literal_tuple({},{},{}).".format(p, wliteral_tuple, l, w) for l, w in body]) + "\n"
-            # head
-            head_type = "choice" if choice else "disjunction"
-            out += "{}rule({}({}),sum({},{})).".format(p, head_type, atom_tuple, wliteral_tuple, lower_bound) + "\n"
-            out += " ".join(["{}atom_tuple({},{}).".format(p, atom_tuple, l) for l in head]) + "\n\n"
-            # update counters
-            wliteral_tuple += 1
-            atom_tuple += 1
-            # update graph (this can be interwined with the rules above)
-            for l, w in body:
-                if l >= 0:
-                    for atom in head:
-                        graph.add_edge(atom, l)
-
-        # sccs
-        # out += "% sccs\n"
-        out += graph.reify_sccs(p) + "\n"
-
-        # output atoms
-        # out += "% output atoms\n"
-        for symbol, atom in observer.output_atoms:
-            out += "{}output({},{}).\n".format(p, symbol, atom)
-
-        # output terms
-        # out += "% output term\n"
-        for symbol, condition in observer.output_terms:
-            out += "{}output_term({},{}).\n".format(p, symbol, condition[0])
-
-        return out + meta_programs.metaD_program.replace("##", p)
-
-    # run command and return stdout as a string
-    def run_command(self, command):
-        with tempfile.TemporaryFile() as file_out:
-            # execute clingo
-            subprocess.call(command, stdout=file_out)
-            # read output
-            file_out.seek(0)
-            output = file_out.read()
-        if isinstance(output, bytes):
-            output = output.decode()
-        return output
-
-    def get_meta_using_binary(self, program, prefix):
-        with tempfile.NamedTemporaryFile() as file_in:
-            # write program to file_in
-            file_in.write(program.encode())
-            file_in.flush()
-            # run command
-            command = [CLINGO, REIFY_OUTPUT, file_in.name]
-            output = self.run_command(command)
-        # add prefix and return
-        output = re.sub(r'^(\w+)', r'' + prefix + r'\1', output, flags=re.M)
-        output += meta_programs.metaD_program.replace("##", prefix)
-        return output
+    #
+    # get_pref() (used by MetaspPython and MetaspBinary)
+    #
 
     def statement_to_str(self, statement):
         if str(statement.type) == "Definition": # to avoid printing [default]
@@ -316,6 +245,10 @@ class AbstractMetasp:
         # return
         return basic + specification + preference_program + constants
 
+    #
+    # get_meta_bind() (used by MetaspPython and MetaspBinary)
+    #
+
     def get_meta_bind(self, binding):
         out = binding.replace("##", self.solver.underscores)
         prefix_base = self.solver.underscores + "_"*U_METABASE
@@ -323,8 +256,8 @@ class AbstractMetasp:
         return out.replace("$$", prefix_base).replace("**", prefix_pref)
 
 
-# Uses the observer
-class MetaspA(AbstractMetasp):
+# Uses the observer in Python
+class MetaspPython(AbstractMetasp):
 
     def __init__(self, solver):
         AbstractMetasp.__init__(self, solver)
@@ -338,15 +271,84 @@ class MetaspA(AbstractMetasp):
 
     def get_meta_pref(self):
         ctl = clingo.Control([])
-        observer = Observer(ctl, True)
+        observer = Observer(ctl, register_observer=True, replace=True)
         ctl.add("base", [], self.get_pref())
         ctl.ground([("base",[])], self.solver)
         prefix = self.solver.underscores + "_"*U_METAPREF
         return self.get_meta_from_observer(observer, prefix)
 
+    # TODO: Implement option where we take care about repeated heads and bodies
+    def get_meta_from_observer(self, observer, prefix=""):
+
+        # start
+        out = ""
+        literal_tuple, wliteral_tuple, atom_tuple = 1, 1, 1
+        p = prefix
+
+        # fact 0
+        # out += "% fact 0\n"
+        out += "{}rule(disjunction(0),normal(0)). {}atom_tuple(0,0). {}literal_tuple(0).\n\n".format(p, p, p)
+
+        # start graph
+        graph = scc.Graph()
+
+        # normal rules
+        for choice, head, body in observer.rules:
+
+            # out += "% normal rule\n"
+            # body
+            out += "{}literal_tuple({}).".format(p, literal_tuple) + "\n"
+            out += " ".join(["{}literal_tuple({},{}).".format(p, literal_tuple, l) for l in body]) + "\n"
+            # head
+            head_type = "choice" if choice else "disjunction"
+            out += "{}rule({}({}),normal({})).".format(p, head_type, atom_tuple, literal_tuple) + "\n"
+            out += " ".join(["{}atom_tuple({},{}).".format(p, atom_tuple, l) for l in head]) + "\n\n"
+            # update counters
+            literal_tuple += 1
+            atom_tuple += 1
+            # update graph (this can be interwined with the rules above)
+            for l in body:
+                if l >= 0:
+                    for atom in head:
+                        graph.add_edge(atom, l)
+
+        # weight rules
+        for choice, head, lower_bound, body in observer.weight_rules:
+            # out += "% weighted rule\n"
+            # body
+            out += " ".join(["{}weighted_literal_tuple({},{},{}).".format(p, wliteral_tuple, l, w) for l, w in body]) + "\n"
+            # head
+            head_type = "choice" if choice else "disjunction"
+            out += "{}rule({}({}),sum({},{})).".format(p, head_type, atom_tuple, wliteral_tuple, lower_bound) + "\n"
+            out += " ".join(["{}atom_tuple({},{}).".format(p, atom_tuple, l) for l in head]) + "\n\n"
+            # update counters
+            wliteral_tuple += 1
+            atom_tuple += 1
+            # update graph (this can be interwined with the rules above)
+            for l, w in body:
+                if l >= 0:
+                    for atom in head:
+                        graph.add_edge(atom, l)
+
+        # sccs
+        # out += "% sccs\n"
+        out += graph.reify_sccs(p) + "\n"
+
+        # output atoms
+        # out += "% output atoms\n"
+        for symbol, atom in observer.output_atoms:
+            out += "{}output({},{}).\n".format(p, symbol, atom)
+
+        # output terms
+        # out += "% output term\n"
+        for symbol, condition in observer.output_terms:
+            out += "{}output_term({},{}).\n".format(p, symbol, condition[0])
+
+        return out + meta_programs.metaD_program.replace("##", p)
+
 
 # Uses clingo binary
-class MetaspB(AbstractMetasp):
+class MetaspBinary(AbstractMetasp):
 
     def __init__(self, solver):
         AbstractMetasp.__init__(self, solver)
@@ -401,6 +403,34 @@ class MetaspB(AbstractMetasp):
         prefix = self.solver.underscores + "_"*U_METAPREF
         return self.get_meta_using_binary(self.get_pref() + library, prefix)
 
+    #
+    # get_meta_using_binary()
+    #
+
+    # run command and return stdout as a string
+    def run_command(self, command):
+        with tempfile.TemporaryFile() as file_out:
+            # execute clingo
+            subprocess.call(command, stdout=file_out)
+            # read output
+            file_out.seek(0)
+            output = file_out.read()
+        if isinstance(output, bytes):
+            output = output.decode()
+        return output
+
+    def get_meta_using_binary(self, program, prefix):
+        with tempfile.NamedTemporaryFile() as file_in:
+            # write program to file_in
+            file_in.write(program.encode())
+            file_in.flush()
+            # run command
+            command = [CLINGO, REIFY_OUTPUT, file_in.name]
+            output = self.run_command(command)
+        # add prefix and return
+        output = re.sub(r'^(\w+)', r'' + prefix + r'\1', output, flags=re.M)
+        output += meta_programs.metaD_program.replace("##", prefix)
+        return output
 
 # REDO
 def run(base, metaD=False):

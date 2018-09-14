@@ -114,7 +114,8 @@ optimal"""
 # optimal,  hence it is not complete
 HELP_CONFIGS = """R|: Run clingo configurations c1, ..., cn iteratively
   (use 'all' for running all configurations)"""
-HELP_META = """R|: Use meta-interpretation techniques"""
+HELP_META     = """R|: Use meta-programming solving methods"""
+HELP_META_BIN = """R|: Use meta-programming solving methods (using clingo binary)"""
 
 #
 # VERSION
@@ -339,6 +340,8 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
                              choices=["weak", "heuristic"])
         solving.add_argument('--meta', dest='meta', help=HELP_META,
                              action='store_true')
+        solving.add_argument('--meta-bin', dest='meta_bin', help=HELP_META_BIN,
+                             action='store_true')
         solving.add_argument('--dom-heur', dest='cmd_heuristic',
                               nargs=2, metavar=('<v>','<m>'),
                               help=HELP_HEURISTIC)
@@ -450,9 +453,6 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
             options['solving_mode'] = "heuristic"
         options.pop('approximation',None)
 
-        # handle meta
-        options['observe'] = True if options['meta'] else False
-
         # statistics
         # if options['stats']:
         clingo_options.append('--stats')
@@ -535,8 +535,21 @@ class Asprin:
 
         # observer
         observer = None
-        if self.options['observe']:
-            observer = metasp.Observer(self.control) # registers the observer
+        if self.options['meta']:
+            observer = metasp.Observer(
+                self.control,
+                register_observer = True,
+                bool_add_statement = True,
+                bool_add_constants_nb = True
+            )
+        elif self.options['meta_bin']:
+            observer = metasp.Observer(
+                self.control,
+                bool_add_statement = True,
+                bool_add_base = True,
+                bool_add_specification = True,
+                bool_add_constants_nb = True
+            )
 
         # preference programs parsing
         _program_parser = program_parser.Parser(

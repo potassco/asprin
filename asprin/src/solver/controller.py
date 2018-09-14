@@ -289,8 +289,10 @@ class MetaMethodController(MethodController):
         MethodController.__init__(self, solver)
         self.solver = solver
         self.solver.set_holds_domain = True # TODO: CHECK IF/WHEN NEEDED
-        #self.meta = metasp.MetaspA(solver)
-        self.meta = metasp.MetaspB(solver)
+        if solver.options.meta:
+            self.meta = metasp.MetaspPython(solver)
+        else:
+            self.meta = metasp.MetaspBinary(solver)
 
     def start(self):
         # get meta program
