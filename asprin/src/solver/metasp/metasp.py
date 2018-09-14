@@ -42,6 +42,12 @@ U_METABASE = utils.U_METABASE
 PREFERENCE = utils.PREFERENCE
 OPTIMIZE   = utils.OPTIMIZE
 
+CLINGO = "clingo"
+REIFY_OUTPUT = "--output=reify"
+VERSION = "--version"
+NO_CLINGO = "clingo binary version not found (when running 'clingo --version')"
+OLD_CLINGO = "clingo binary too old (when running 'clingo --version') version 5.3 or newer is needed"
+
 METAPREF_BASIC = """
 { ##holds(X,0..1) } :- X = @get_holds_domain().
 ##volatile(##m(0),##m(1)).
@@ -75,6 +81,7 @@ $$bot :- **bot.
 :- not **bot.
 """
 
+# get_holds_domain() should not be defined here
 ASPRIN_LIBRARY_PY = """
 #script(python)
 
@@ -111,6 +118,13 @@ def log2up(x):
     return int(math.ceil(math.log(x.number,2)))
 
 #end.
+"""
+
+HOLDS_DOMAIN_PY = """
+import clingo
+holds_domain = {}
+def get_holds_domain():
+    return holds_domain
 """
 
 class Observer:
@@ -287,7 +301,18 @@ class MetaspB(AbstractMetasp):
 
     def __init__(self, solver):
         AbstractMetasp.__init__(self, solver)
-        # CHECK CLINGO BINARY VERSION
+        self.check_clingo_version()
+
+    def check_clingo_version(self):
+        version = self.run_command([CLINGO, VERSION])
+        match = re.match(r'clingo version (\d+)\.(\d+)', version)
+        if match:
+            first  = int(match.group(1))
+            second = int(match.group(2))
+            if first > 5 or (first == 5 and second >= 3):
+                return
+            raise Exception(OLD_CLINGO)
+        raise Exception(NO_CLINGO)
 
     def get_meta_program(self):
         prefix = self.solver.underscores + "_"*U_METABASE
@@ -297,34 +322,39 @@ class MetaspB(AbstractMetasp):
         meta_bind = self.get_meta_bind(BINDING_B)
         return meta_base + meta_pref + meta_bind
 
+    # run command and return stdout as a string
+    def run_command(self, command):
+        with tempfile.TemporaryFile() as file_out:
+            # execute clingo
+            subprocess.call(command, stdout=file_out)
+            # read output
+            file_out.seek(0)
+            output = file_out.read()
+        if isinstance(output, bytes):
+            output = output.decode()
+        return output
+
     def get_meta_using_binary(self, program, prefix):
         with tempfile.NamedTemporaryFile() as file_in:
             # write program to file_in
             file_in.write(program.encode())
             file_in.flush()
-            with tempfile.TemporaryFile() as file_out:
-                # execute clingo
-                command = ["clingo", "--output=reify", file_in.name]
-                subprocess.call(command, stdout=file_out)
-                # read output
-                file_out.seek(0)
-                output = file_out.read()
-        if isinstance(output, bytes):
-            output = output.decode()
-        # CHANGE NEXT LINES 
-        #output = re.sub(r'^(\w+)', r'' + prefix + r'\1', output)
-        output = re.sub(r'\n(\w+)', r'\n' + prefix + r'\1', "\n" + output)
+            # run command
+            command = [CLINGO, REIFY_OUTPUT, file_in.name]
+            output = self.run_command(command)
+        # add prefix and return
+        output = re.sub(r'^(\w+)', r'' + prefix + r'\1', output, flags=re.M)
         output += meta_programs.metaD_program.replace("##", prefix)
         return output
 
     def get_meta_pref(self):
-        preference_program = self.get_pref()
-        # DO WELL
-        preference_program += " ".join([self.solver.underscores + "holds_domain({}).".format(x) for x in self.solver.holds_domain])
-        preference_program = preference_program.replace("X = @get_holds_domain()", self.solver.underscores + "holds_domain(X)")
-        preference_program += ASPRIN_LIBRARY_PY
+        holds_domain = ",\n".join(
+            ['  clingo.parse_term("""{}""")'.format(x) for x in self.solver.holds_domain]
+        )
+        get_holds_domain = HOLDS_DOMAIN_PY.format("[\n" + holds_domain + "\n]")
+        library = ASPRIN_LIBRARY_PY.replace("#end.", get_holds_domain + "\n#end.")
         prefix = self.solver.underscores + "_"*U_METAPREF
-        return self.get_meta_using_binary(preference_program, prefix)
+        return self.get_meta_using_binary(self.get_pref() + library, prefix)
 
 
 # Uses the observer
