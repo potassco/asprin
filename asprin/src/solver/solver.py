@@ -534,6 +534,8 @@ class Solver:
         result = self.solve(on_model=self.on_model_single)
         if result.exhausted:
             self.more_models = False
+        if self.opt_models == 0:
+           self.print_unsat()
 
     def set_control_models(self):
         solve_conf = self.control.configuration.solve

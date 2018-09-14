@@ -149,14 +149,14 @@ class Observer:
         if register_observer:
             control.register_observer(self, replace)
         # observations
-        self.rules = []
-        self.weight_rules = []
-        self.output_atoms = []
-        self.output_terms = []
-        self.statements = []
-        self.base = None           # (program, old constants, new constants)
-        self.specification = None  # (program, old constants, new constants)
-        self.constants_nb = None   # (program,            [],            [])
+        self.rules         = []
+        self.weight_rules  = []
+        self.output_atoms  = []
+        self.output_terms  = []
+        self.statements    = []
+        self.base          = None         # (program, old consts, new consts)
+        self.specification = None         # (program, old consts, new consts)
+        self.constants_nb  = ("", [], []) # (program,         [],         [])
 
     #
     # control object observer
@@ -231,6 +231,15 @@ class AbstractMetasp:
             ]) + "\n"
         return spec
 
+    # WARNING:
+    # This is incorrect in general, since it may change the 
+    # content of some strings.
+    # This is needed so that @functions of 0 parameters are printed
+    # correctly. This should be fixed in clingo.
+    def fix_functions(self, program):
+        pattern = r'(@_*[a-z][\'A-Za-z0-9_]*)([^\(\'A-Za-z0-9_])'
+        return re.sub(pattern, r'\1()\2', program)
+
     def get_pref(self):
         # basic program
         basic = METAPREF_BASIC.replace("##", self.solver.underscores)
@@ -240,6 +249,8 @@ class AbstractMetasp:
         preference_program = "\n".join([
             self.statement_to_str(s) for s in self.solver.observer.statements
         ])
+        # See WARNING above
+        preference_program = self.fix_functions(preference_program)
         # constants
         constants = self.solver.observer.constants_nb[0]
         # return
