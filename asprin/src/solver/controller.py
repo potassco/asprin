@@ -302,14 +302,7 @@ class MetaMethodController(MethodController):
         ctl.add(utils.METAPROGRAM, [], meta_program)
         self.solver.ground([(utils.METAPROGRAM, [])])
         # solve
-        count = 0
-        ctl.configuration.solve.models = "0"
-        with ctl.solve(yield_=True) as handle:
-            for m in handle:
-                print(m.symbols(shown=True))
-                count += 1
-            print(handle.get())
-        print(count)
+        self.solver.solve_single()
         # finishes asprin
         self.solver.end()
 

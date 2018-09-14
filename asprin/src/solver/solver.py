@@ -491,6 +491,7 @@ class Solver:
             self.set_config()
         result = self.control_proxy.solve(*args, **kwargs)
         self.set_solving_result(result)
+        return result
 
     def ground(self, *args):
         self.control_proxy.ground(*args)
@@ -514,6 +515,25 @@ class Solver:
 
     def solve_unsat(self):
         self.solving_result = UNSATISFIABLE
+
+    def on_model_single(self, model):
+        self.shown = []
+        for a in model.symbols(shown=True):
+            if a.name != self.holds_at_zero_str:
+                self.shown.append(a)
+        self.models += 1
+        self.opt_models += 1
+        self.print_str_answer()
+        if self.options.quiet in (0, 1):
+            self.print_shown()
+        self.print_optimum_string()
+        self.shown = []
+
+    def solve_single(self):
+        self.control.configuration.solve.models = self.options.max_models
+        result = self.solve(on_model=self.on_model_single)
+        if result.exhausted:
+            self.more_models = False
 
     def set_control_models(self):
         solve_conf = self.control.configuration.solve
