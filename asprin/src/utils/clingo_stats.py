@@ -38,23 +38,17 @@ class Stats:
     def __init__(self):
         self.__width = 13
 
-
-
     def __ratio(self, x, y):
         return float(x)/float(y) if float(y)!=0 else 0
-
 
     def __percent(self, x, y):
         return 100*self.__ratio(x,y)
 
-
     def __print_key(self, key):
         return key + " "*(self.__width-len(key)) + ": "
 
-
     def __print_key_value(self, key, value):
         return self.__print_key(key) + value
-
 
     # requires the statistics from a Control object initialized with --stats
     def summary(self, statistics, models=True):
@@ -198,7 +192,7 @@ class Stats:
         out += " (Average: {:5.2f} Max: {:>3} Sum: {:>6} Ratio: {:6.2f}%)\n".format(avgBound,maxBound,boundSum,100.0 - (jumpedRatio*100.0))
 
         # return if there is no logic program info
-        if 'lp' not in control.statistics['problem']:
+        if 'lp' not in statistics['problem']:
             return out
 
         out += "\n"
