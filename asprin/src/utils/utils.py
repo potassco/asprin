@@ -40,7 +40,6 @@ PREFP      = "preference"
 PBASE      = "preference_base"
 HEURISTIC  = "heuristic"
 APPROX     = "weak"
-WARNINGS   = "warnings"
 UNSATP     = "preference_unsat"
 UNSATPBASE = "preference_unsat_base"
 CONSTANTS_NB = "constants_nonbase"
@@ -241,5 +240,4 @@ class ProgramPosition(object):
         self.line     = line
         self.col      = col
         self.lines    = lines # number of lines
-
 

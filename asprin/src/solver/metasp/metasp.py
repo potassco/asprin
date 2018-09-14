@@ -21,6 +21,7 @@
 # SOFTWARE.
 # -*- coding: utf-8 -*-
 
+
 #
 # IMPORTS
 #
@@ -32,6 +33,7 @@ import re
 from . import meta_programs
 from . import scc
 from ...utils import utils
+
 
 #
 # DEFINES
@@ -70,11 +72,11 @@ $$bot :- **bot.
 """
 
 BINDING_B = """
-**true(atom(A)) :-     ##holds(X,0), **output(##holds(X,1),B), **literal_tuple(B,A). % from base
-**fail(atom(A)) :- not ##holds(X,0), **output(##holds(X,1),B), **literal_tuple(B,A). % from base
-**true(atom(A)) :- $$true(atom(B)), $$output_term(##holds_at_zero(X),B),             % from meta_base
+**true(atom(A)) :-     ##holds(X,0), **output(##holds(X,1),B), **literal_tuple(B,A).  % from base
+**fail(atom(A)) :- not ##holds(X,0), **output(##holds(X,1),B), **literal_tuple(B,A).  % from base
+**true(atom(A)) :- $$true(atom(B)), $$output(##holds(X,0),BB), $$literal_tuple(BB,B), % from meta_base
                    **output(##holds(X,0),C), **literal_tuple(C,A).
-**fail(atom(A)) :- $$fail(atom(B)), $$output_term(##holds_at_zero(X),B),             % from meta_base
+**fail(atom(A)) :- $$fail(atom(B)), $$output(##holds(X,0),BB), $$literal_tuple(BB,B), % from meta_base
                    **output(##holds(X,0),C), **literal_tuple(C,A).
 **bot :- $$bot.
 $$bot :- **bot.
@@ -175,11 +177,11 @@ class Observer:
 
 # abstract class
 class AbstractMetasp:
-    
+
     def __init__(self, solver):
-        self.solver = solver
         # uses solver.control, solver.observer and solver.underscores
-   
+        self.solver = solver
+
     # to be defined by subclasses
     def get_meta_program(self):
         return None
@@ -254,6 +256,31 @@ class AbstractMetasp:
 
         return out + meta_programs.metaD_program.replace("##", p)
 
+    # run command and return stdout as a string
+    def run_command(self, command):
+        with tempfile.TemporaryFile() as file_out:
+            # execute clingo
+            subprocess.call(command, stdout=file_out)
+            # read output
+            file_out.seek(0)
+            output = file_out.read()
+        if isinstance(output, bytes):
+            output = output.decode()
+        return output
+
+    def get_meta_using_binary(self, program, prefix):
+        with tempfile.NamedTemporaryFile() as file_in:
+            # write program to file_in
+            file_in.write(program.encode())
+            file_in.flush()
+            # run command
+            command = [CLINGO, REIFY_OUTPUT, file_in.name]
+            output = self.run_command(command)
+        # add prefix and return
+        output = re.sub(r'^(\w+)', r'' + prefix + r'\1', output, flags=re.M)
+        output += meta_programs.metaD_program.replace("##", prefix)
+        return output
+
     def statement_to_str(self, statement):
         if str(statement.type) == "Definition": # to avoid printing [default]
             return "#const {}={}.".format(statement.name, statement.value)
@@ -296,67 +323,6 @@ class AbstractMetasp:
         return out.replace("$$", prefix_base).replace("**", prefix_pref)
 
 
-# Uses clingo binary
-class MetaspB(AbstractMetasp):
-
-    def __init__(self, solver):
-        AbstractMetasp.__init__(self, solver)
-        self.check_clingo_version()
-
-    def check_clingo_version(self):
-        version = self.run_command([CLINGO, VERSION])
-        match = re.match(r'clingo version (\d+)\.(\d+)', version)
-        if match:
-            first  = int(match.group(1))
-            second = int(match.group(2))
-            if first > 5 or (first == 5 and second >= 3):
-                return
-            raise Exception(OLD_CLINGO)
-        raise Exception(NO_CLINGO)
-
-    def get_meta_program(self):
-        prefix = self.solver.underscores + "_"*U_METABASE
-        # DO THIS WITH BINARY
-        meta_base = self.get_meta_from_observer(self.solver.observer, prefix)
-        meta_pref = self.get_meta_pref()
-        meta_bind = self.get_meta_bind(BINDING_B)
-        return meta_base + meta_pref + meta_bind
-
-    # run command and return stdout as a string
-    def run_command(self, command):
-        with tempfile.TemporaryFile() as file_out:
-            # execute clingo
-            subprocess.call(command, stdout=file_out)
-            # read output
-            file_out.seek(0)
-            output = file_out.read()
-        if isinstance(output, bytes):
-            output = output.decode()
-        return output
-
-    def get_meta_using_binary(self, program, prefix):
-        with tempfile.NamedTemporaryFile() as file_in:
-            # write program to file_in
-            file_in.write(program.encode())
-            file_in.flush()
-            # run command
-            command = [CLINGO, REIFY_OUTPUT, file_in.name]
-            output = self.run_command(command)
-        # add prefix and return
-        output = re.sub(r'^(\w+)', r'' + prefix + r'\1', output, flags=re.M)
-        output += meta_programs.metaD_program.replace("##", prefix)
-        return output
-
-    def get_meta_pref(self):
-        holds_domain = ",\n".join(
-            ['  clingo.parse_term("""{}""")'.format(x) for x in self.solver.holds_domain]
-        )
-        get_holds_domain = HOLDS_DOMAIN_PY.format("[\n" + holds_domain + "\n]")
-        library = ASPRIN_LIBRARY_PY.replace("#end.", get_holds_domain + "\n#end.")
-        prefix = self.solver.underscores + "_"*U_METAPREF
-        return self.get_meta_using_binary(self.get_pref() + library, prefix)
-
-
 # Uses the observer
 class MetaspA(AbstractMetasp):
 
@@ -377,6 +343,63 @@ class MetaspA(AbstractMetasp):
         ctl.ground([("base",[])], self.solver)
         prefix = self.solver.underscores + "_"*U_METAPREF
         return self.get_meta_from_observer(observer, prefix)
+
+
+# Uses clingo binary
+class MetaspB(AbstractMetasp):
+
+    def __init__(self, solver):
+        AbstractMetasp.__init__(self, solver)
+        self.check_clingo_version()
+
+    def check_clingo_version(self):
+        version = self.run_command([CLINGO, VERSION])
+        match = re.match(r'clingo version (\d+)\.(\d+)', version)
+        if match:
+            first  = int(match.group(1))
+            second = int(match.group(2))
+            if first > 5 or (first == 5 and second >= 3):
+                return
+            raise Exception(OLD_CLINGO)
+        raise Exception(NO_CLINGO)
+
+    def get_meta_program(self):
+        meta_base = self.get_meta_base()
+        meta_pref = self.get_meta_pref()
+        meta_bind = self.get_meta_bind(BINDING_B)
+        return meta_base + meta_pref + meta_bind
+
+    # WARNING:
+    # The next function relies on the form of the specification programs,
+    # assumes rules for preference/2, preference/5, optimize/1
+    # start at the beginning of a line and finish at the end.
+    # Depends on spec_parser/ast.py.
+    def get_meta_base(self):
+        observer = self.solver.observer
+        # get base
+        program  = observer.base[0] + "\n"
+        # get specification without preference/2, /5 and optimize/1
+        pattern = r'^(\_*)(' + PREFERENCE + r'|' + OPTIMIZE + r')'
+        program += re.sub(
+            pattern, r'%\1\2', observer.specification[0], flags=re.M
+        ) + "\n"
+        # add constants
+        for idx, old in enumerate(observer.base[1]): # for every old constant
+            program += "#const {}={}.".format(old, observer.base[2][idx]) + "\n"
+        # add show
+        program += "#show " + self.solver.underscores + "holds/2.\n"
+        # get meta using clingo binary
+        prefix = self.solver.underscores + "_"*U_METABASE
+        return self.get_meta_using_binary(program, prefix)
+
+    def get_meta_pref(self):
+        holds_domain = ",\n".join(
+            ['  clingo.parse_term("""{}""")'.format(x) for x in self.solver.holds_domain]
+        )
+        get_holds_domain = HOLDS_DOMAIN_PY.format("[\n" + holds_domain + "\n]")
+        library = ASPRIN_LIBRARY_PY.replace("#end.", get_holds_domain + "\n#end.")
+        prefix = self.solver.underscores + "_"*U_METAPREF
+        return self.get_meta_using_binary(self.get_pref() + library, prefix)
 
 
 # REDO

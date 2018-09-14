@@ -118,9 +118,6 @@ CHECK_SPEC = """
   A = "WARNING: no optimize statement, ",
   B = "computing non optimal stable models".
 
-"""
-AVOID_WARNINGS = """#program """ + utils.WARNINGS + """.
-
 % avoid clingo warnings
 #defined ##preference/5.
 #defined ##preference/2.
@@ -206,13 +203,13 @@ class Parser:
         old = [ key                      for key, value in constants ]
         new = [ clingo.parse_term(value) for key, value in constants ]
         # add and ground
-        string =  programs[BASE][""].get_string()
-        self.__add_and_ground(BASE,old,string,[(BASE,new)])
-        string =  programs[GENERATE][""].get_string()
-        self.__add_and_ground(GENERATE,[],string,[(GENERATE,[])])
+        string_base =  programs[BASE][""].get_string()
+        self.__add_and_ground(BASE, old, string_base, [(BASE,new)])
+        string_generate =  programs[GENERATE][""].get_string()
+        self.__add_and_ground(GENERATE, [], string_generate, [(GENERATE,[])])
         # observe
         if self.__observer:
-            self.__observer.add_base(string, old, new)
+            self.__observer.add_base(string_base, old, new)
 
 
     def get_domains(self):
@@ -281,7 +278,6 @@ class Parser:
         string  = programs[SPEC][""].get_string() 
         if options['check']:
             string += CHECK_SPEC.replace("##",u)
-        string += AVOID_WARNINGS.replace("##",u)
         self.__add_and_ground(SPEC,old,string,[(SPEC,new)])
 
         pr = printer.Printer()

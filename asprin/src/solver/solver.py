@@ -310,7 +310,7 @@ class Solver:
 
 
     #
-    # USED BY ASPRIN LIBRARY (copied at metasp/metalib.py)
+    # USED BY ASPRIN LIBRARY (to be copied at metasp/metasp.py)
     #
 
     def exp2(self, x):

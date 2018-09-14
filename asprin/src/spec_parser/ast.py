@@ -195,6 +195,10 @@ class PStatement(Statement):
                 body += statement_body
             arrow = " :- " if body != "" else ""
 
+            # WARNING: src/solver/metasp/metasp.py
+            # assumes rules for preference/2, preference/5, optimize/1
+            # start at the beginning of a line and finish at the end
+
             # head sets
             for j in i.sets:
                 for k in j:
