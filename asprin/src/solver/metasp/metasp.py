@@ -48,7 +48,8 @@ CLINGO = "clingo"
 REIFY_OUTPUT = "--output=reify"
 VERSION = "--version"
 NO_CLINGO = "clingo binary version not found (when running 'clingo --version')"
-OLD_CLINGO = "clingo binary too old (when running 'clingo --version') version 5.3 or newer is needed"
+OLD_CLINGO = """clingo binary too old (when running 'clingo --version')\
+ version 5.3 or newer is needed"""
 
 METAPREF_BASIC = """
 { ##holds(X,0..1) } :- X = @get_holds_domain().
@@ -60,23 +61,27 @@ METAPREF_BASIC = """
 """
 
 BINDING_A = """
-**true(atom(A)) :-     ##holds(X,0), **output(##holds(X,1),A).           % from base
-**fail(atom(A)) :- not ##holds(X,0), **output(##holds(X,1),A).           % from base
-**true(atom(A)) :- $$true(atom(B)), $$output_term(##holds_at_zero(X),B), % from meta_base
-                   **output(##holds(X,0),A).
-**fail(atom(A)) :- $$fail(atom(B)), $$output_term(##holds_at_zero(X),B), % from meta_base
-                   **output(##holds(X,0),A).
+**true(atom(A)) :-     ##holds(X,0), **output(##holds(X,1),A).                    % from base
+**fail(atom(A)) :- not ##holds(X,0), **output(##holds(X,1),A).                    % from base
+**true(atom(A)) :- $$output_term(##holds_at_zero(X)), **output(##holds(X,0),A),   % from meta_base
+                   $$true(atom( B)) : $$output_term(##holds_at_zero(X),B), B >= 0;
+                   $$fail(atom(-B)) : $$output_term(##holds_at_zero(X),B), B <  0.
+**fail(atom(A)) :- $$output_term(##holds_at_zero(X)), **output(##holds(X,0),A),   % from meta_base
+                   $$fail(atom( B)),  $$output_term(##holds_at_zero(X),B), B >= 0.
+**fail(atom(A)) :- $$output_term(##holds_at_zero(X)), **output(##holds(X,0),A),   % from meta_base
+                   $$true(atom(-B)),  $$output_term(##holds_at_zero(X),B), B <  0.
 **bot :- $$bot.
 $$bot :- **bot.
 :- not **bot.
+$$atom(|B|) :- $$output_term(X,B). % needed when X is a fact
 """
 
 BINDING_B = """
 **true(atom(A)) :-     ##holds(X,0), **output(##holds(X,1),B), **literal_tuple(B,A).  % from base
 **fail(atom(A)) :- not ##holds(X,0), **output(##holds(X,1),B), **literal_tuple(B,A).  % from base
-**true(atom(A)) :- $$true(atom(B)), $$output(##holds(X,0),BB), $$literal_tuple(BB,B), % from meta_base
+**true(atom(A)) :- $$true(normal(B)), $$output(##holds(X,0),B),                       % from meta_base
                    **output(##holds(X,0),C), **literal_tuple(C,A).
-**fail(atom(A)) :- $$fail(atom(B)), $$output(##holds(X,0),BB), $$literal_tuple(BB,B), % from meta_base
+**fail(atom(A)) :- $$fail(normal(B)), $$output(##holds(X,0),B),                       % from meta_base
                    **output(##holds(X,0),C), **literal_tuple(C,A).
 **bot :- $$bot.
 $$bot :- **bot.
@@ -298,7 +303,8 @@ class MetaspPython(AbstractMetasp):
 
         # fact 0
         # out += "% fact 0\n"
-        out += "{}rule(disjunction(0),normal(0)). {}atom_tuple(0,0). {}literal_tuple(0).\n\n".format(p, p, p)
+        out += "{}rule(disjunction(0),normal(0)). ".format(p)
+        out += "{}atom_tuple(0,0). {}literal_tuple(0).\n\n".format(p, p)
 
         # start graph
         graph = scc.Graph()
@@ -308,14 +314,23 @@ class MetaspPython(AbstractMetasp):
 
             # out += "% normal rule\n"
             # body
-            out += "{}literal_tuple({}).".format(p, literal_tuple) + "\n"
-            out += " ".join(["{}literal_tuple({},{}).".format(p, literal_tuple, l) for l in body]) + "\n"
+            if body:
+                out += "{}literal_tuple({}).".format(p, literal_tuple) + "\n"
+                out += " ".join([
+                    "{}literal_tuple({},{}).".format(p, literal_tuple, l)
+                    for l in body
+                ]) + "\n"
             # head
             head_type = "choice" if choice else "disjunction"
-            out += "{}rule({}({}),normal({})).".format(p, head_type, atom_tuple, literal_tuple) + "\n"
-            out += " ".join(["{}atom_tuple({},{}).".format(p, atom_tuple, l) for l in head]) + "\n\n"
+            out += "{}rule({}({}),normal({})).".format(
+                p, head_type, atom_tuple, literal_tuple if body else 0
+            ) + "\n"
+            out += " ".join([
+                "{}atom_tuple({},{}).".format(p, atom_tuple, l) for l in head
+            ]) + "\n\n"
             # update counters
-            literal_tuple += 1
+            if body:
+                literal_tuple += 1
             atom_tuple += 1
             # update graph (this can be interwined with the rules above)
             for l in body:
@@ -327,11 +342,19 @@ class MetaspPython(AbstractMetasp):
         for choice, head, lower_bound, body in observer.weight_rules:
             # out += "% weighted rule\n"
             # body
-            out += " ".join(["{}weighted_literal_tuple({},{},{}).".format(p, wliteral_tuple, l, w) for l, w in body]) + "\n"
+            out += " ".join([
+                "{}weighted_literal_tuple({},{},{}).".format(
+                    p, wliteral_tuple, l, w
+                ) for l, w in body
+            ]) + "\n"
             # head
             head_type = "choice" if choice else "disjunction"
-            out += "{}rule({}({}),sum({},{})).".format(p, head_type, atom_tuple, wliteral_tuple, lower_bound) + "\n"
-            out += " ".join(["{}atom_tuple({},{}).".format(p, atom_tuple, l) for l in head]) + "\n\n"
+            out += "{}rule({}({}),sum({},{})).".format(
+                p, head_type, atom_tuple, wliteral_tuple, lower_bound
+            ) + "\n"
+            out += " ".join([
+                "{}atom_tuple({},{}).".format(p, atom_tuple, l) for l in head
+            ]) + "\n\n"
             # update counters
             wliteral_tuple += 1
             atom_tuple += 1
@@ -353,7 +376,10 @@ class MetaspPython(AbstractMetasp):
         # output terms
         # out += "% output term\n"
         for symbol, condition in observer.output_terms:
-            out += "{}output_term({},{}).\n".format(p, symbol, condition[0])
+            out += "{}output_term({}).\n".format(p, symbol) + "\n"
+            out += " ".join([
+                "{}output_term({},{}).".format(p, symbol, l) for l in condition
+            ]) + "\n"
 
         return out + meta_programs.metaD_program.replace("##", p)
 
@@ -406,11 +432,14 @@ class MetaspBinary(AbstractMetasp):
         return self.get_meta_using_binary(program, prefix)
 
     def get_meta_pref(self):
-        holds_domain = ",\n".join(
-            ['  clingo.parse_term("""{}""")'.format(x) for x in self.solver.holds_domain]
-        )
+        holds_domain = ",\n".join([
+            '  clingo.parse_term("""{}""")'.format(x) 
+            for x in self.solver.holds_domain
+        ])
         get_holds_domain = HOLDS_DOMAIN_PY.format("[\n" + holds_domain + "\n]")
-        library = ASPRIN_LIBRARY_PY.replace("#end.", get_holds_domain + "\n#end.")
+        library = ASPRIN_LIBRARY_PY.replace(
+            "#end.", get_holds_domain + "\n#end."
+        )
         prefix = self.solver.underscores + "_"*U_METAPREF
         return self.get_meta_using_binary(self.get_pref() + library, prefix)
 

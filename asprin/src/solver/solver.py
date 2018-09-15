@@ -531,6 +531,7 @@ class Solver:
 
     def solve_single(self):
         self.control.configuration.solve.models = self.options.max_models
+        self.printer.do_print("Solving...")
         result = self.solve(on_model=self.on_model_single)
         if result.exhausted:
             self.more_models = False

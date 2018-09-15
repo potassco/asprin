@@ -31,7 +31,7 @@ meta_program = """
   ##hold(A) : ##atom_tuple(H,A)   :- ##rule(disjunction(H),B), ##body(B).
 { ##hold(A) : ##atom_tuple(H,A) } :- ##rule(     choice(H),B), ##body(B).
 
-% commented by Javier
+% commented by Javier for MetaspPython
 %*
 ##optimize(J,W,Q) :- ##output(_optimize(J,W,Q),B), ##conjunction(B).
  :- ##output(_query,B), not ##conjunction(B).
@@ -43,7 +43,7 @@ meta_program = """
 #show T : ##output(T,B), ##conjunction(B), not ##hide(T).
 *%
 
-% added by Javier
+% added by Javier for MetaspPython
 #show.
 #show T : ##output(T,L), ##hold(L).
 

@@ -54,7 +54,23 @@ OPTIONS = [
     ["--improve-limit=1,all,100"],
     ["--on-opt-heur=+,p,-1,sign --on-opt-heur=-,p,1,sign"],
     ["--on-opt-heur=+,s,1,true --on-opt-heur=-,s,1,false"],
+    ["--meta"],
+    ["--meta-bin"],
 ]
+EXCLUDE = {}
+EXCLUDE["--meta"] = [
+    os.path.join(PATH, "asprin_lib/test022.lp"), # too hard
+    os.path.join(PATH, "asprin_lib/test024.lp"), # too hard
+    os.path.join(PATH, "solver/solver/test001.lp"), # --project not implemented (TODO)
+    os.path.join(PATH, "solver/solver/test002.lp"), # --project not implemented (TODO)
+    os.path.join(PATH, "solver/solver/test003.lp"), # --non-optimal not implemented (TODO)
+    os.path.join(PATH, "solver/solver/test004.lp"), # --non-optimal not implemented (TODO)
+    os.path.join(PATH, "solver/solver/test006.lp"), # --non-optimal not implemented (TODO)
+    os.path.join(PATH, "spec_parser/spec_lexer/test001.lp"), # --non-optimal not implemented (TODO)
+    os.path.join(PATH, "spec_parser/spec_lexer/test010.lp"), # --non-optimal not implemented, and minimize: check! (TODO)
+    os.path.join(PATH, "spec_parser/spec_parser/test018.lp"), # --project not implemented (TODO)
+]
+EXCLUDE["--meta-bin"] = EXCLUDE["--meta"]
 
 class cd:
     """Context manager for changing the current working directory"""
@@ -69,11 +85,21 @@ class cd:
         os.chdir(self.savedPath)
 
 class Tester:
-    
+
+    def exclude(self, options, _file):
+        try:
+            if _file in EXCLUDE[" ".join(options)]:
+                return True
+        except:
+            pass
+        return False
+
     def run(self, dir, options):
         errors, error = False, False
         for i in sorted(os.listdir(dir)):
             abs_i = os.path.join(dir,i)
+            if self.exclude(options, abs_i):
+                continue
             if os.path.isdir(abs_i):
                 error = self.run(os.path.join(dir, i), options)
             elif str(abs_i)[-3:] == ".lp":
@@ -112,7 +138,7 @@ def main(args):
         errors = Tester().run(path, opt)
         if errors:
             print("ERROR: There were errors in the tests")
-            global_errors.append(opt)
+            global_errors.append(str(opt))
         else:
             print("OK: All tests were successful")
     if len(options) <= 1:
