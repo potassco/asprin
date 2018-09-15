@@ -751,6 +751,9 @@ error_type(maxmin,no_condition).
 error_type(maxmin,no_sets).
 error_type(maxmin,(min_weight_length,2)).
 
+% no warnings
+#defined group/2.
+
 #program preference(minmax).
 
 %%% get groups
@@ -797,6 +800,8 @@ error_type(minmax,no_condition).
 error_type(minmax,no_sets).
 error_type(minmax,(min_weight_length,2)).
 
+% no warnings
+#defined group/2.
 
 %
 % heuristic approximation programs:
