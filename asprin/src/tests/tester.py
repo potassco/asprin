@@ -71,6 +71,10 @@ EXCLUDE["--meta"] = [
     os.path.join(PATH, "spec_parser/spec_parser/test018.lp"), # --project not implemented (TODO)
 ]
 EXCLUDE["--meta-bin"] = EXCLUDE["--meta"]
+EXCLUDE["--on-opt-heur=+,p,-1,sign --on-opt-heur=-,p,1,sign"] = [
+    os.path.join(PATH, "program_parser/basic/test001.lp"), # uses --approximation=heuristic
+    os.path.join(PATH, "program_parser/basic/test002.lp"), # uses --approximation=heuristic
+]
 
 class cd:
     """Context manager for changing the current working directory"""
