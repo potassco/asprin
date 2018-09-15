@@ -30,7 +30,7 @@ import clingo
 import subprocess
 import tempfile
 import re
-from . import meta_programs
+from . import metasp_programs
 from . import scc
 from ...utils import utils
 
@@ -381,7 +381,7 @@ class MetaspPython(AbstractMetasp):
                 "{}output_term({},{}).".format(p, symbol, l) for l in condition
             ]) + "\n"
 
-        return out + meta_programs.metaD_program.replace("##", p)
+        return out + metasp_programs.metaD_program.replace("##", p)
 
 
 # Uses clingo binary
@@ -469,7 +469,7 @@ class MetaspBinary(AbstractMetasp):
             output = self.run_command(command)
         # add prefix and return
         output = re.sub(r'^(\w+)', r'' + prefix + r'\1', output, flags=re.M)
-        output += meta_programs.metaD_program.replace("##", prefix)
+        output += metasp_programs.metaD_program.replace("##", prefix)
         return output
 
 # REDO
@@ -493,9 +493,9 @@ def run(base, metaD=False):
     print(base)
     return
     if metaD:
-        base += meta_programs.metaD_program
+        base += metasp_programs.metaD_program
     else:
-        base += meta_programs.meta_program
+        base += metasp_programs.meta_program
     ctl = clingo.Control(["0"])
     ctl.add("base", [], base)
     ctl.ground([("base", [])])
