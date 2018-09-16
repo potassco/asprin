@@ -63,10 +63,6 @@ EXCLUDE["--meta"] = [
     os.path.join(PATH, "asprin_lib/test024.lp"), # too hard
     os.path.join(PATH, "solver/solver/test001.lp"), # --project not implemented (TODO)
     os.path.join(PATH, "solver/solver/test002.lp"), # --project not implemented (TODO)
-    os.path.join(PATH, "solver/solver/test003.lp"), # --non-optimal not implemented (TODO)
-    os.path.join(PATH, "solver/solver/test004.lp"), # --non-optimal not implemented (TODO)
-    os.path.join(PATH, "solver/solver/test006.lp"), # --non-optimal not implemented (TODO)
-    os.path.join(PATH, "spec_parser/spec_lexer/test001.lp"), # --non-optimal not implemented (TODO)
     os.path.join(PATH, "spec_parser/spec_lexer/test010.lp"), # --non-optimal not implemented, and minimize: check! (TODO)
     os.path.join(PATH, "spec_parser/spec_parser/test018.lp"), # --project not implemented (TODO)
 ]

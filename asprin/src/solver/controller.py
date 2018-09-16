@@ -295,12 +295,13 @@ class MetaMethodController(MethodController):
             self.meta = metasp.MetaspBinary(solver)
 
     def start(self):
-        # get meta program
-        meta_program = self.meta.get_meta_program()
-        # add and ground
-        ctl = self.solver.control
-        ctl.add(utils.METAPROGRAM, [], meta_program)
-        self.solver.ground([(utils.METAPROGRAM, [])])
+        if not self.solver.options.non_optimal:
+            # get meta program
+            meta_program = self.meta.get_meta_program()
+            # add and ground
+            ctl = self.solver.control
+            ctl.add(utils.METAPROGRAM, [], meta_program)
+            self.solver.ground([(utils.METAPROGRAM, [])])
         # solve
         self.solver.solve_single()
         # finishes asprin
