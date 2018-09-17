@@ -1,17 +1,17 @@
 # MIT License
-# 
+#
 # Copyright (c) 2017 Javier Romero
-# 
+#
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
 # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 # copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to the following conditions:
-# 
+#
 # The above copyright notice and this permission notice shall be included in all
 # copies or substantial portions of the Software.
-# 
+#
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -136,11 +136,11 @@ PROGRAMS = \
    (VOLATILE_EXT,  ["m1","m2"],"""
 #external ##""" + VOLATILE + """(##m(m1),##m(m2))."""),
    (DELETE_MODEL,           [],"""
-:-     ##""" + HOLDS + """(X,0) : X = @get_holds(); 
+:-     ##""" + HOLDS + """(X,0) : X = @get_holds();
    not ##""" + HOLDS + """(X,0) : X = @get_nholds()."""),
    (DELETE_MODEL_VOLATILE,           ["m"],"""
 #external ##""" + DELETE_MODEL_VOLATILE_ATOM + """(m).
-:-     ##""" + HOLDS + """(X,0) : X = @get_holds(); 
+:-     ##""" + HOLDS + """(X,0) : X = @get_holds();
    not ##""" + HOLDS + """(X,0) : X = @get_nholds();
    not ##""" + DELETE_MODEL_VOLATILE_ATOM + """(m)."""),
    (UNSAT_PRG,     ["m1","m2"],"""
@@ -150,17 +150,17 @@ PROGRAMS = \
 :-     ##""" + UNSAT_ATOM + """(##m(m1),##m(m2)),
        ##""" +   VOLATILE + """(##m(m1),##m(m2))."""),
    (CMD_HEURISTIC,   ["v","m"],"""
-#heuristic ##""" + HOLDS + """(X,0) : ##""" + PREFERENCE + 
+#heuristic ##""" + HOLDS + """(X,0) : ##""" + PREFERENCE +
     """(_,_,_,for(X),_). [v@0,m]"""),
    (DO_HOLDS_DELETE_BETTER,        [],"""
-##""" + HOLDS + """(X,""" + str(MODEL_DELETE_BETTER) + """) :- ##""" + 
+##""" + HOLDS + """(X,""" + str(MODEL_DELETE_BETTER) + """) :- ##""" +
     HOLDS + """(X,0)."""),
   ]
 PROGRAMS_APPROX = \
   [(DO_HOLDS_APPROX,            ["m","mm"],"""
 ##""" + HOLDS + """(X,m) :- X = @get_holds_approx(mm)."""),
    (DELETE_MODEL_APPROX,           ["mm"],"""
-:-     ##""" + HOLDS + """(X,0) : X = @get_holds_approx(mm); 
+:-     ##""" + HOLDS + """(X,0) : X = @get_holds_approx(mm);
    not ##""" + HOLDS + """(X,0) : X = @get_nholds_approx(mm)."""),
    (PROJECT_APPROX,           [],"""
 #project  ##""" + HOLDS + """/2."""),
@@ -191,7 +191,7 @@ class Solver:
         for key, value in options.items():
             setattr(self.options, key, value)
         self.control_proxy     = control_proxy
-        self.observer = observer 
+        self.observer = observer
         # strings
         self.underscores       = utils.underscores
         self.volatile_str      = self.underscores + VOLATILE
@@ -284,7 +284,7 @@ class Solver:
 
     def get_unsat_function(self, term, y):
         return clingo.parse_term("{}({}{}({}),{}{}({}))".format(
-            self.unsat_str, 
+            self.unsat_str,
             self.underscores, MODEL, str(term),
             self.underscores, MODEL, y
             ))
@@ -337,7 +337,7 @@ class Solver:
         try:
             return len(atuple.arguments)
         except:
-            return 1 
+            return 1
 
     def log2up(self, x):
         return int(math.ceil(math.log(x.number,2)))
@@ -346,19 +346,14 @@ class Solver:
     # CLINGO PROXY
     #
 
+    def add_and_ground(self, name, params, program, params_instances):
+        self.control.add(name, params, program)
+        self.ground([(name, params_instances)], self)
+
     def add_encodings(self):
         for i in PROGRAMS:
             self.control.add(i[0], i[1], i[2].replace(TOKEN, self.underscores))
         self.ground([(DO_HOLDS_AT_ZERO, [])], self)
-
-    def no_optimize(self):
-        optimize = self.underscores + utils.OPTIMIZE
-        for atom in self.control.symbolic_atoms.by_signature(optimize, 1):
-            return False
-        return True
-
-    def print_no_optimize_warning(self):
-        self.printer.print_warning(WARNING_NO_OPTIMIZE)
 
     def add_unsat_to_preference_program(self):
         self.control.add(UNSAT_PREFP[0], UNSAT_PREFP[1],
@@ -366,53 +361,6 @@ class Solver:
         if self.options.preference_unsat:
             self.control.add(UNSAT_UNSATP[0], UNSAT_UNSATP[1],
                              UNSAT_UNSATP[2].replace(TOKEN, self.underscores))
-
-    def add_and_ground(self, name, params, program, params_instances):
-        self.control.add(name, params, program)
-        self.ground([(name, params_instances)], self)
-
-    def ground_heuristic(self):
-        self.ground([(HEURISTIC, [])], self)
-
-    def ground_cmd_heuristic(self):
-        params = [clingo.parse_term(i) for i in self.options.cmd_heuristic]
-        self.ground([(CMD_HEURISTIC, params)], self)
-
-    def ground_preference_base(self):
-        self.ground([(PBASE, [])], self)
-
-    def ground_unsatp_base(self):
-        self.ground([(UNSATPBASE, [])], self)
-
-    def ground_holds(self, step):
-        self.ground([(DO_HOLDS, [step])], self)
-
-    def get_preference_parts(self, x, y, better, volatile):
-        parts = [(PREFP, [x, y])]
-        if better:
-            parts.append((NOT_UNSAT_PRG, [x,y]))
-        else:
-            parts.append((    UNSAT_PRG, [x,y]))
-        if volatile:
-            parts.append((VOLATILE_EXT,  [x,y]))
-        else:
-            parts.append((VOLATILE_FACT, [x,y]))
-        return parts
-
-    def get_preference_parts_unsatp(self, x, y, better, volatile):
-        parts = self.get_preference_parts(x, y, better, volatile)
-        parts.append((UNSATP, [x,y]))
-        return parts[1:]
-
-    def ground_preference_program(self, volatile):
-        control, prev_step = self.control, self.step-1
-        parts = self.get_preference_parts(0, prev_step, True, volatile)
-        control.ground(parts, self)
-        if volatile:
-            if self.options.release_last:
-                self.relax_previous_models()
-            control.assign_external(self.get_external(0,prev_step), True)
-            self.improving.append(prev_step)
 
     def check_errors(self):
         pr, control, u = self.printer, self.control, self.underscores
@@ -431,191 +379,16 @@ class Solver:
         if error:
             raise Exception("parsing failed")
 
-    def get_shown(self):
-        return self.shown
-
-    def get_shown_domain(self):
-        return self.shown_domain
-
-    def append_to_shown_domain(self, atom):
-        if atom.type == clingo.SymbolType.Function and len(atom.name) > 0:
-            self.shown_domain.append(atom)
-            #name = ("-" if atom.negative else "") + atom.name
-            #self.shown_domain.add((name, len(atom.arguments)))
-
-    def do_set_shown_domain(self, model):
-        self.set_shown_domain = False
-        # gather all true and false atoms
-        tatoms = model.symbols(atoms=True)
-        fatoms = model.symbols(atoms=True, complement=True)
-        # add shown elements that are true and false atoms
-        for atom in model.symbols(shown=True):
-            if atom in tatoms:
-                self.append_to_shown_domain(atom)
-        for atom in model.symbols(shown=True, complement=True):
-            if atom in fatoms:
-                self.append_to_shown_domain(atom)
-
-    def on_model(self, model):
-        self.holds, self.nholds, self.shown = [], [], []
-        if self.set_shown_domain:
-            self.do_set_shown_domain(model)
-        for a in model.symbols(shown=True):
-            if a.name == self.holds_at_zero_str:
-                self.holds.append(a.arguments[0])
-            else:
-                self.shown.append(a)
-        if self.store_nholds:
-            self.nholds = [
-                x for x in self.holds_domain if x not in set(self.holds)
-            ]
-
-    def set_config(self):
-        try:
-            self.iconfigs = (self.iconfigs + 1) % len(self.options.configs)
-        except:
-            self.iconfigs = 0
-        self.control.configuration.configuration = self.options.configs[self.iconfigs]
-
-    def set_solving_result(self, result):
-        # set solving result
-        if result.satisfiable:
-            self.solving_result = SATISFIABLE
-        elif result.unsatisfiable:
-            self.solving_result = UNSATISFIABLE
-        else:
-            self.solving_result = UNKNOWN
-
-    def solve(self, *args, **kwargs):
-        if self.options.configs is not None:
-            self.set_config()
-        result = self.control_proxy.solve(*args, **kwargs)
-        self.set_solving_result(result)
-        return result
-
-    def ground(self, *args):
-        self.control_proxy.ground(*args)
-
-    def solve_heuristic(self):
-        h = []
-        # gather heuristics
-        for _solver in self.control.configuration.solver:
-            h.append(_solver.heuristic)
-            _solver.heuristic="Domain"
-        # solve
-        self.solve(assumptions=self.assumptions, on_model=self.on_model)
-        # restore heuristics
-        i = 0
-        for _solver in self.control.configuration.solver:
-            _solver.heuristic = h[i]
-            i += 1
-
-    def solve_unknown(self):
-        self.solving_result = UNKNOWN
-
-    def solve_unsat(self):
-        self.solving_result = UNSATISFIABLE
-
-    def on_model_single(self, model):
-        self.shown = []
-        for a in model.symbols(shown=True):
-            if a.name != self.holds_at_zero_str:
-                self.shown.append(a)
-        self.models += 1
-        self.opt_models += 1
-        self.print_str_answer()
-        if self.options.quiet in (0, 1):
-            self.print_shown()
-        self.print_optimum_string()
-        self.shown = []
-
-    def solve_single(self):
-        self.control.configuration.solve.models = self.options.max_models
-        self.printer.do_print("Solving...")
-        result = self.solve(on_model=self.on_model_single)
-        if result.exhausted:
-            self.more_models = False
-        if self.opt_models == 0:
-           self.print_unsat()
-
-    def set_control_models(self):
-        solve_conf = self.control.configuration.solve
-        if self.options.max_models == 0:
-            solve_conf.models = "0"
-        else:
-            solve_conf.models = str(self.options.max_models - self.opt_models)
-
-    def symbol2str(self,symbol):
-        if symbol.name == CSP:
-            return str(symbol.arguments[0]) + "=" + str(symbol.arguments[1])
-        return str(symbol)
-
-    def print_shown(self):
-        self.printer.do_print(" ".join(map(self.symbol2str, self.shown)))
-
-    def print_str_answer(self):
-        self.printer.do_print(STR_ANSWER.format(self.models))
-
-    def print_answer(self):
-        self.printer.do_print(STR_ANSWER.format(self.models))
-        self.printer.do_print(" ".join(map(self.symbol2str, self.shown)))
-
-    def print_unknowns(self, string, unknowns, mapping):
-        if unknowns:
-            self.printer.do_print(string.format(
-                " ".join([str(mapping[i]) for i in unknowns])
-            ))
-
-    def print_unknown_nonoptimal_models(self, unknowns, mapping):
-        self.print_unknowns(STR_UNKNOWN_NONOPTIMAL, unknowns, mapping)
-
-    def print_unknown_optimal_models(self, unknowns, mapping):
-        self.print_unknowns(STR_UNKNOWN_OPTIMAL, unknowns, mapping)
-
-    def print_better_than_unknown(self, unknowns, mapping):
-        self.print_unknowns(STR_BETTER_THAN_UNKNOWN, unknowns, mapping)
-
-    def print_limit_string(self):
-        self.printer.do_print(STR_LIMIT)
-
-    def print_optimum_string(self, star=False):
-        if not star:
-            self.printer.do_print(self.str_found)
-        else:
-            self.printer.do_print(self.str_found_star)
-
-    def print_steps_message(self):
-        if self.opt_models == 0:
-            self.printer.do_print(STR_SATISFIABLE)
-
-    def print_unsat(self):
-        self.printer.do_print(STR_UNSATISFIABLE)
-
     def check_last_model(self):
         if self.old_holds  == self.holds:
             self.printer.do_print()
             raise Exception(SAME_MODEL)
         self.old_holds  = self.holds
 
-    def same_shown(self):
-        if set(self.old_shown) == set(self.shown):
-            self.enumerate_flag = True
-            return True
-        return False
+    def clean_up(self):
+        self.control.cleanup()
 
-    def same_shown_underscores(self):
-        u = self.underscores
-        s1 = set([i for i in self.old_shown if not str(i).startswith(u)])
-        s2 = set([i for i in     self.shown if not str(i).startswith(u)])
-        if s1 == s2:
-            self.enumerate_flag = True
-            return True
-        return False
-
-    def same_shown_false(self):
-        return False
-
-    def on_model_enumerate(self, model):
+    def enumerate_on_model(self, model):
         true = model.symbols(shown=True)
         self.shown = [i for i in true if i.name != self.holds_at_zero_str]
         # we may enumerate one more model than what is needed,
@@ -648,33 +421,66 @@ class Solver:
         # solve
         self.old_shown, self.enumerate_flag = self.shown, False
         self.solve(assumptions = ass + self.assumptions,
-                   on_model = self.on_model_enumerate)
+                   on_model = self.enumerate_on_model)
         self.shown = self.old_shown
         solve_conf.models = old_models
 
-    def relax_previous_models(self):
-        for i in self.improving:
-            self.control.release_external(self.get_external(0, i))
-        self.improving = []
+    def get_preference_parts(self, x, y, better, volatile):
+        parts = [(PREFP, [x, y])]
+        if better:
+            parts.append((NOT_UNSAT_PRG, [x,y]))
+        else:
+            parts.append((    UNSAT_PRG, [x,y]))
+        if volatile:
+            parts.append((VOLATILE_EXT,  [x,y]))
+        else:
+            parts.append((VOLATILE_FACT, [x,y]))
+        return parts
+
+    def get_preference_parts_unsatp(self, x, y, better, volatile):
+        parts = self.get_preference_parts(x, y, better, volatile)
+        parts.append((UNSATP, [x,y]))
+        return parts[1:]
+
+    def get_shown(self):
+        return self.shown
+
+    def get_shown_domain(self):
+        return self.shown_domain
+
+    def ground(self, *args):
+        self.control_proxy.ground(*args)
+
+    def ground_cmd_heuristic(self):
+        params = [clingo.parse_term(i) for i in self.options.cmd_heuristic]
+        self.ground([(CMD_HEURISTIC, params)], self)
+
+    def ground_heuristic(self):
+        self.ground([(HEURISTIC, [])], self)
+
+    def ground_holds(self, step):
+        self.ground([(DO_HOLDS, [step])], self)
 
     def ground_holds_delete_better(self):
         if not self.grounded_delete_better:
             self.ground([(DO_HOLDS_DELETE_BETTER, [])], self)
             self.grounded_delete_better = True
 
-    def relax_optimal_models(self):
-        for x,y in self.not_improving:
-            self.control.assign_external(self.get_external(x,y),False)
+    def ground_preference_base(self):
+        self.ground([(PBASE, [])], self)
 
-    def volatile_optimal_model(self, step, delete_worse, delete_better):
-        if delete_worse:
-            self.not_improving.append((step,0))
-        if delete_better:
-            self.not_improving.append((MODEL_DELETE_BETTER,step))
-        for x,y in self.not_improving:        #activate
-            self.control.assign_external(self.get_external(x,y),True)
-        if not self.options.no_opt_improving: #reset
-            self.not_improving = []
+    def ground_preference_program(self, volatile):
+        control, prev_step = self.control, self.step-1
+        parts = self.get_preference_parts(0, prev_step, True, volatile)
+        control.ground(parts, self)
+        if volatile:
+            if self.options.release_last:
+                self.relax_previous_models()
+            control.assign_external(self.get_external(0,prev_step), True)
+            self.improving.append(prev_step)
+
+    def ground_unsatp_base(self):
+        self.ground([(UNSATPBASE, [])], self)
 
     def handle_optimal_model(self, step, delete_model_volatile,
                              delete_worse, delete_better, volatile):
@@ -682,7 +488,7 @@ class Solver:
             parts = [(DELETE_MODEL, [])]
         else:
             parts = [(DELETE_MODEL_VOLATILE, [step])]
-        if delete_worse: 
+        if delete_worse:
             # note: get_preference_parts_opt defaults to get_preference_parts
             #       may be modified by the GeneralController
             parts += self.get_preference_parts_opt(step, 0, False, volatile)
@@ -692,10 +498,204 @@ class Solver:
                                                    False, volatile)
         self.ground(parts, self)
         if volatile:
-            self.volatile_optimal_model(step, delete_worse, delete_better)
+            self.handle_volatile_optimal_model(step, delete_worse, delete_better)
 
-    def clean_up(self):
-        self.control.cleanup()
+    def handle_volatile_optimal_model(self, step, delete_worse, delete_better):
+        if delete_worse:
+            self.not_improving.append((step,0))
+        if delete_better:
+            self.not_improving.append((MODEL_DELETE_BETTER,step))
+        for x,y in self.not_improving:        #activate
+            self.control.assign_external(self.get_external(x,y),True)
+        if not self.options.no_opt_improving: #reset
+            self.not_improving = []
+
+    def no_optimize(self):
+        optimize = self.underscores + utils.OPTIMIZE
+        for atom in self.control.symbolic_atoms.by_signature(optimize, 1):
+            return False
+        return True
+
+    def on_model(self, model):
+        self.holds, self.nholds, self.shown = [], [], []
+        if self.set_shown_domain:
+            self.shown_domain_set(model)
+        for a in model.symbols(shown=True):
+            if a.name == self.holds_at_zero_str:
+                self.holds.append(a.arguments[0])
+            else:
+                self.shown.append(a)
+        if self.store_nholds:
+            self.nholds = [
+                x for x in self.holds_domain if x not in set(self.holds)
+            ]
+
+    def on_model_single(self, model):
+        self.shown = []
+        for a in model.symbols(shown=True):
+            if a.name != self.holds_at_zero_str:
+                self.shown.append(a)
+        self.models += 1
+        self.opt_models += 1
+        self.print_str_answer()
+        if self.options.quiet in (0, 1):
+            self.print_shown()
+        self.print_optimum_string()
+        self.shown = []
+
+    def set_config(self):
+        try:
+            self.iconfigs = (self.iconfigs + 1) % len(self.options.configs)
+        except:
+            self.iconfigs = 0
+        self.control.configuration.configuration = self.options.configs[self.iconfigs]
+
+    def set_control_models(self):
+        solve_conf = self.control.configuration.solve
+        if self.options.max_models == 0:
+            solve_conf.models = "0"
+        else:
+            solve_conf.models = str(self.options.max_models - self.opt_models)
+
+    def set_solving_result(self, result):
+        # set solving result
+        if result.satisfiable:
+            self.solving_result = SATISFIABLE
+        elif result.unsatisfiable:
+            self.solving_result = UNSATISFIABLE
+        else:
+            self.solving_result = UNKNOWN
+
+    def shown_domain_append(self, atom):
+        if atom.type == clingo.SymbolType.Function and len(atom.name) > 0:
+            self.shown_domain.append(atom)
+            #name = ("-" if atom.negative else "") + atom.name
+            #self.shown_domain.add((name, len(atom.arguments)))
+
+    def shown_domain_set(self, model):
+        self.set_shown_domain = False
+        # gather all true and false atoms
+        tatoms = model.symbols(atoms=True)
+        fatoms = model.symbols(atoms=True, complement=True)
+        # add shown elements that are true and false atoms
+        for atom in model.symbols(shown=True):
+            if atom in tatoms:
+                self.shown_domain_append(atom)
+        for atom in model.symbols(shown=True, complement=True):
+            if atom in fatoms:
+                self.shown_domain_append(atom)
+
+    def solve(self, *args, **kwargs):
+        if self.options.configs is not None:
+            self.set_config()
+        result = self.control_proxy.solve(*args, **kwargs)
+        self.set_solving_result(result)
+        return result
+
+    def solve_heuristic(self):
+        h = []
+        # gather heuristics
+        for _solver in self.control.configuration.solver:
+            h.append(_solver.heuristic)
+            _solver.heuristic="Domain"
+        # solve
+        self.solve(assumptions=self.assumptions, on_model=self.on_model)
+        # restore heuristics
+        i = 0
+        for _solver in self.control.configuration.solver:
+            _solver.heuristic = h[i]
+            i += 1
+
+    def solve_single(self):
+        self.control.configuration.solve.models = self.options.max_models
+        self.printer.do_print("Solving...")
+        result = self.solve(on_model=self.on_model_single)
+        if result.exhausted:
+            self.more_models = False
+        if self.opt_models == 0:
+           self.print_unsat()
+
+    def solve_unknown(self):
+        self.solving_result = UNKNOWN
+
+    def solve_unsat(self):
+        self.solving_result = UNSATISFIABLE
+
+    def symbol2str(self,symbol):
+        if symbol.name == CSP:
+            return str(symbol.arguments[0]) + "=" + str(symbol.arguments[1])
+        return str(symbol)
+
+    def print_answer(self):
+        self.printer.do_print(STR_ANSWER.format(self.models))
+        self.printer.do_print(" ".join(map(self.symbol2str, self.shown)))
+
+    def print_better_than_unknown(self, unknowns, mapping):
+        self.print_unknowns(STR_BETTER_THAN_UNKNOWN, unknowns, mapping)
+
+    def print_limit_string(self):
+        self.printer.do_print(STR_LIMIT)
+
+    def print_no_optimize_warning(self):
+        self.printer.print_warning(WARNING_NO_OPTIMIZE)
+
+    def print_optimum_string(self, star=False):
+        if not star:
+            self.printer.do_print(self.str_found)
+        else:
+            self.printer.do_print(self.str_found_star)
+
+    def print_shown(self):
+        self.printer.do_print(" ".join(map(self.symbol2str, self.shown)))
+
+    def print_steps_message(self):
+        if self.opt_models == 0:
+            self.printer.do_print(STR_SATISFIABLE)
+
+    def print_str_answer(self):
+        self.printer.do_print(STR_ANSWER.format(self.models))
+
+    def print_unknowns(self, string, unknowns, mapping):
+        if unknowns:
+            self.printer.do_print(string.format(
+                " ".join([str(mapping[i]) for i in unknowns])
+            ))
+
+    def print_unknown_nonoptimal_models(self, unknowns, mapping):
+        self.print_unknowns(STR_UNKNOWN_NONOPTIMAL, unknowns, mapping)
+
+    def print_unknown_optimal_models(self, unknowns, mapping):
+        self.print_unknowns(STR_UNKNOWN_OPTIMAL, unknowns, mapping)
+
+    def print_unsat(self):
+        self.printer.do_print(STR_UNSATISFIABLE)
+
+    def relax_previous_models(self):
+        for i in self.improving:
+            self.control.release_external(self.get_external(0, i))
+        self.improving = []
+
+    def relax_optimal_models(self):
+        for x,y in self.not_improving:
+            self.control.assign_external(self.get_external(x,y),False)
+
+    def same_shown(self):
+        if set(self.old_shown) == set(self.shown):
+            self.enumerate_flag = True
+            return True
+        return False
+
+    def same_shown_false(self):
+        return False
+
+    def same_shown_underscores(self):
+        u = self.underscores
+        s1 = set([i for i in self.old_shown if not str(i).startswith(u)])
+        s2 = set([i for i in     self.shown if not str(i).startswith(u)])
+        if s1 == s2:
+            self.enumerate_flag = True
+            return True
+        return False
 
     #
     # on_opt_heur option
@@ -773,7 +773,7 @@ class Solver:
         self.control.configuration.solve.opt_mode = 'optN'
         # project
         if self.options.project and not on_on_optimal:
-            self.ground([(PROJECT_APPROX,[])], self)
+            self.ground([(PROJECT_APPROX, [])], self)
             self.control.configuration.solve.project = 'project'
         # loop
         self.printer.do_print("Solving...")
@@ -948,7 +948,7 @@ class Solver:
             # also, add mapping
             self.mapping[self.last_model] = self.models
         #
-        # leftover from merge 
+        # leftover from merge
         #
         #self.not_improving.difference_update(
         #    [(x,0) for x in self.unknown_non_optimal]
