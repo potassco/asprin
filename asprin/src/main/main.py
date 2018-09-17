@@ -355,8 +355,9 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
         # Additional Solving Options
         solving = cmd_parser.add_argument_group('Additional Solving Options')
         solving.add_argument('--steps', '-s',
-                             help=": Execute at most <s> steps", type=int,
-                             dest='steps', metavar='<s>', default=0)
+                             help=argparse.SUPPRESS,
+                             # help=": Execute at most <s> steps",
+                             type=int, dest='steps', metavar='<s>', default=0)
         basic.add_argument('--clean-up', dest='clean_up', action='store_true',
                            help=argparse.SUPPRESS)
         solving.add_argument('--delete-better', dest='delete_better',
