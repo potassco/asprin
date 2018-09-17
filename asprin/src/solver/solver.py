@@ -166,7 +166,6 @@ PROGRAMS_APPROX = \
    not ##""" + HOLDS + """(X,0) : X = @get_nholds_approx(mm)."""),
   ]
 UNSAT_PREFP  = (PREFP,  ["m1","m2"], "##" + UNSAT_ATOM +"(##m(m1),##m(m2)).")
-UNSAT_UNSATP = (UNSATP, ["m1","m2"], "##" + UNSAT_ATOM +"(##m(m1),##m(m2)).")
 
 #
 # Auxiliary Classes (EndException, Options)
@@ -225,6 +224,7 @@ class Solver:
         self.unknown_non_optimal = []
         self.grounded_delete_better = False
         self.mapping = {}
+        self.unsat_program = PREFP
         # for weak mode
         self.optN = False
         self.on_optimal = None
@@ -236,7 +236,6 @@ class Solver:
         # exiting
         self.exited = False
         # functions
-        self.get_preference_parts_opt = self.get_preference_parts
         self.same_shown_function = self.same_shown_underscores
         # strings
         self.str_found      = STR_OPTIMUM_FOUND
@@ -363,9 +362,9 @@ class Solver:
     def add_unsat_to_preference_program(self):
         self.control.add(UNSAT_PREFP[0], UNSAT_PREFP[1],
                          UNSAT_PREFP[2].replace(TOKEN, self.underscores))
-        if self.options.preference_unsat:
-            self.control.add(UNSAT_UNSATP[0], UNSAT_UNSATP[1],
-                             UNSAT_UNSATP[2].replace(TOKEN, self.underscores))
+        if UNSAT_PREFP[0] != self.unsat_program:
+            self.control.add(self.unsat_program, UNSAT_PREFP[1],
+                             UNSAT_PREFP[2].replace(TOKEN, self.underscores))
 
     def check_errors(self):
         pr, control, u = self.printer, self.control, self.underscores
@@ -431,21 +430,15 @@ class Solver:
         solve_conf.models = old_models
 
     def get_preference_parts(self, x, y, better, volatile):
-        parts = [(PREFP, [x, y])]
         if better:
-            parts.append((NOT_UNSAT_PRG, [x,y]))
+            parts = [(             PREFP, [x, y]), (NOT_UNSAT_PRG, [x,y])]
         else:
-            parts.append((    UNSAT_PRG, [x,y]))
+            parts = [(self.unsat_program, [x, y]), (    UNSAT_PRG, [x,y])]
         if volatile:
             parts.append((VOLATILE_EXT,  [x,y]))
         else:
             parts.append((VOLATILE_FACT, [x,y]))
         return parts
-
-    def get_preference_parts_unsatp(self, x, y, better, volatile):
-        parts = self.get_preference_parts(x, y, better, volatile)
-        parts.append((UNSATP, [x,y]))
-        return parts[1:]
 
     def get_shown(self):
         return self.shown
@@ -496,10 +489,10 @@ class Solver:
         if delete_worse:
             # note: get_preference_parts_opt defaults to get_preference_parts
             #       may be modified by the GeneralController
-            parts += self.get_preference_parts_opt(step, 0, False, volatile)
+            parts += self.get_preference_parts(step, 0, False, volatile)
         # TODO: In base setting, use same preference program as for improving
         if delete_better:
-            parts += self.get_preference_parts_opt(MODEL_DELETE_BETTER, step,
+            parts += self.get_preference_parts(MODEL_DELETE_BETTER, step,
                                                    False, volatile)
         self.ground(parts, self)
         if volatile:
@@ -980,7 +973,7 @@ class Solver:
         # if UNKNOWN, add delete better for last model (w/out unsat constraint)
         if result == UNKNOWN:
             x, y  = MODEL_DELETE_BETTER, self.last_model
-            parts = [(PREFP, [x, y]), (VOLATILE_EXT,  [x,y])]
+            parts = [(self.unsat_program, [x, y]), (VOLATILE_EXT,  [x,y])]
             self.ground(parts, self)
             #self.control.ground(parts, self)
             # also, add mapping

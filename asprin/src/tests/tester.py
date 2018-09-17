@@ -39,7 +39,6 @@ OPTIONS = [
     ["--no-opt-improving"],
     ["--volatile-improving"],
     ["--volatile-optimal"],
-    #["--preference-unsat $asprin/mine/asprin_lib_unsat.lp"],
     ["--approximation=heuristic"],
     ["--approximation=heuristic --const-nb heuristic_aso=2"],
     ["--approximation=heuristic --const-nb heuristic_aso=2 --const-nb use_get_sequence=2 "],
@@ -62,6 +61,12 @@ OPTIONS = [
     ["--on-opt-heur=+,s,1,true --on-opt-heur=-,s,1,false --meta-bin"],
 ]
 
+# uncomment to test --preference-unsat will all OPTIONS
+#for i in OPTIONS:
+#    i[0] += " --preference-unsat $asprin/mine/asprin_lib_unsat.lp"
+# uncomment to only test --preference-unsat
+OPTIONS = [["--preference-unsat $asprin/mine/asprin_lib_unsat.lp"]]
+
 EXCLUDE = {}
 EXCLUDE["--meta"] = [
     os.path.join(PATH, "asprin_lib/test022.lp"), # too hard
@@ -79,6 +84,12 @@ EXCLUDE["--on-opt-heur=+,s,1,true --on-opt-heur=-,s,1,false --meta"] = tmp_exclu
 EXCLUDE["--on-opt-heur=+,p,-1,sign --on-opt-heur=-,p,1,sign --meta-bin"] = tmp_exclude
 EXCLUDE["--on-opt-heur=+,s,1,true --on-opt-heur=-,s,1,false --meta-bin"] = tmp_exclude
 
+EXCLUDE["--preference-unsat $asprin/mine/asprin_lib_unsat.lp"] = [
+    os.path.join(PATH, "solver/solver/test002.lp"),           # adds new preference programs
+    os.path.join(PATH, "spec_parser/spec_lexer/test005.lp"),  # adds new preference programs
+    os.path.join(PATH, "spec_parser/spec_parser/test026.lp"), # adds new preference programs
+
+]
 
 class cd:
     """Context manager for changing the current working directory"""

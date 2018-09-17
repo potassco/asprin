@@ -50,7 +50,7 @@ class GeneralController:
             for _solver in solver.control.configuration.solver:
                 _solver.heuristic="Domain"
         if options.preference_unsat and options.max_models != 1:
-            solver.get_preference_parts_opt = solver.get_preference_parts_unsatp
+            solver.unsat_program = utils.UNSATP
             solver.ground_unsatp_base()
         # check syntax
         if options.check:
