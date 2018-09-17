@@ -288,7 +288,7 @@ class MetaMethodController(MethodController):
     def __init__(self, solver):
         MethodController.__init__(self, solver)
         self.solver = solver
-        self.solver.set_holds_domain = True # TODO: CHECK IF/WHEN NEEDED
+        self.solver.set_holds_domain = True
         if solver.options.meta:
             self.meta = metasp.MetaspPython(solver)
         else:

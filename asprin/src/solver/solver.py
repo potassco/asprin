@@ -215,6 +215,7 @@ class Solver:
         self.externals  = dict()
         self.improving  = []
         self.not_improving  = []
+        self.store_holds = True
         self.store_nholds = False
         self.approx_opt_models = []
         self.assumptions = []
@@ -525,7 +526,7 @@ class Solver:
         if self.set_shown_domain:
             self.shown_domain_set(model)
         for a in model.symbols(shown=True):
-            if a.name == self.holds_at_zero_str:
+            if a.name == self.holds_at_zero_str and self.store_holds:
                 self.holds.append(a.arguments[0])
             else:
                 self.shown.append(a)
@@ -535,17 +536,17 @@ class Solver:
             ]
 
     def on_model_single(self, model):
-        self.shown = []
-        for a in model.symbols(shown=True):
-            if a.name != self.holds_at_zero_str:
-                self.shown.append(a)
+        # call on_model
+        self.on_model(model)
+        # update numbers and print
         self.models += 1
         self.opt_models += 1
         self.print_str_answer()
         if self.options.quiet in (0, 1):
             self.print_shown()
         self.print_optimum_string()
-        self.shown = []
+        if not self.keep_shown:
+            self.shown = []
 
     def set_config(self):
         try:
@@ -610,8 +611,39 @@ class Solver:
             _solver.heuristic = h[i]
             i += 1
 
+    def solve_single_on_optimal(self):
+        self.control.configuration.solve.models = 1
+        self.store_holds, self.store_nholds, self.keep_shown = [True]*3
+        if not self.set_holds_domain: # required to store_nholds
+            raise utils.FatalException() 
+        self.printer.do_print("Solving...")
+        while True:
+            result = self.solve(on_model=self.on_model_single)
+            # unsat
+            if self.opt_models == 0:
+                self.print_unsat()
+                break
+            # search space exhausted
+            if result.exhausted:
+                self.more_models = False
+                break
+            # computed all models
+            if self.options.max_models == self.opt_models:
+                break
+            # enumerate if no projection
+            if not self.options.project:
+                self.enumerate() # TODO: prepare for this!
+            # execute on_optimal
+            self.on_optimal.unsat()
+            # delete model
+            self.ground([(DELETE_MODEL, [])], self) # TODO: store holds and nholds
+
     def solve_single(self):
+        if self.on_optimal.on():
+            self.solve_single_on_optimal()
+            return
         self.control.configuration.solve.models = self.options.max_models
+        self.store_holds, self.store_nholds, self.keep_shown = [False]*3
         self.printer.do_print("Solving...")
         result = self.solve(on_model=self.on_model_single)
         if result.exhausted:
@@ -1014,6 +1046,7 @@ class Solver:
             method = controller.HeurMethodController(self)
         elif self.options.meta or self.options.meta_bin:
             method = controller.MetaMethodController(self)
+            self.on_optimal = on_optimal
         else:
             if self.options.ground_once:
                 method = controller.GroundOnceMethodController(self)
