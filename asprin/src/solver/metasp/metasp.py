@@ -43,6 +43,10 @@ U_METAPREF = utils.U_METAPREF
 U_METABASE = utils.U_METABASE
 PREFERENCE = utils.PREFERENCE
 OPTIMIZE   = utils.OPTIMIZE
+VOLATILE      = utils.VOLATILE
+HOLDS         = utils.HOLDS
+UNSAT_ATOM    = utils.UNSAT
+HOLDS_AT_ZERO = utils.HOLDS_AT_ZERO
 
 CLINGO = "clingo"
 REIFY_OUTPUT = "--output=reify"
@@ -52,40 +56,64 @@ OLD_CLINGO = """clingo binary too old (when running 'clingo --version')\
  version 5.3 or newer is needed"""
 
 METAPREF_BASIC = """
-{ ##holds(X,0..1) } :- X = @get_holds_domain().
-##volatile(##m(0),##m(1)).
-:- ##unsat(##m(0),##m(1)).
-#show ##holds/2.
+{ ##""" + HOLDS + """(X,0..1) } :- X = @get_holds_domain().
+##""" + VOLATILE + """(##m(0),##m(1)).
+:- ##""" + UNSAT_ATOM + """(##m(0),##m(1)).
+#show ##""" + HOLDS + """/2.
 #const ##m1=0.
 #const ##m2=1.
 """
 
-BINDING_A = """
-**true(atom(A)) :-     ##holds(X,0), **output(##holds(X,1),A).                    % from base
-**fail(atom(A)) :- not ##holds(X,0), **output(##holds(X,1),A).                    % from base
-**true(atom(A)) :- $$output_term(##holds_at_zero(X)), **output(##holds(X,0),A),   % from meta_base
-                   $$true(atom( B)) : $$output_term(##holds_at_zero(X),B), B >= 0;
-                   $$fail(atom(-B)) : $$output_term(##holds_at_zero(X),B), B <  0.
-**fail(atom(A)) :- $$output_term(##holds_at_zero(X)), **output(##holds(X,0),A),   % from meta_base
-                   $$fail(atom( B)),  $$output_term(##holds_at_zero(X),B), B >= 0.
-**fail(atom(A)) :- $$output_term(##holds_at_zero(X)), **output(##holds(X,0),A),   % from meta_base
-                   $$true(atom(-B)),  $$output_term(##holds_at_zero(X),B), B <  0.
+BINDING_PYTHON = """
+**true(atom(A)) :-     ##""" + HOLDS + """(X,0), **output(##""" + HOLDS + """(X,1),A).                    % from base
+**fail(atom(A)) :- not ##""" + HOLDS + """(X,0), **output(##""" + HOLDS + """(X,1),A).                    % from base
+**true(atom(A)) :- $$output_term(##""" + HOLDS_AT_ZERO + """(X)), **output(##""" + HOLDS + """(X,0),A),   % from meta_base
+                   $$true(atom( B)) : $$output_term(##""" + HOLDS_AT_ZERO + """(X),B), B >= 0;
+                   $$fail(atom(-B)) : $$output_term(##""" + HOLDS_AT_ZERO + """(X),B), B <  0.
+**fail(atom(A)) :- $$output_term(##""" + HOLDS_AT_ZERO + """(X)), **output(##""" + HOLDS + """(X,0),A),   % from meta_base
+                   $$fail(atom( B)),  $$output_term(##""" + HOLDS_AT_ZERO + """(X),B), B >= 0.
+**fail(atom(A)) :- $$output_term(##""" + HOLDS_AT_ZERO + """(X)), **output(##""" + HOLDS + """(X,0),A),   % from meta_base
+                   $$true(atom(-B)),  $$output_term(##""" + HOLDS_AT_ZERO + """(X),B), B <  0.
 **bot :- $$bot.
 $$bot :- **bot.
 :- not **bot.
 $$atom(|B|) :- $$output_term(X,B). % needed when X is a fact
 """
 
-BINDING_B = """
-**true(atom(A)) :-     ##holds(X,0), **output(##holds(X,1),B), **literal_tuple(B,A).  % from base
-**fail(atom(A)) :- not ##holds(X,0), **output(##holds(X,1),B), **literal_tuple(B,A).  % from base
-**true(atom(A)) :- $$true(normal(B)), $$output(##holds(X,0),B),                       % from meta_base
-                   **output(##holds(X,0),C), **literal_tuple(C,A).
-**fail(atom(A)) :- $$fail(normal(B)), $$output(##holds(X,0),B),                       % from meta_base
-                   **output(##holds(X,0),C), **literal_tuple(C,A).
+BINDING_BINARY = """
+**true(atom(A)) :-     ##""" + HOLDS + """(X,0), **output(##""" + HOLDS + """(X,1),B), **literal_tuple(B,A).  % from base
+**fail(atom(A)) :- not ##""" + HOLDS + """(X,0), **output(##""" + HOLDS + """(X,1),B), **literal_tuple(B,A).  % from base
+**true(atom(A)) :- $$true(normal(B)), $$output(##""" + HOLDS + """(X,0),B),                       % from meta_base
+                   **output(##""" + HOLDS + """(X,0),C), **literal_tuple(C,A).
+**fail(atom(A)) :- $$fail(normal(B)), $$output(##""" + HOLDS + """(X,0),B),                       % from meta_base
+                   **output(##""" + HOLDS + """(X,0),C), **literal_tuple(C,A).
 **bot :- $$bot.
 $$bot :- **bot.
 :- not **bot.
+"""
+
+BINDING_PARAMETRIZED_PYTHON_BASIC = """
+##fixed(A) :- ##output($$""" + HOLDS + """(X,1),A).
+"""
+
+BINDING_PARAMETRIZED_BINARY_BASIC = """
+##fixed(A) :- ##output($$""" + HOLDS + """(X,1),B), ##literal_tuple(B,A).
+"""
+
+BINDING_PARAMETRIZED_PYTHON = """
+##true(m1,m2,atom(A)) :-     $$""" + HOLDS + """(X,m2), ##output($$""" + HOLDS + """(X,1),A).
+##fail(m1,m2,atom(A)) :- not $$""" + HOLDS + """(X,m2), ##output($$""" + HOLDS + """(X,1),A).
+##true(m1,m2,atom(A)) :-     $$""" + HOLDS + """(X,m1), ##output($$""" + HOLDS + """(X,0),A).
+##fail(m1,m2,atom(A)) :- not $$""" + HOLDS + """(X,m1), ##output($$""" + HOLDS + """(X,0),A).
+##:- not ##bot(m1,m2).
+"""
+
+BINDING_PARAMETRIZED_BINARY = """
+##true(m1,m2,atom(A)) :-     $$""" + HOLDS + """(X,m2), ##output($$""" + HOLDS + """(X,1),B), ##literal_tuple(B,A).
+##fail(m1,m2,atom(A)) :- not $$""" + HOLDS + """(X,m2), ##output($$""" + HOLDS + """(X,1),B), ##literal_tuple(B,A).
+##true(m1,m2,atom(A)) :-     $$""" + HOLDS + """(X,m1), ##output($$""" + HOLDS + """(X,0),B), ##literal_tuple(B,A).
+##fail(m1,m2,atom(A)) :- not $$""" + HOLDS + """(X,m1), ##output($$""" + HOLDS + """(X,0),B), ##literal_tuple(B,A).
+##:- not ##bot(m1,m2).
 """
 
 # get_holds_domain() should not be defined here
@@ -282,7 +310,7 @@ class MetaspPython(AbstractMetasp):
         prefix = self.solver.underscores + "_"*U_METABASE
         meta_base = self.get_meta_from_observer(self.solver.observer, prefix)
         meta_pref = self.get_meta_pref()
-        meta_bind = self.get_meta_bind(BINDING_A)
+        meta_bind = self.get_meta_bind(BINDING_PYTHON)
         return meta_base + meta_pref + meta_bind
 
     def get_meta_pref(self):
@@ -405,7 +433,7 @@ class MetaspBinary(AbstractMetasp):
     def get_meta_program(self):
         meta_base = self.get_meta_base()
         meta_pref = self.get_meta_pref()
-        meta_bind = self.get_meta_bind(BINDING_B)
+        meta_bind = self.get_meta_bind(BINDING_BINARY)
         return meta_base + meta_pref + meta_bind
 
     # WARNING:

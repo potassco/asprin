@@ -73,6 +73,7 @@ WARN_PRED  = "warning"
 SHOW       = "show"
 LAST_HOLDS = "last_holds"
 LAST_SHOWN = "last_shown"
+HOLDS_AT_ZERO = "holds_at_zero"
 
 # translation tokens
 HASH_SEM = "#sem"
