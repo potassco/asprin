@@ -85,7 +85,7 @@ DELETE_MODEL_APPROX = "delete_model_approx"
 UNSAT_PRG = "unsat"
 NOT_UNSAT_PRG = "not_unsat"
 CMD_HEURISTIC = "cmd_heuristic"
-PROJECT_APPROX = "project_approx"
+PROJECT_CLINGO = "project_clingo"
 PREFP = utils.PREFP
 PBASE = utils.PBASE
 APPROX = utils.APPROX
@@ -155,6 +155,8 @@ PROGRAMS = \
    (DO_HOLDS_DELETE_BETTER,        [],"""
 ##""" + HOLDS + """(X,""" + str(MODEL_DELETE_BETTER) + """) :- ##""" +
     HOLDS + """(X,0)."""),
+   (PROJECT_CLINGO,           [],"""
+#project  ##""" + HOLDS + """/2."""),
   ]
 PROGRAMS_APPROX = \
   [(DO_HOLDS_APPROX,            ["m","mm"],"""
@@ -162,8 +164,6 @@ PROGRAMS_APPROX = \
    (DELETE_MODEL_APPROX,           ["mm"],"""
 :-     ##""" + HOLDS + """(X,0) : X = @get_holds_approx(mm);
    not ##""" + HOLDS + """(X,0) : X = @get_nholds_approx(mm)."""),
-   (PROJECT_APPROX,           [],"""
-#project  ##""" + HOLDS + """/2."""),
   ]
 UNSAT_PREFP  = (PREFP,  ["m1","m2"], "##" + UNSAT_ATOM +"(##m(m1),##m(m2)).")
 UNSAT_UNSATP = (UNSATP, ["m1","m2"], "##" + UNSAT_ATOM +"(##m(m1),##m(m2)).")
@@ -354,6 +354,10 @@ class Solver:
         for i in PROGRAMS:
             self.control.add(i[0], i[1], i[2].replace(TOKEN, self.underscores))
         self.ground([(DO_HOLDS_AT_ZERO, [])], self)
+
+    def add_projection(self):
+        self.ground([(PROJECT_CLINGO, [])], self)
+        self.control.configuration.solve.project = 'project'
 
     def add_unsat_to_preference_program(self):
         self.control.add(UNSAT_PREFP[0], UNSAT_PREFP[1],
@@ -773,8 +777,7 @@ class Solver:
         self.control.configuration.solve.opt_mode = 'optN'
         # project
         if self.options.project and not on_on_optimal:
-            self.ground([(PROJECT_APPROX, [])], self)
-            self.control.configuration.solve.project = 'project'
+            self.add_projection()
         # loop
         self.printer.do_print("Solving...")
         while True:

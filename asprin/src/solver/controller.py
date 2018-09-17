@@ -295,6 +295,8 @@ class MetaMethodController(MethodController):
             self.meta = metasp.MetaspBinary(solver)
 
     def start(self):
+        if self.solver.options.project:
+            self.solver.add_projection()
         if not self.solver.options.non_optimal:
             # get meta program
             meta_program = self.meta.get_meta_program()

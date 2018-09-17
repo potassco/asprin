@@ -61,10 +61,7 @@ EXCLUDE = {}
 EXCLUDE["--meta"] = [
     os.path.join(PATH, "asprin_lib/test022.lp"), # too hard
     os.path.join(PATH, "asprin_lib/test024.lp"), # too hard
-    os.path.join(PATH, "solver/solver/test001.lp"), # --project not implemented (TODO)
-    os.path.join(PATH, "solver/solver/test002.lp"), # --project not implemented (TODO)
     os.path.join(PATH, "spec_parser/spec_lexer/test010.lp"), # --non-optimal not implemented, and minimize: check! (TODO)
-    os.path.join(PATH, "spec_parser/spec_parser/test018.lp"), # --project not implemented (TODO)
 ]
 EXCLUDE["--meta-bin"] = EXCLUDE["--meta"]
 EXCLUDE["--on-opt-heur=+,p,-1,sign --on-opt-heur=-,p,1,sign"] = [
