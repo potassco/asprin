@@ -150,3 +150,103 @@ metaD_program = """
 #defined ##weighted_literal_tuple/3.
 #defined ##scc/2.
 """
+
+metaD_program_basic = """
+
+% NOTE: assumes that a rule has no more than one head
+
+##sum(B,G,T) :- ##rule(_,sum(B,G)), T = #sum { W,L : ##weighted_literal_tuple(B,L,W) }.
+
+% extract supports of atoms and facts
+
+##supp(A,B) :- ##rule(     choice(H),B), ##atom_tuple(H,A).
+##supp(A,B) :- ##rule(disjunction(H),B), ##atom_tuple(H,A).
+
+##supp(A) :- ##supp(A,_).
+
+##atom(|L|) :- ##weighted_literal_tuple(_,L,_).
+##atom(|L|) :- ##literal_tuple(_,L).
+##atom( A ) :- ##atom_tuple(_,A).
+
+##fact(A) :- ##rule(disjunction(H),normal(B)), ##atom_tuple(H,A), not ##literal_tuple(B,_).
+
+% verify acyclic derivability
+
+##internal(C,normal(B)) :- ##scc(C,A), ##supp(A,normal(B)), ##scc(C,A'), ##literal_tuple(B,A').
+##internal(C,sum(B,G))  :- ##scc(C,A), ##supp(A,sum(B,G)),  ##scc(C,A'), ##weighted_literal_tuple(B,A',W).
+
+##external(C,normal(B)) :- ##scc(C,A), ##supp(A,normal(B)), not ##internal(C,normal(B)).
+##external(C,sum(B,G))  :- ##scc(C,A), ##supp(A,sum(B,G)),  not ##internal(C,sum(B,G)).
+
+##steps(C,Z-1) :- ##scc(C,_), Z = { ##scc(C,A) : not ##fact(A) }.
+
+%
+% added by Javier
+%
+
+#defined ##literal_tuple/1.
+#defined ##literal_tuple/2.
+#defined ##rule/2.
+#defined ##atom_tuple/2.
+#defined ##weighted_literal_tuple/3.
+#defined ##scc/2.
+"""
+
+metaD_program_parameters = ["m1", "m2"]
+
+metaD_program_parametrized = """
+% generate interpretation
+
+##true(m1,m2,atom(A))                        :- ##fact(A),                not ##fixed(A). % added not fixed(A)
+##true(m1,m2,atom(A)); ##fail(m1,m2,atom(A)) :- ##supp(A), not ##fact(A), not ##fixed(A). % added not fixed(A)
+                       ##fail(m1,m2,atom(A)) :- ##atom(A), not ##supp(A), not ##fixed(A). % added not fixed(A)
+
+##true(m1,m2,normal(B)) :- ##literal_tuple(B),
+    ##true(m1,m2,atom(L)) : ##literal_tuple(B, L), L > 0;
+    ##fail(m1,m2,atom(L)) : ##literal_tuple(B,-L), L > 0.
+##fail(m1,m2,normal(B)) :- ##literal_tuple(B, L), ##fail(m1,m2,atom(L)), L > 0.
+##fail(m1,m2,normal(B)) :- ##literal_tuple(B,-L), ##true(m1,m2,atom(L)), L > 0.
+
+##true(m1,m2,sum(B,G)) :- ##sum(B,G,T),
+    #sum { W,L : ##true(m1,m2,atom(L)), ##weighted_literal_tuple(B, L,W), L > 0 ;
+           W,L : ##fail(m1,m2,atom(L)), ##weighted_literal_tuple(B,-L,W), L > 0 } >= G.
+##fail(m1,m2,sum(B,G)) :- ##sum(B,G,T),
+    #sum { W,L : ##fail(m1,m2,atom(L)), ##weighted_literal_tuple(B, L,W), L > 0 ;
+           W,L : ##true(m1,m2,atom(L)), ##weighted_literal_tuple(B,-L,W), L > 0 } >= T-G+1.
+
+% verify supported model properties
+
+##bot(m1,m2) :- ##rule(disjunction(H),B), ##true(m1,m2,B), ##fail(m1,m2,atom(A)) : ##atom_tuple(H,A).
+##bot(m1,m2) :- ##true(m1,m2,atom(A)), ##fail(m1,m2,B) : ##supp(A,B).
+
+% verify acyclic derivability
+
+##wait(m1,m2,C,atom(A),0)   :- ##scc(C,A), ##fail(m1,m2,B) : ##external(C,B).
+##wait(m1,m2,C,normal(B),I) :- ##internal(C,normal(B)), ##literal_tuple(B,A), ##wait(m1,m2,C,atom(A),I), ##steps(C,Z), I < Z.
+##wait(m1,m2,C,sum(B,G),I)  :- ##internal(C,sum(B,G)), ##steps(C,Z), I = 0..Z-1, ##sum(B,G,T),
+    #sum { W,L :   ##fail(m1,m2,atom(L)),   ##weighted_literal_tuple(B, L,W), L > 0, not ##scc(C,L) ;
+           W,L : ##wait(m1,m2,C,atom(L),I), ##weighted_literal_tuple(B, L,W), L > 0,     ##scc(C,L) ;
+           W,L :   ##true(m1,m2,atom(L)),   ##weighted_literal_tuple(B,-L,W), L > 0               } >= T-G+1.
+##wait(m1,m2,C,atom(A),I)   :- ##wait(m1,m2,C,atom(A),0), ##steps(C,Z), I = 1..Z, ##wait(m1,m2,C,B,I-1) : ##supp(A,B), ##internal(C,B).
+
+##bot(m1,m2) :- ##scc(C,A), ##true(m1,m2,atom(A)), ##wait(m1,m2,C,atom(A),Z), ##steps(C,Z).
+
+% saturate interpretations that are not answer sets
+
+##true(m1,m2,atom(A)) :- ##supp(A), not ##fact(A), ##bot(m1,m2), not ##fixed(A).
+##fail(m1,m2,atom(A)) :- ##supp(A), not ##fact(A), ##bot(m1,m2), not ##fixed(A).
+
+%
+% added by Javier
+%
+
+#defined ##literal_tuple/1.
+#defined ##literal_tuple/2.
+#defined ##rule/2.
+#defined ##atom_tuple/2.
+#defined ##weighted_literal_tuple/3.
+#defined ##scc/2.
+
+"""
+
+
