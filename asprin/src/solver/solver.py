@@ -526,10 +526,10 @@ class Solver:
         if self.set_shown_domain:
             self.shown_domain_set(model)
         for a in model.symbols(shown=True):
-            if a.name == self.holds_at_zero_str and self.store_holds:
-                self.holds.append(a.arguments[0])
-            else:
+            if a.name != self.holds_at_zero_str:
                 self.shown.append(a)
+            elif self.store_holds:
+                self.holds.append(a.arguments[0])
         if self.store_nholds:
             self.nholds = [
                 x for x in self.holds_domain if x not in set(self.holds)
@@ -639,12 +639,15 @@ class Solver:
             self.ground([(DELETE_MODEL, [])], self) # TODO: store holds and nholds
 
     def solve_single(self):
+        # if on_optimal, call and return
         if self.on_optimal.on():
             self.solve_single_on_optimal()
             return
+        # prepare to solve
         self.control.configuration.solve.models = self.options.max_models
         self.store_holds, self.store_nholds, self.keep_shown = [False]*3
         self.printer.do_print("Solving...")
+        # solve and finish
         result = self.solve(on_model=self.on_model_single)
         if result.exhausted:
             self.more_models = False
