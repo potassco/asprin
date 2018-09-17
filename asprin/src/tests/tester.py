@@ -56,7 +56,12 @@ OPTIONS = [
     ["--on-opt-heur=+,s,1,true --on-opt-heur=-,s,1,false"],
     ["--meta"],
     ["--meta-bin"],
+    ["--on-opt-heur=+,p,-1,sign --on-opt-heur=-,p,1,sign --meta"],
+    ["--on-opt-heur=+,s,1,true --on-opt-heur=-,s,1,false --meta"],
+    ["--on-opt-heur=+,p,-1,sign --on-opt-heur=-,p,1,sign --meta-bin"],
+    ["--on-opt-heur=+,s,1,true --on-opt-heur=-,s,1,false --meta-bin"],
 ]
+
 EXCLUDE = {}
 EXCLUDE["--meta"] = [
     os.path.join(PATH, "asprin_lib/test022.lp"), # too hard
@@ -68,6 +73,12 @@ EXCLUDE["--on-opt-heur=+,p,-1,sign --on-opt-heur=-,p,1,sign"] = [
     os.path.join(PATH, "program_parser/basic/test001.lp"), # uses --approximation=heuristic
     os.path.join(PATH, "program_parser/basic/test002.lp"), # uses --approximation=heuristic
 ]
+tmp_exclude = EXCLUDE["--meta"] + EXCLUDE["--on-opt-heur=+,p,-1,sign --on-opt-heur=-,p,1,sign"]
+EXCLUDE["--on-opt-heur=+,p,-1,sign --on-opt-heur=-,p,1,sign --meta"] = tmp_exclude
+EXCLUDE["--on-opt-heur=+,s,1,true --on-opt-heur=-,s,1,false --meta"] = tmp_exclude
+EXCLUDE["--on-opt-heur=+,p,-1,sign --on-opt-heur=-,p,1,sign --meta-bin"] = tmp_exclude
+EXCLUDE["--on-opt-heur=+,s,1,true --on-opt-heur=-,s,1,false --meta-bin"] = tmp_exclude
+
 
 class cd:
     """Context manager for changing the current working directory"""
