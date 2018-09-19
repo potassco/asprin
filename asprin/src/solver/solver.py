@@ -571,6 +571,22 @@ class Solver:
         else:
             self.solving_result = UNKNOWN
 
+    # TODO: do not allow --preference-unsat and meta?
+    def set_unsat_program(self):
+        # auxiliary
+        def set_and_ground(base, incremental):
+            self.unsat_program_base = base
+            self.unsat_program = incremental
+            self.ground([(self.unsat_program_base, [])], self)
+        # meta
+        if self.options.meta == COMBINE:
+            # meta_incremental() creates and adds METAUNSAT_BASE and METAUNSAT
+            self.meta_incremental()
+            set_and_ground(METAUNSAT_BASE, METAUNSAT)
+        # preference_unsat
+        if self.options.preference_unsat:
+            set_and_ground(UNSATPBASE, UNSATP)
+
     def shown_domain_append(self, atom):
         if atom.type == clingo.SymbolType.Function and len(atom.name) > 0:
             self.shown_domain.append(atom)
@@ -662,11 +678,6 @@ class Solver:
 
     def solve_unsat(self):
         self.solving_result = UNSATISFIABLE
-
-    def start_unsat_program(self, base, incremental):
-        self.unsat_program_base = base
-        self.unsat_program = incremental
-        self.ground([(self.unsat_program_base, [])], self)
 
     def symbol2str(self,symbol):
         if symbol.name == CSP:
@@ -823,6 +834,7 @@ class Solver:
             self.add_projection()
         # loop
         self.printer.do_print("Solving...")
+        first = True
         while True:
             # solve
             prev_opt_models, self.approx_opt_models = self.opt_models, [[]]
@@ -841,6 +853,9 @@ class Solver:
                     self.enumerate()
                     self.control.configuration.solve.opt_mode = 'optN'
                 self.on_optimal.unsat()
+            # if first, set unsat programs
+            if first:
+                self.set_unsat_program()
             # add programs
             parts = []
             for mm in range(1, len(self.approx_opt_models)):
@@ -1038,8 +1053,6 @@ class Solver:
         # add to control
         self.control.add(METAUNSAT_BASE, [], base)
         self.control.add(METAUNSAT, params, incremental)
-        # set unsat variables and ground base
-        self.start_unsat_program(METAUNSAT_BASE, METAUNSAT)
 
     #
     # exiting

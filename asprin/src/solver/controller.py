@@ -61,13 +61,6 @@ class GeneralController:
             self.solver.solve_single()
             self.solver.end()
 
-    # TODO: do not allow --preference-unsat and meta?
-    def set_unsat_program(self):
-        if self.solver.options.meta == utils.COMBINE:
-            self.solver.meta_incremental()
-        if self.solver.options.preference_unsat:
-            self.solver.start_unsat_program(utils.UNSATPBASE, utils.UNSATP)
-
     def sat(self):
         self.solver.models     += 1
         self.solver.last_unsat  = False
@@ -98,7 +91,7 @@ class GeneralController:
             self.solver.end() # to exit asap in this case
         # set_unsat_program
         if self.bool_set_unsat_program:
-            self.set_unsat_program()
+            self.solver.set_unsat_program()
             self.bool_set_unsat_program = False
 
     def unknown(self):
@@ -111,7 +104,7 @@ class GeneralController:
             self.solver.end() # to exit asap in this case
         # set_unsat_program
         if self.bool_set_unsat_program:
-            self.set_unsat_program()
+            self.solver.set_unsat_program()
             self.bool_set_unsat_program = False
 
     def end_loop(self):
