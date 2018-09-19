@@ -55,12 +55,12 @@ class GeneralController:
         if options.check:
             solver.check_errors()
         # non optimal
-        if solver.no_optimize():
-            solver.options.non_optimal = True
-        if solver.options.non_optimal:
+        if solver.no_optimize() or solver.options.non_optimal:
             solver.str_found      = utils.STR_MODEL_FOUND
             solver.str_found_star = utils.STR_MODEL_FOUND_STAR
-            solver.add_unsat_to_preference_program()
+            # solve and finish asprin
+            self.solver.solve_single()
+            self.solver.end()
 
     def do_unsat_program(self, base, incremental):
         self.solver.unsat_program_base = base
@@ -84,9 +84,6 @@ class GeneralController:
 
     # TODO: do not allow --preference-unsat and meta?
     def set_unsat_program(self):
-        # if not optimal: skip
-        if self.solver.options.non_optimal:
-            return
         if self.solver.options.meta == utils.COMBINE:
             self.do_meta()
         if self.solver.options.preference_unsat:
@@ -330,14 +327,11 @@ class MetaMethodController(MethodController):
             self.meta = metasp.MetaspPython(solver)
 
     def start(self):
-        if self.solver.options.project:
-            self.solver.add_projection()
-        if not self.solver.options.non_optimal:
-            # get meta program
-            meta_program = self.meta.get_meta_program()
-            # add and ground
-            self.solver.control.add(utils.METAPROGRAM, [], meta_program)
-            self.solver.ground([(utils.METAPROGRAM, [])])
+        # get meta program
+        meta_program = self.meta.get_meta_program()
+        # add and ground
+        self.solver.control.add(utils.METAPROGRAM, [], meta_program)
+        self.solver.ground([(utils.METAPROGRAM, [])])
         # if query: adds the query and grounds
         if self.solver.options.meta_query:
             qname, qprogram = utils.QUERY, utils.QUERY_PROGRAM

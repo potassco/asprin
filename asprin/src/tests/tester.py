@@ -100,7 +100,7 @@ EXCLUDE["--preference-unsat $asprin/mine/asprin_lib_unsat.lp"] = [
 
 add_option = False
 # to add one option to all OPTIONS, uncomment the next line and set option below
-add_option = True
+#add_option = True
 option = "--preference-unsat $asprin/mine/asprin_lib_unsat.lp"
 #
 option_exclude = EXCLUDE[option]

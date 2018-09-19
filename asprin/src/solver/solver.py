@@ -639,6 +639,9 @@ class Solver:
         if self.on_optimal.on():
             self.solve_single_on_optimal()
             return
+        # add projection if needed
+        if self.options.project:
+            self.add_projection()
         # prepare to solve
         self.control.configuration.solve.models = self.options.max_models
         self.store_holds, self.store_nholds, self.keep_shown = [False]*3
@@ -1036,7 +1039,7 @@ class Solver:
         general = controller.GeneralController(self)
         optimal = controller.GeneralControllerHandleOptimal(self)
         enumeration = controller.EnumerationController(self)
-        on_optimal = controller.OnOptimalController(self)
+        self.on_optimal = on_optimal = controller.OnOptimalController(self)
         # MethodController
         if self.options.solving_mode == "weak":
             method = controller.ApproxMethodController(self)
@@ -1045,7 +1048,6 @@ class Solver:
             method = controller.HeurMethodController(self)
         elif self.options.meta in [SIMPLE]:
             method = controller.MetaMethodController(self)
-            self.on_optimal = on_optimal
         else:
             if self.options.ground_once:
                 method = controller.GroundOnceMethodController(self)

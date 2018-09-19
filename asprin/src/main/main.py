@@ -377,10 +377,6 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
                              help=""": Run {weak|heuristic} \
                                        approximation mode""",
                              choices=["weak", "heuristic"])
-        solving.add_argument('--meta ', dest='meta', help=HELP_META,
-                             type=str, metavar='<m>[,bin]', default=None)
-        solving.add_argument('--no-meta', dest='no_meta', help=HELP_NO_META,
-                             action='store_true')
         solving.add_argument('--dom-heur', dest='cmd_heuristic',
                               nargs=2, metavar=('<v>','<m>'),
                               help=HELP_HEURISTIC)
@@ -390,6 +386,10 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
         solving.add_argument('--configs', dest='configs',
                               metavar='<ci>', action='append',
                               help=HELP_CONFIGS)
+        solving.add_argument('--meta ', dest='meta', help=HELP_META,
+                             type=str, metavar='<m>[,bin]', default=None)
+        solving.add_argument('--no-meta', dest='no_meta', help=HELP_NO_META,
+                             action='store_true')
 
         # Additional Solving Options
         solving = cmd_parser.add_argument_group('Additional Solving Options')
