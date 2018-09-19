@@ -39,8 +39,8 @@ from ...utils import utils
 # DEFINES
 #
 
-U_METAPREF = utils.U_METAPREF
 U_METABASE = utils.U_METABASE
+U_METAPREF = utils.U_METAPREF
 PREFERENCE = utils.PREFERENCE
 OPTIMIZE   = utils.OPTIMIZE
 VOLATILE      = utils.VOLATILE
@@ -64,7 +64,7 @@ METAPREF_BASIC = """
 #const ##m2=1.
 """
 
-BINDING_PYTHON = """
+BINDING_SIMPLE_PYTHON = """
 **true(atom(A)) :-     ##""" + HOLDS + """(X,0), **output(##""" + HOLDS + """(X,1),A).                    % from base
 **fail(atom(A)) :- not ##""" + HOLDS + """(X,0), **output(##""" + HOLDS + """(X,1),A).                    % from base
 **true(atom(A)) :- $$output_term(##""" + HOLDS_AT_ZERO + """(X)), **output(##""" + HOLDS + """(X,0),A),   % from meta_base
@@ -80,7 +80,7 @@ $$bot :- **bot.
 $$atom(|B|) :- $$output_term(X,B). % needed when X is a fact
 """
 
-BINDING_BINARY = """
+BINDING_SIMPLE_BINARY = """
 **true(atom(A)) :-     ##""" + HOLDS + """(X,0), **output(##""" + HOLDS + """(X,1),B), **literal_tuple(B,A).  % from base
 **fail(atom(A)) :- not ##""" + HOLDS + """(X,0), **output(##""" + HOLDS + """(X,1),B), **literal_tuple(B,A).  % from base
 **true(atom(A)) :- $$true(normal(B)), $$output(##""" + HOLDS + """(X,0),B),                       % from meta_base
@@ -92,33 +92,35 @@ $$bot :- **bot.
 :- not **bot.
 """
 
-BINDING_PARAMETRIZED_PYTHON_BASIC = """
+BINDING_INC_PYTHON_BASE = """
 ##fixed(A) :- ##output($$""" + HOLDS + """(X,1),A).
 """
 
-BINDING_PARAMETRIZED_BINARY_BASIC = """
+BINDING_INC_BINARY_BASE = """
 ##fixed(A) :- ##output($$""" + HOLDS + """(X,1),B), ##literal_tuple(B,A).
 """
 
-BINDING_PARAMETRIZED_PYTHON = """
+BINDING_INC_PYTHON = """
 ##true(m1,m2,atom(A)) :-     $$""" + HOLDS + """(X,m2), ##output($$""" + HOLDS + """(X,1),A).
 ##fail(m1,m2,atom(A)) :- not $$""" + HOLDS + """(X,m2), ##output($$""" + HOLDS + """(X,1),A).
 ##true(m1,m2,atom(A)) :-     $$""" + HOLDS + """(X,m1), ##output($$""" + HOLDS + """(X,0),A).
 ##fail(m1,m2,atom(A)) :- not $$""" + HOLDS + """(X,m1), ##output($$""" + HOLDS + """(X,0),A).
-##:- not ##bot(m1,m2).
+$$""" + UNSAT_ATOM + """($$m(m1),$$m(m2)) :- $$""" + VOLATILE + """($$m(m1),$$m(m2)).
+:- not ##bot(m1,m2).
 """
 
-BINDING_PARAMETRIZED_BINARY = """
+BINDING_INC_BINARY = """
 ##true(m1,m2,atom(A)) :-     $$""" + HOLDS + """(X,m2), ##output($$""" + HOLDS + """(X,1),B), ##literal_tuple(B,A).
 ##fail(m1,m2,atom(A)) :- not $$""" + HOLDS + """(X,m2), ##output($$""" + HOLDS + """(X,1),B), ##literal_tuple(B,A).
 ##true(m1,m2,atom(A)) :-     $$""" + HOLDS + """(X,m1), ##output($$""" + HOLDS + """(X,0),B), ##literal_tuple(B,A).
 ##fail(m1,m2,atom(A)) :- not $$""" + HOLDS + """(X,m1), ##output($$""" + HOLDS + """(X,0),B), ##literal_tuple(B,A).
-##:- not ##bot(m1,m2).
+$$""" + UNSAT_ATOM + """($$m(m1),$$m(m2)) :- $$""" + VOLATILE + """($$m(m1),$$m(m2)).
+:- not ##bot(m1,m2).
 """
 
-BINDING_PARAMETRIZED_VOLATILE = """
-##true(m1,m2,atom(A)) :- ##supp(A), not ##fact(A), not ##fixed(A), not $$volatile($$m(m1),$$m(m1)).
-##fail(m1,m2,atom(A)) :- ##supp(A), not ##fact(A), not ##fixed(A), not $$volatile($$m(m1),$$m(m1)).
+BINDING_INC_VOLATILE = """
+##true(m1,m2,atom(A)) :- ##supp(A), not ##fact(A), not ##fixed(A), not $$""" + VOLATILE + """($$m(m1),$$m(m2)).
+##fail(m1,m2,atom(A)) :- ##supp(A), not ##fact(A), not ##fixed(A), not $$""" + VOLATILE + """($$m(m1),$$m(m2)).
 """
 
 # get_holds_domain() should not be defined here
@@ -239,10 +241,53 @@ class AbstractMetasp:
     def __init__(self, solver):
         # uses solver.control, solver.observer and solver.underscores
         self.solver = solver
+        self.binding_simple = None        # to be defined by subclasses
+        self.binding_inc_base = None # to be defined by subclasses
+        self.binding_inc = None      # to be defined by subclasses
 
-    # to be defined by subclasses
-    def get_meta_program(self):
+    # private
+    # to be defined by subclasses (used by get_incremental_program())
+    def get_meta_pref_facts(self, prefix):
         return None
+
+    # private
+    # to be defined by subclasses (used by get_meta_program())
+    def get_meta_base_facts(self, prefix):
+        return None
+
+    # public
+    # uses get_meta_base_facts(), get_meta_pref_facts and binding0
+    def get_meta_program(self):
+        # base
+        prefix = self.solver.underscores + "_"*U_METABASE
+        meta_base  = self.get_meta_base_facts(prefix)
+        meta_base += metasp_programs.metaD_program.replace("##", prefix)
+        # pref
+        prefix = self.solver.underscores + "_"*U_METAPREF
+        meta_pref = self.get_meta_pref_facts(prefix)
+        meta_pref += metasp_programs.metaD_program.replace("##", prefix)
+        # binding
+        meta_bind = self.get_meta_bind(self.binding_simple)
+        # return
+        return meta_base + meta_pref + meta_bind
+    
+    # public
+    # uses get_meta_pref_facts, binding_inc and binding_inc_base
+    def get_incremental_program(self):
+        u = self.solver.underscores
+        prefix = u + "_"*U_METAPREF
+        # base
+        base = self.get_meta_pref_facts(prefix)
+        base += metasp_programs.metaD_program_inc_base.replace("##", prefix)
+        base += self.binding_inc_base.replace("$$", u).replace("##", prefix)
+        # parameters
+        parameters = metasp_programs.metaD_program_parameters
+        # incremental
+        inc = metasp_programs.metaD_program_inc.replace("##", prefix)
+        binding = self.binding_inc + BINDING_INC_VOLATILE
+        inc += binding.replace("$$", u).replace("##", prefix)
+        # return
+        return base, parameters, inc
 
     #
     # get_pref() (used by MetaspPython and MetaspBinary)
@@ -270,7 +315,7 @@ class AbstractMetasp:
         return spec
 
     # WARNING:
-    # This is incorrect in general, since it may change the 
+    # This is incorrect in general, since it may change the
     # content of some strings.
     # This is needed so that @functions of 0 parameters are printed
     # correctly. This should be fixed in clingo.
@@ -295,7 +340,7 @@ class AbstractMetasp:
         return basic + specification + preference_program + constants
 
     #
-    # get_meta_bind() (used by MetaspPython and MetaspBinary)
+    # get_meta_bind() (used by get_meta_program())
     #
 
     def get_meta_bind(self, binding):
@@ -310,20 +355,18 @@ class MetaspPython(AbstractMetasp):
 
     def __init__(self, solver):
         AbstractMetasp.__init__(self, solver)
+        self.binding_simple = BINDING_SIMPLE_PYTHON
+        self.binding_inc_base = BINDING_INC_PYTHON_BASE
+        self.binding_inc = BINDING_INC_PYTHON
 
-    def get_meta_program(self):
-        prefix = self.solver.underscores + "_"*U_METABASE
-        meta_base = self.get_meta_from_observer(self.solver.observer, prefix)
-        meta_pref = self.get_meta_pref()
-        meta_bind = self.get_meta_bind(BINDING_PYTHON)
-        return meta_base + meta_pref + meta_bind
+    def get_meta_base_facts(self, prefix):
+        return self.get_meta_from_observer(self.solver.observer, prefix)
 
-    def get_meta_pref(self):
+    def get_meta_pref_facts(self, prefix):
         ctl = clingo.Control([])
         observer = Observer(ctl, register_observer=True, replace=True)
         ctl.add("base", [], self.get_pref())
         ctl.ground([("base",[])], self.solver)
-        prefix = self.solver.underscores + "_"*U_METAPREF
         return self.get_meta_from_observer(observer, prefix)
 
     # TODO: Implement option where we take care about repeated heads and bodies
@@ -414,7 +457,7 @@ class MetaspPython(AbstractMetasp):
                 "{}output_term({},{}).".format(p, symbol, l) for l in condition
             ]) + "\n"
 
-        return out + metasp_programs.metaD_program.replace("##", p)
+        return out
 
 
 # Uses clingo binary
@@ -423,6 +466,9 @@ class MetaspBinary(AbstractMetasp):
     def __init__(self, solver):
         AbstractMetasp.__init__(self, solver)
         self.check_clingo_version()
+        self.binding_simple = BINDING_SIMPLE_BINARY
+        self.binding_inc_base = BINDING_INC_BINARY_BASE
+        self.binding_inc = BINDING_INC_BINARY
 
     def check_clingo_version(self):
         version = self.run_command([CLINGO, VERSION])
@@ -435,18 +481,12 @@ class MetaspBinary(AbstractMetasp):
             raise Exception(OLD_CLINGO)
         raise Exception(NO_CLINGO)
 
-    def get_meta_program(self):
-        meta_base = self.get_meta_base()
-        meta_pref = self.get_meta_pref()
-        meta_bind = self.get_meta_bind(BINDING_BINARY)
-        return meta_base + meta_pref + meta_bind
-
     # WARNING:
     # The next function relies on the form of the specification programs,
     # assumes rules for preference/2, preference/5, optimize/1
     # start at the beginning of a line and finish at the end.
     # Depends on spec_parser/ast.py.
-    def get_meta_base(self):
+    def get_meta_base_facts(self, prefix):
         observer = self.solver.observer
         # get base
         program  = observer.base[0] + "\n"
@@ -461,10 +501,9 @@ class MetaspBinary(AbstractMetasp):
         # add show
         program += "#show " + self.solver.underscores + "holds/2.\n"
         # get meta using clingo binary
-        prefix = self.solver.underscores + "_"*U_METABASE
         return self.get_meta_using_binary(program, prefix)
 
-    def get_meta_pref(self):
+    def get_meta_pref_facts(self, prefix):
         holds_domain = ",\n".join([
             '  clingo.parse_term("""{}""")'.format(x) 
             for x in self.solver.holds_domain
@@ -502,7 +541,6 @@ class MetaspBinary(AbstractMetasp):
             output = self.run_command(command)
         # add prefix and return
         output = re.sub(r'^(\w+)', r'' + prefix + r'\1', output, flags=re.M)
-        output += metasp_programs.metaD_program.replace("##", prefix)
         return output
 
 # REDO

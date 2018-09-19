@@ -369,11 +369,6 @@ class Solver:
         self.control.add(UNSAT_PREFP[0], UNSAT_PREFP[1],
                          UNSAT_PREFP[2].replace(TOKEN, self.underscores))
 
-    def add_unsat_to_unsat_preference_program(self):
-        if UNSAT_PREFP[0] != self.unsat_program:
-            self.control.add(self.unsat_program, UNSAT_PREFP[1],
-                             UNSAT_PREFP[2].replace(TOKEN, self.underscores))
-
     def check_errors(self):
         pr, control, u = self.printer, self.control, self.underscores
         error = False

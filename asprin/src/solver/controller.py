@@ -30,7 +30,7 @@ class GeneralController:
         self.improve_limit = True if solver.options.improve_limit is not None \
             else False
         self.solver = solver
-        self.bool_first_unsat = True
+        self.bool_set_unsat_program = True
 
     def start(self):
         solver, options = self.solver, self.solver.options
@@ -69,23 +69,28 @@ class GeneralController:
 
     def do_meta(self):
         solver = self.solver
+        # choose meta implementation
         if solver.options.meta_binary:
             meta = metasp.MetaspBinary(solver)
         else:
             meta = metasp.MetaspPython(solver)
-        base, params, incremental = meta.get_incremental()
+        # get programs
+        base, params, incremental = meta.get_incremental_program()
+        # add to control
         solver.control.add(utils.METAUNSAT_BASE, [], base)
         solver.control.add(utils.METAUNSAT, params, incremental)
+        # set variables in solver and ground base
         self.do_unsat_program(utils.METAUNSAT_BASE, utils.METAUNSAT)
 
-    def first_unsat(self):
-        solver, options = self.solver, self.solver.options
-        if options.preference_unsat and options.max_models != 1:
-            self.do_unsat_program(utils.UNSATPBASE, utils.UNSATP)
-        if options.meta == utils.COMBINE and options.max_models != 1:
+    # TODO: do not allow --preference-unsat and meta?
+    def set_unsat_program(self):
+        # if not optimal: skip
+        if self.solver.options.non_optimal:
+            return
+        if self.solver.options.meta == utils.COMBINE:
             self.do_meta()
-        if options.non_optimal:
-            solver.add_unsat_to_unsat_preference_program()
+        if self.solver.options.preference_unsat:
+            self.do_unsat_program(utils.UNSATPBASE, utils.UNSATP)
 
     def sat(self):
         self.solver.models     += 1
@@ -115,10 +120,10 @@ class GeneralController:
         if self.solver.options.steps == self.solver.step:
             self.solver.print_steps_message()
             self.solver.end() # to exit asap in this case
-        # first_unsat
-        if self.bool_first_unsat:
-            self.first_unsat()
-            self.bool_first_unsat = False
+        # set_unsat_program
+        if self.bool_set_unsat_program:
+            self.set_unsat_program()
+            self.bool_set_unsat_program = False
 
     def unknown(self):
         if self.solver.last_unsat:
@@ -128,10 +133,10 @@ class GeneralController:
         if self.solver.options.steps == self.solver.step:
             self.solver.print_steps_message()
             self.solver.end() # to exit asap in this case
-        # first_unsat also here
-        if self.first_unsat:
-            self.do_first_unsat()
-            self.first_unsat = False
+        # set_unsat_program
+        if self.bool_set_unsat_program:
+            self.set_unsat_program()
+            self.bool_set_unsat_program = False
 
     def end_loop(self):
         self.solver.step = self.solver.step + 1

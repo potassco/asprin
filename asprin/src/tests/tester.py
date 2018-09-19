@@ -55,17 +55,18 @@ OPTIONS = [
     ["--on-opt-heur=+,s,1,true --on-opt-heur=-,s,1,false"],
     ["--meta=simple"],
     ["--meta=simple,bin"],
+    ["--meta=combine"],
+    ["--meta=combine,bin"],
     ["--on-opt-heur=+,p,-1,sign --on-opt-heur=-,p,1,sign --meta=simple"],
     ["--on-opt-heur=+,s,1,true --on-opt-heur=-,s,1,false --meta=simple"],
     ["--on-opt-heur=+,p,-1,sign --on-opt-heur=-,p,1,sign --meta=simple,bin"],
     ["--on-opt-heur=+,s,1,true --on-opt-heur=-,s,1,false --meta=simple,bin"],
+    ["--on-opt-heur=+,p,-1,sign --on-opt-heur=-,p,1,sign --meta=combine"],
+    ["--on-opt-heur=+,s,1,true --on-opt-heur=-,s,1,false --meta=combine"],
+    ["--on-opt-heur=+,p,-1,sign --on-opt-heur=-,p,1,sign --meta=combine,bin"],
+    ["--on-opt-heur=+,s,1,true --on-opt-heur=-,s,1,false --meta=combine,bin"],
 ]
-
-# uncomment to test --preference-unsat will all OPTIONS
-#for i in OPTIONS:
-#    i[0] += " --preference-unsat $asprin/mine/asprin_lib_unsat.lp"
-# uncomment to only test --preference-unsat
-# OPTIONS = [["--preference-unsat $asprin/mine/asprin_lib_unsat.lp"]]
+#OPTIONS = OPTIONS[-12:]
 
 EXCLUDE = {}
 EXCLUDE["--meta=simple"] = [
@@ -73,7 +74,9 @@ EXCLUDE["--meta=simple"] = [
     os.path.join(PATH, "asprin_lib/test024.lp"), # too hard
     os.path.join(PATH, "spec_parser/spec_lexer/test010.lp"), # --non-optimal not implemented, and minimize: check! (TODO)
 ]
-EXCLUDE["--meta=simple,bin"] = EXCLUDE["--meta=simple"]
+EXCLUDE[ "--meta=simple,bin"] = EXCLUDE["--meta=simple"]
+EXCLUDE[    "--meta=combine"] = EXCLUDE["--meta=simple"]
+EXCLUDE["--meta=combine,bin"] = EXCLUDE["--meta=simple"]
 EXCLUDE["--on-opt-heur=+,p,-1,sign --on-opt-heur=-,p,1,sign"] = [
     os.path.join(PATH, "program_parser/basic/test001.lp"), # uses --approximation=heuristic
     os.path.join(PATH, "program_parser/basic/test002.lp"), # uses --approximation=heuristic
@@ -83,13 +86,36 @@ EXCLUDE["--on-opt-heur=+,p,-1,sign --on-opt-heur=-,p,1,sign --meta=simple"] = tm
 EXCLUDE["--on-opt-heur=+,s,1,true --on-opt-heur=-,s,1,false --meta=simple"] = tmp_exclude
 EXCLUDE["--on-opt-heur=+,p,-1,sign --on-opt-heur=-,p,1,sign --meta=simple,bin"] = tmp_exclude
 EXCLUDE["--on-opt-heur=+,s,1,true --on-opt-heur=-,s,1,false --meta=simple,bin"] = tmp_exclude
+EXCLUDE["--on-opt-heur=+,p,-1,sign --on-opt-heur=-,p,1,sign --meta=combine"] = tmp_exclude
+EXCLUDE["--on-opt-heur=+,s,1,true --on-opt-heur=-,s,1,false --meta=combine"] = tmp_exclude
+EXCLUDE["--on-opt-heur=+,p,-1,sign --on-opt-heur=-,p,1,sign --meta=combine,bin"] = tmp_exclude
+EXCLUDE["--on-opt-heur=+,s,1,true --on-opt-heur=-,s,1,false --meta=combine,bin"] = tmp_exclude
 
 EXCLUDE["--preference-unsat $asprin/mine/asprin_lib_unsat.lp"] = [
     os.path.join(PATH, "solver/solver/test002.lp"),           # adds new preference programs
     os.path.join(PATH, "spec_parser/spec_lexer/test005.lp"),  # adds new preference programs
     os.path.join(PATH, "spec_parser/spec_parser/test026.lp"), # adds new preference programs
-
 ]
+
+
+add_option = False
+# to add one option to all OPTIONS, uncomment the next line and set option below
+add_option = True
+option = "--preference-unsat $asprin/mine/asprin_lib_unsat.lp"
+#
+option_exclude = EXCLUDE[option]
+if add_option:
+    for i in OPTIONS:
+        if i == option:
+            continue
+        if i[0] in EXCLUDE:
+            EXCLUDE[i[0] + " " + option] = option_exclude + EXCLUDE[i[0]]
+        else:
+            EXCLUDE[i[0] + " " + option] = option_exclude
+        i[0] += " " + option
+
+# uncomment to only test --preference-unsat
+#OPTIONS = [["--preference-unsat $asprin/mine/asprin_lib_unsat.lp"]]
 
 class cd:
     """Context manager for changing the current working directory"""

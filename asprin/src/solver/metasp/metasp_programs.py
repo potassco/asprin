@@ -151,7 +151,7 @@ metaD_program = """
 #defined ##scc/2.
 """
 
-metaD_program_basic = """
+metaD_program_inc_base = """
 
 % NOTE: assumes that a rule has no more than one head
 
@@ -194,7 +194,7 @@ metaD_program_basic = """
 
 metaD_program_parameters = ["m1", "m2"]
 
-metaD_program_parametrized = """
+metaD_program_inc = """
 % generate interpretation
 
 ##true(m1,m2,atom(A))                        :- ##fact(A),                not ##fixed(A). % added not fixed(A)
