@@ -22,7 +22,6 @@
 # -*- coding: utf-8 -*-
 
 from ..utils import utils
-from .metasp import metasp
 
 class GeneralController:
 
@@ -62,32 +61,12 @@ class GeneralController:
             self.solver.solve_single()
             self.solver.end()
 
-    def do_unsat_program(self, base, incremental):
-        self.solver.unsat_program_base = base
-        self.solver.unsat_program = incremental
-        self.solver.ground_unsatp_base()
-
-    def do_meta(self):
-        solver = self.solver
-        # choose meta implementation
-        if solver.options.meta_binary:
-            meta = metasp.MetaspBinary(solver)
-        else:
-            meta = metasp.MetaspPython(solver)
-        # get programs
-        base, params, incremental = meta.get_incremental_program()
-        # add to control
-        solver.control.add(utils.METAUNSAT_BASE, [], base)
-        solver.control.add(utils.METAUNSAT, params, incremental)
-        # set variables in solver and ground base
-        self.do_unsat_program(utils.METAUNSAT_BASE, utils.METAUNSAT)
-
     # TODO: do not allow --preference-unsat and meta?
     def set_unsat_program(self):
         if self.solver.options.meta == utils.COMBINE:
-            self.do_meta()
+            self.solver.meta_incremental()
         if self.solver.options.preference_unsat:
-            self.do_unsat_program(utils.UNSATPBASE, utils.UNSATP)
+            self.solver.start_unsat_program(utils.UNSATPBASE, utils.UNSATP)
 
     def sat(self):
         self.solver.models     += 1
@@ -321,24 +300,10 @@ class MetaMethodController(MethodController):
         MethodController.__init__(self, solver)
         self.solver = solver
         self.solver.set_holds_domain = True
-        if solver.options.meta_binary:
-            self.meta = metasp.MetaspBinary(solver)
-        else:
-            self.meta = metasp.MetaspPython(solver)
 
     def start(self):
-        # get meta program
-        meta_program = self.meta.get_meta_program()
-        # add and ground
-        self.solver.control.add(utils.METAPROGRAM, [], meta_program)
-        self.solver.ground([(utils.METAPROGRAM, [])])
-        # if query: adds the query and grounds
-        if self.solver.options.meta_query:
-            qname, qprogram = utils.QUERY, utils.QUERY_PROGRAM
-            self.solver.control.add(qname, [], qprogram)
-            self.solver.ground([(qname, [])])
-        # solve
-        self.solver.solve_single()
+        # run meta
+        self.solver.meta_simple()
         # finishes asprin
         self.solver.end()
 

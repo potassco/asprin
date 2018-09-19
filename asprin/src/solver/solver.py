@@ -32,6 +32,7 @@ from threading import Condition
 from . import controller
 from ..utils import printer
 from ..utils import utils
+from .metasp import metasp
 
 # TIMING
 import time
@@ -59,10 +60,14 @@ END           = "END"
 SATISFIABLE   = utils.SATISFIABLE                   # used also by controller
 UNSATISFIABLE = "UNSATISFIABLE"
 
-# for --meta options
-SIMPLE  = utils.SIMPLE
-COMBINE = utils.COMBINE
-
+# for meta-programming
+SIMPLE         = utils.SIMPLE
+COMBINE        = utils.COMBINE
+METAPROGRAM    = utils.METAPROGRAM
+QUERY          = utils.QUERY
+QUERY_PROGRAM  = utils.QUERY_PROGRAM
+METAUNSAT      = utils.METAUNSAT
+METAUNSAT_BASE = utils.METAUNSAT_BASE
 
 # strings
 STR_ANSWER             = "Answer: {}"
@@ -490,13 +495,12 @@ class Solver:
         else:
             parts = [(DELETE_MODEL_VOLATILE, [step])]
         if delete_worse:
-            # note: get_preference_parts_opt defaults to get_preference_parts
-            #       may be modified by the GeneralController
             parts += self.get_preference_parts(step, 0, False, volatile)
         # TODO: In base setting, use same preference program as for improving
         if delete_better:
-            parts += self.get_preference_parts(MODEL_DELETE_BETTER, step,
-                                                   False, volatile)
+            parts += self.get_preference_parts(
+                MODEL_DELETE_BETTER, step, False, volatile
+            )
         self.ground(parts, self)
         if volatile:
             self.handle_volatile_optimal_model(step, delete_worse, delete_better)
@@ -658,6 +662,11 @@ class Solver:
 
     def solve_unsat(self):
         self.solving_result = UNSATISFIABLE
+
+    def start_unsat_program(self, base, incremental):
+        self.unsat_program_base = base
+        self.unsat_program = incremental
+        self.ground([(self.unsat_program_base, [])], self)
 
     def symbol2str(self,symbol):
         if symbol.name == CSP:
@@ -995,6 +1004,42 @@ class Solver:
         #parts = [(PREFP, [x, y]), (VOLATILE_EXT,  [x,y])]
         #self.ground(parts, self)
 
+    #
+    # meta-programming
+    #
+
+    def meta_simple(self):
+        # choose meta implementation
+        if self.options.meta_binary:
+            meta = metasp.MetaspBinary(self)
+        else:
+            meta = metasp.MetaspPython(self)
+        # get meta program
+        meta_program = meta.get_meta_program()
+        # add and ground
+        self.control.add(METAPROGRAM, [], meta_program)
+        self.ground([(METAPROGRAM, [])])
+        # if query: adds the query and grounds
+        if self.options.meta_query:
+            qname, qprogram = QUERY, QUERY_PROGRAM
+            self.control.add(qname, [], qprogram)
+            self.ground([(qname, [])])
+        # solve single
+        self.solve_single()
+
+    def meta_incremental(self):
+        # choose meta implementation
+        if self.options.meta_binary:
+            meta = metasp.MetaspBinary(self)
+        else:
+            meta = metasp.MetaspPython(self)
+        # get programs
+        base, params, incremental = meta.get_incremental_program()
+        # add to control
+        self.control.add(METAUNSAT_BASE, [], base)
+        self.control.add(METAUNSAT, params, incremental)
+        # set unsat variables and ground base
+        self.start_unsat_program(METAUNSAT_BASE, METAUNSAT)
 
     #
     # exiting
