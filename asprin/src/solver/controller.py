@@ -29,7 +29,8 @@ class GeneralController:
     def __init__(self, solver):
         self.improve_limit = True if solver.options.improve_limit is not None \
             else False
-        self.solver         = solver
+        self.solver = solver
+        self.bool_first_unsat = True
 
     def start(self):
         solver, options = self.solver, self.solver.options
@@ -45,25 +46,46 @@ class GeneralController:
         #
         solver.add_encodings()
         solver.ground_preference_base()
+        # --dom-heur
         if options.cmd_heuristic is not None:
             solver.ground_cmd_heuristic()
             for _solver in solver.control.configuration.solver:
                 _solver.heuristic="Domain"
-        if options.preference_unsat and options.max_models != 1:
-            solver.unsat_program = utils.UNSATP
-            solver.ground_unsatp_base()
         # check syntax
         if options.check:
             solver.check_errors()
         # non optimal
         if solver.no_optimize():
-            # modifying options
             solver.options.non_optimal = True
         if solver.options.non_optimal:
             solver.str_found      = utils.STR_MODEL_FOUND
             solver.str_found_star = utils.STR_MODEL_FOUND_STAR
             solver.add_unsat_to_preference_program()
 
+    def do_unsat_program(self, base, incremental):
+        self.solver.unsat_program_base = base
+        self.solver.unsat_program = incremental
+        self.solver.ground_unsatp_base()
+
+    def do_meta(self):
+        solver = self.solver
+        if solver.options.meta_binary:
+            meta = metasp.MetaspBinary(solver)
+        else:
+            meta = metasp.MetaspPython(solver)
+        base, params, incremental = meta.get_incremental()
+        solver.control.add(utils.METAUNSAT_BASE, [], base)
+        solver.control.add(utils.METAUNSAT, params, incremental)
+        self.do_unsat_program(utils.METAUNSAT_BASE, utils.METAUNSAT)
+
+    def first_unsat(self):
+        solver, options = self.solver, self.solver.options
+        if options.preference_unsat and options.max_models != 1:
+            self.do_unsat_program(utils.UNSATPBASE, utils.UNSATP)
+        if options.meta == utils.COMBINE and options.max_models != 1:
+            self.do_meta()
+        if options.non_optimal:
+            solver.add_unsat_to_unsat_preference_program()
 
     def sat(self):
         self.solver.models     += 1
@@ -93,6 +115,10 @@ class GeneralController:
         if self.solver.options.steps == self.solver.step:
             self.solver.print_steps_message()
             self.solver.end() # to exit asap in this case
+        # first_unsat
+        if self.bool_first_unsat:
+            self.first_unsat()
+            self.bool_first_unsat = False
 
     def unknown(self):
         if self.solver.last_unsat:
@@ -102,6 +128,10 @@ class GeneralController:
         if self.solver.options.steps == self.solver.step:
             self.solver.print_steps_message()
             self.solver.end() # to exit asap in this case
+        # first_unsat also here
+        if self.first_unsat:
+            self.do_first_unsat()
+            self.first_unsat = False
 
     def end_loop(self):
         self.solver.step = self.solver.step + 1

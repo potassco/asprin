@@ -45,6 +45,8 @@ UNSATPBASE = "preference_unsat_base"
 CONSTANTS_NB = "constants_nonbase"
 ON_OPT_HEUR_PROGRAM  = "on_opt_heuristic"
 METAPROGRAM = "metaprogram"
+METAUNSAT = "meta_unsat"
+METAUNSAT_BASE = "meta_unsat_base"
 # query program name and program
 QUERY         = "query"
 QUERY_PROGRAM = ":- not query."

@@ -230,6 +230,7 @@ class Solver:
         self.grounded_delete_better = False
         self.mapping = {}
         self.unsat_program = PREFP
+        self.unsat_program_base = None
         # for weak mode
         self.optN = False
         self.on_optimal = None
@@ -367,6 +368,8 @@ class Solver:
     def add_unsat_to_preference_program(self):
         self.control.add(UNSAT_PREFP[0], UNSAT_PREFP[1],
                          UNSAT_PREFP[2].replace(TOKEN, self.underscores))
+
+    def add_unsat_to_unsat_preference_program(self):
         if UNSAT_PREFP[0] != self.unsat_program:
             self.control.add(self.unsat_program, UNSAT_PREFP[1],
                              UNSAT_PREFP[2].replace(TOKEN, self.underscores))
@@ -483,7 +486,7 @@ class Solver:
             self.improving.append(prev_step)
 
     def ground_unsatp_base(self):
-        self.ground([(UNSATPBASE, [])], self)
+        self.ground([(self.unsat_program_base, [])], self)
 
     def handle_optimal_model(self, step, delete_model_volatile,
                              delete_worse, delete_better, volatile):
@@ -1045,7 +1048,7 @@ class Solver:
             self.on_optimal = on_optimal
         elif self.options.solving_mode == "heuristic":
             method = controller.HeurMethodController(self)
-        elif self.options.meta in [SIMPLE, COMBINE]:
+        elif self.options.meta in [SIMPLE]:
             method = controller.MetaMethodController(self)
             self.on_optimal = on_optimal
         else:

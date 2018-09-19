@@ -65,7 +65,7 @@ OPTIONS = [
 #for i in OPTIONS:
 #    i[0] += " --preference-unsat $asprin/mine/asprin_lib_unsat.lp"
 # uncomment to only test --preference-unsat
-#OPTIONS = [["--preference-unsat $asprin/mine/asprin_lib_unsat.lp"]]
+# OPTIONS = [["--preference-unsat $asprin/mine/asprin_lib_unsat.lp"]]
 
 EXCLUDE = {}
 EXCLUDE["--meta=simple"] = [
