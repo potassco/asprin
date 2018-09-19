@@ -45,6 +45,9 @@ UNSATPBASE = "preference_unsat_base"
 CONSTANTS_NB = "constants_nonbase"
 ON_OPT_HEUR_PROGRAM  = "on_opt_heuristic"
 METAPROGRAM = "metaprogram"
+# query program name and program
+QUERY         = "query"
+QUERY_PROGRAM = ":- not query."
 
 # map preference programs to their bases
 mapbase = { PREFP  : PBASE,
@@ -117,6 +120,12 @@ POS        = 0
 NEG        = 1
 SHOWN_ATOM = 0
 PREF_ATOM  = 1
+
+# used by option --meta and --meta-no
+OPEN    = 0
+NO_META = 1
+SIMPLE  = 2
+COMBINE = 3
 
 # messages (used by solver and controller)
 STR_MODEL_FOUND        = "MODEL FOUND"

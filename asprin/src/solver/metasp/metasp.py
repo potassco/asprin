@@ -116,6 +116,11 @@ BINDING_PARAMETRIZED_BINARY = """
 ##:- not ##bot(m1,m2).
 """
 
+BINDING_PARAMETRIZED_VOLATILE = """
+##true(m1,m2,atom(A)) :- ##supp(A), not ##fact(A), not ##fixed(A), not $$volatile($$m(m1),$$m(m1)).
+##fail(m1,m2,atom(A)) :- ##supp(A), not ##fact(A), not ##fixed(A), not $$volatile($$m(m1),$$m(m1)).
+"""
+
 # get_holds_domain() should not be defined here
 ASPRIN_LIBRARY_PY = """
 #script(python)

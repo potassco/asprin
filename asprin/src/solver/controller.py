@@ -289,10 +289,10 @@ class MetaMethodController(MethodController):
         MethodController.__init__(self, solver)
         self.solver = solver
         self.solver.set_holds_domain = True
-        if solver.options.meta:
-            self.meta = metasp.MetaspPython(solver)
-        else:
+        if solver.options.meta_binary:
             self.meta = metasp.MetaspBinary(solver)
+        else:
+            self.meta = metasp.MetaspPython(solver)
 
     def start(self):
         if self.solver.options.project:
@@ -301,9 +301,13 @@ class MetaMethodController(MethodController):
             # get meta program
             meta_program = self.meta.get_meta_program()
             # add and ground
-            ctl = self.solver.control
-            ctl.add(utils.METAPROGRAM, [], meta_program)
+            self.solver.control.add(utils.METAPROGRAM, [], meta_program)
             self.solver.ground([(utils.METAPROGRAM, [])])
+        # if query: adds the query and grounds
+        if self.solver.options.meta_query:
+            qname, qprogram = utils.QUERY, utils.QUERY_PROGRAM
+            self.solver.control.add(qname, [], qprogram)
+            self.solver.ground([(qname, [])])
         # solve
         self.solver.solve_single()
         # finishes asprin

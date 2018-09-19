@@ -52,6 +52,11 @@ POS        = utils.POS
 NEG        = utils.NEG
 SHOWN_ATOM = utils.SHOWN_ATOM
 PREF_ATOM  = utils.PREF_ATOM
+# for --meta
+OPEN    = utils.OPEN
+NO_META = utils.NO_META
+SIMPLE  = utils.SIMPLE
+COMBINE = utils.COMBINE
 #
 UNKNOWN        = "UNKNOWN"
 ERROR          = "*** ERROR: (asprin): {}"
@@ -66,6 +71,7 @@ ERROR_PARSING  = "parsing failed"
 #ERROR_IMPROVE_1 = "options --stats and --improve-limit cannot be used together"
 ERROR_IMPROVE_2 = """incorrect value for option --improve-limit, \
 options reprint and nocheck cannot be used together"""
+ERROR_TWO_METAS = """options --no-meta and --meta cannot be used together"""
 DEBUG          = "--debug"
 TEST           = "--test"
 ALL_CONFIGS    = ["tweety", "trendy", "frumpy", "crafty", "jumpy", "handy"]
@@ -114,8 +120,15 @@ optimal"""
 # optimal,  hence it is not complete
 HELP_CONFIGS = """R|: Run clingo configurations c1, ..., cn iteratively
   (use 'all' for running all configurations)"""
-HELP_META     = """R|: Use meta-programming solving methods"""
-HELP_META_BIN = """R|: Use meta-programming solving methods (using clingo binary)"""
+HELP_NO_META = """R|: Do not use meta-programming solving methods
+  Note: This may be incorrect for computing many models when the preference program
+        is not stratified"""
+HELP_META     = """R|: Use meta-programming solving methods, where <m> can be:
+  * simple: translate to a disjunctive logic program
+  * query: compute optimal models that contain atom 'query' using simple
+  * combine: combine normal iterative asprin mode (to improve a model)
+             with simple (to check that a model is not worse than previous optimal models)
+  and option bin uses a clingo binary for reification"""
 
 #
 # VERSION
@@ -260,8 +273,34 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
                 modifier = match.group(4)
                 out.append((sign, atom, value, modifier))
         except Exception as e:
-            self.__cmd_parser.error(str(e))
+            self.__cmd_parser.error(str(e)) # Why don't we call this directly?
         return out
+
+    def __do_meta(self, meta, no_meta):
+        # basic cases
+        if meta and no_meta:
+            self.__cmd_parser.error(ERROR_TWO_METAS)
+        elif not meta and not no_meta:
+            return OPEN, False, False
+        elif no_meta:
+            return NO_META, False, False
+        # parse
+        match = re.match(r'(simple|query|combine)(,(bin))?$', meta)
+        if not match:
+            self.__cmd_parser.error("incorrect value for option --meta")
+        # set output: method, query, binary
+        method, query, binary = None, False, False
+        if match.group(1) == 'simple':
+            method = SIMPLE
+        elif match.group(1) == 'query':
+            method = SIMPLE
+            query = True
+        elif match.group(1) == 'combine':
+            method = COMBINE
+        if match.group(2):
+            binary = True
+        # return
+        return method, query, binary
 
     def run(self, args):
 
@@ -338,9 +377,9 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
                              help=""": Run {weak|heuristic} \
                                        approximation mode""",
                              choices=["weak", "heuristic"])
-        solving.add_argument('--meta', dest='meta', help=HELP_META,
-                             action='store_true')
-        solving.add_argument('--meta-bin', dest='meta_bin', help=HELP_META_BIN,
+        solving.add_argument('--meta ', dest='meta', help=HELP_META,
+                             type=str, metavar='<m>[,bin]', default=None)
+        solving.add_argument('--no-meta', dest='no_meta', help=HELP_NO_META,
                              action='store_true')
         solving.add_argument('--dom-heur', dest='cmd_heuristic',
                               nargs=2, metavar=('<v>','<m>'),
@@ -454,6 +493,12 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
             options['solving_mode'] = "heuristic"
         options.pop('approximation',None)
 
+        # handle meta
+        meta, query, binary = self.__do_meta(options['meta'], options['no_meta'])
+        options['meta'] = meta
+        options['meta_query'] = query
+        options['meta_binary'] = binary
+
         # statistics
         # if options['stats']:
         clingo_options.append('--stats')
@@ -536,21 +581,22 @@ class Asprin:
 
         # observer
         observer = None
-        if self.options['meta']:
-            observer = metasp.Observer(
-                self.control,
-                register_observer = True,
-                bool_add_statement = True,
-                bool_add_constants_nb = True
-            )
-        elif self.options['meta_bin']:
-            observer = metasp.Observer(
-                self.control,
-                bool_add_statement = True,
-                bool_add_base = True,
-                bool_add_specification = True,
-                bool_add_constants_nb = True
-            )
+        if self.options['meta'] in [SIMPLE, COMBINE]:
+            if not self.options['meta_binary']:
+                observer = metasp.Observer(
+                    self.control,
+                    register_observer = True,
+                    bool_add_statement = True,
+                    bool_add_constants_nb = True
+                )
+            if self.options['meta_binary']:
+                observer = metasp.Observer(
+                    self.control,
+                    bool_add_statement = True,
+                    bool_add_base = True,
+                    bool_add_specification = True,
+                    bool_add_constants_nb = True
+                )
 
         # preference programs parsing
         _program_parser = program_parser.Parser(

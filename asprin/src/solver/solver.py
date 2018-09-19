@@ -59,6 +59,11 @@ END           = "END"
 SATISFIABLE   = utils.SATISFIABLE                   # used also by controller
 UNSATISFIABLE = "UNSATISFIABLE"
 
+# for --meta options
+SIMPLE  = utils.SIMPLE
+COMBINE = utils.COMBINE
+
+
 # strings
 STR_ANSWER             = "Answer: {}"
 STR_OPTIMUM_FOUND      = "OPTIMUM FOUND"
@@ -1040,7 +1045,7 @@ class Solver:
             self.on_optimal = on_optimal
         elif self.options.solving_mode == "heuristic":
             method = controller.HeurMethodController(self)
-        elif self.options.meta or self.options.meta_bin:
+        elif self.options.meta in [SIMPLE, COMBINE]:
             method = controller.MetaMethodController(self)
             self.on_optimal = on_optimal
         else:

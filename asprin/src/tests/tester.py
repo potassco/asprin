@@ -53,36 +53,36 @@ OPTIONS = [
     ["--improve-limit=1,all,100"],
     ["--on-opt-heur=+,p,-1,sign --on-opt-heur=-,p,1,sign"],
     ["--on-opt-heur=+,s,1,true --on-opt-heur=-,s,1,false"],
-    ["--meta"],
-    ["--meta-bin"],
-    ["--on-opt-heur=+,p,-1,sign --on-opt-heur=-,p,1,sign --meta"],
-    ["--on-opt-heur=+,s,1,true --on-opt-heur=-,s,1,false --meta"],
-    ["--on-opt-heur=+,p,-1,sign --on-opt-heur=-,p,1,sign --meta-bin"],
-    ["--on-opt-heur=+,s,1,true --on-opt-heur=-,s,1,false --meta-bin"],
+    ["--meta=simple"],
+    ["--meta=simple,bin"],
+    ["--on-opt-heur=+,p,-1,sign --on-opt-heur=-,p,1,sign --meta=simple"],
+    ["--on-opt-heur=+,s,1,true --on-opt-heur=-,s,1,false --meta=simple"],
+    ["--on-opt-heur=+,p,-1,sign --on-opt-heur=-,p,1,sign --meta=simple,bin"],
+    ["--on-opt-heur=+,s,1,true --on-opt-heur=-,s,1,false --meta=simple,bin"],
 ]
 
 # uncomment to test --preference-unsat will all OPTIONS
 #for i in OPTIONS:
 #    i[0] += " --preference-unsat $asprin/mine/asprin_lib_unsat.lp"
 # uncomment to only test --preference-unsat
-OPTIONS = [["--preference-unsat $asprin/mine/asprin_lib_unsat.lp"]]
+#OPTIONS = [["--preference-unsat $asprin/mine/asprin_lib_unsat.lp"]]
 
 EXCLUDE = {}
-EXCLUDE["--meta"] = [
+EXCLUDE["--meta=simple"] = [
     os.path.join(PATH, "asprin_lib/test022.lp"), # too hard
     os.path.join(PATH, "asprin_lib/test024.lp"), # too hard
     os.path.join(PATH, "spec_parser/spec_lexer/test010.lp"), # --non-optimal not implemented, and minimize: check! (TODO)
 ]
-EXCLUDE["--meta-bin"] = EXCLUDE["--meta"]
+EXCLUDE["--meta=simple,bin"] = EXCLUDE["--meta=simple"]
 EXCLUDE["--on-opt-heur=+,p,-1,sign --on-opt-heur=-,p,1,sign"] = [
     os.path.join(PATH, "program_parser/basic/test001.lp"), # uses --approximation=heuristic
     os.path.join(PATH, "program_parser/basic/test002.lp"), # uses --approximation=heuristic
 ]
-tmp_exclude = EXCLUDE["--meta"] + EXCLUDE["--on-opt-heur=+,p,-1,sign --on-opt-heur=-,p,1,sign"]
-EXCLUDE["--on-opt-heur=+,p,-1,sign --on-opt-heur=-,p,1,sign --meta"] = tmp_exclude
-EXCLUDE["--on-opt-heur=+,s,1,true --on-opt-heur=-,s,1,false --meta"] = tmp_exclude
-EXCLUDE["--on-opt-heur=+,p,-1,sign --on-opt-heur=-,p,1,sign --meta-bin"] = tmp_exclude
-EXCLUDE["--on-opt-heur=+,s,1,true --on-opt-heur=-,s,1,false --meta-bin"] = tmp_exclude
+tmp_exclude = EXCLUDE["--meta=simple"] + EXCLUDE["--on-opt-heur=+,p,-1,sign --on-opt-heur=-,p,1,sign"]
+EXCLUDE["--on-opt-heur=+,p,-1,sign --on-opt-heur=-,p,1,sign --meta=simple"] = tmp_exclude
+EXCLUDE["--on-opt-heur=+,s,1,true --on-opt-heur=-,s,1,false --meta=simple"] = tmp_exclude
+EXCLUDE["--on-opt-heur=+,p,-1,sign --on-opt-heur=-,p,1,sign --meta=simple,bin"] = tmp_exclude
+EXCLUDE["--on-opt-heur=+,s,1,true --on-opt-heur=-,s,1,false --meta=simple,bin"] = tmp_exclude
 
 EXCLUDE["--preference-unsat $asprin/mine/asprin_lib_unsat.lp"] = [
     os.path.join(PATH, "solver/solver/test002.lp"),           # adds new preference programs
