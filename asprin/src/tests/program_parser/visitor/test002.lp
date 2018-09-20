@@ -15,7 +15,7 @@ a(3).
 a :- not b.
 b :- not a.
 
-%*** ERROR: (asprin): parsing error, unstratified preference program, use option --meta
 %asprin version 3.1.0
 %Reading from tests/program_parser/visitor/test002.lp
+% *** ERROR: (asprin): parsing error, unstratified preference program, use option --meta
 %UNKNOWN

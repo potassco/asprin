@@ -71,7 +71,9 @@ EXCLUDE["--meta=simple"] = [
     os.path.join(PATH, "asprin_lib/test023.lp"), # too hard
     os.path.join(PATH, "asprin_lib/test024.lp"), # too hard
     os.path.join(PATH, "asprin_lib/test025.lp"), # too hard
-    os.path.join(PATH, "spec_parser/spec_lexer/test010.lp"), # --non-optimal not implemented, and minimize: check! (TODO)
+    os.path.join(PATH, "solver/solver/test008.lp"), # too hard
+    os.path.join(PATH, "solver/solver/test009.lp"), # too hard
+    os.path.join(PATH, "program_parser/visitor/test002.lp"), # no error with --meta
 ]
 EXCLUDE[ "--meta=simple,bin"] = EXCLUDE["--meta=simple"]
 EXCLUDE[    "--meta=combine"] = EXCLUDE["--meta=simple"]
