@@ -143,6 +143,8 @@ preference type '{}' has no weak approximation program\n"""
 ERROR_NO_UNSATP_PROGRAM  = "preference:{}: " + ERROR_SPEC + """\
 preference type '{}' has no """ + UNSATP + """ program\n"""
 
+# for meta-programming
+COMBINE = utils.COMBINE
 
 class BuilderProxy:
 
@@ -155,7 +157,7 @@ class BuilderProxy:
         self.builder.add(statement)
 
 
-class PrefBuilderProxy:
+class ObserverBuilderProxy:
 
     def __init__(self, builder, observer):
         self.builder = builder
@@ -352,23 +354,37 @@ class Parser:
         if self.__observer:
             self.__observer.add_constants_nb(program, [], [])
 
-    def add_programs(self, types, builder, pref_builder=None):
+    def add_programs(self, types, builder, observer_builder=None):
         # visitors
         constants = self.__options['constants_nb']
-        pref_builder = pref_builder if pref_builder else builder
-        v = preference.PreferenceProgramVisitor(pref_builder, PREFP,
-                                                U_PREFP, constants)
+        # set preference and preference_unsat builders
+        preference_builder, preference_unsat_builder = builder, builder
+        if observer_builder and self.__options['meta'] == COMBINE and \
+           self.__options['preference_unsat']:
+            preference_unsat_builder = observer_builder
+        elif observer_builder:
+            preference_builder = observer_builder
+        # do preference
+        v = preference.PreferenceProgramVisitor(
+            preference_builder, PREFP, U_PREFP, constants
+        )
         visitors = [(PREFP, v)]
+        # do approximations
         if self.__options['solving_mode'] == 'weak':
-            v = basic.BasicProgramVisitor(builder, APPROX, U_APPROX, constants)
+            v = basic.BasicProgramVisitor(
+                builder, APPROX, U_APPROX, constants
+            )
             visitors.append((APPROX,v))
         elif self.__options['solving_mode'] == 'heuristic':
-            v = basic.HeuristicProgramVisitor(builder, HEURISTIC,
-                                              U_HEURISTIC, constants)
+            v = basic.HeuristicProgramVisitor(
+                builder, HEURISTIC, U_HEURISTIC, constants
+            )
             visitors.append((HEURISTIC,v))
+        # do preference unsat
         if self.__options['preference_unsat']:
-            v = preference.PreferenceProgramVisitor(builder, UNSATP,
-                                                    U_UNSATP, constants)
+            v = preference.PreferenceProgramVisitor(
+                preference_unsat_builder, UNSATP, U_UNSATP, constants
+            )
             visitors.append((UNSATP,v))
         # add programs
         for name, visitor in visitors:
@@ -406,8 +422,8 @@ class Parser:
 
         # translate and add the rest of the programs
         with self.__control.builder() as builder:
-            pref_builder = None
+            observer_builder = None
             if self.__observer:
-                pref_builder = PrefBuilderProxy(builder, self.__observer)
-            self.add_programs(types, builder, pref_builder)
+                observer_builder = ObserverBuilderProxy(builder, self.__observer)
+            self.add_programs(types, builder, observer_builder)
 

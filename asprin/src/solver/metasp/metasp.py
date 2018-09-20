@@ -270,7 +270,7 @@ class AbstractMetasp:
         meta_bind = self.get_meta_bind(self.binding_simple)
         # return
         return meta_base + meta_pref + meta_bind
-    
+
     # public
     # uses get_meta_pref_facts, binding_inc and binding_inc_base
     def get_incremental_program(self):
