@@ -1496,8 +1496,8 @@ level(P,P1,L) :- preference(P,and), approx_and=2,
 %
 
 % Tree or not Tree
- #const cp_tree=0.                % general cp nets
-%#const cp_tree=1.                % tree-structured cp nets
+ #const cp_tree=0.                %         general cp nets, use --meta=[simple|query|combine]
+%#const cp_tree=1.                % tree-structured cp nets, use --meta=no
 
 % if cp_tree = 0: diameter for general cp nets
  #const cp_nontree_diameter=0.    % 2**|atoms| - 1

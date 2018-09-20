@@ -61,8 +61,8 @@ SATISFIABLE   = utils.SATISFIABLE                   # used also by controller
 UNSATISFIABLE = "UNSATISFIABLE"
 
 # for meta-programming
-SIMPLE         = utils.SIMPLE
-COMBINE        = utils.COMBINE
+META_SIMPLE    = utils.META_SIMPLE
+META_COMBINE   = utils.META_COMBINE
 METAPROGRAM    = utils.METAPROGRAM
 QUERY          = utils.QUERY
 QUERY_PROGRAM  = utils.QUERY_PROGRAM
@@ -580,7 +580,7 @@ class Solver:
             self.unsat_program = incremental
             self.ground([(self.unsat_program_base, [])], self)
         # meta
-        if self.options.meta == COMBINE:
+        if self.options.meta == META_COMBINE:
             # meta_incremental() creates and adds METAUNSAT_BASE and METAUNSAT
             self.meta_incremental()
             set_and_ground(METAUNSAT_BASE, METAUNSAT)
@@ -1105,7 +1105,7 @@ class Solver:
             self.on_optimal = on_optimal
         elif self.options.solving_mode == "heuristic":
             method = controller.HeurMethodController(self)
-        elif self.options.meta in [SIMPLE]:
+        elif self.options.meta in [META_SIMPLE]:
             method = controller.MetaMethodController(self)
         else:
             if self.options.ground_once:

@@ -120,7 +120,7 @@ class Visitor:
                 setattr(self, "in_"+i[6:], False)
 
     def finish(self):
-        pass
+        return None
 
     def visit_children(self, x, *args, **kwargs):
         for key in x.child_keys:

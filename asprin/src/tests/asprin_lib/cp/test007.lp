@@ -1,4 +1,4 @@
-% asprin test007.lp 0 --const-nb cp_tree=1
+% asprin test007.lp 0 --const-nb cp_tree=1 --meta=no
 % ERROR
 
 1 { a(X) : dom(X) } 2.

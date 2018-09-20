@@ -53,10 +53,10 @@ NEG        = utils.NEG
 SHOWN_ATOM = utils.SHOWN_ATOM
 PREF_ATOM  = utils.PREF_ATOM
 # for --meta
-OPEN    = utils.OPEN
-NO_META = utils.NO_META
-SIMPLE  = utils.SIMPLE
-COMBINE = utils.COMBINE
+META_OPEN    = utils.META_OPEN
+META_NO      = utils.META_NO
+META_SIMPLE  = utils.META_SIMPLE
+META_COMBINE = utils.META_COMBINE
 #
 UNKNOWN        = "UNKNOWN"
 ERROR          = "*** ERROR: (asprin): {}"
@@ -64,14 +64,9 @@ ERROR_INFO     = "*** Info : (asprin): Try '--help' for usage information"
 ERROR_OPEN     = "<cmd>: error: file could not be opened:\n  {}\n"
 ERROR_FATAL    = "Fatal error, this should not happen.\n"
 ERROR_PARSING  = "parsing failed"
-#INTERRUPT      = """*** Info : (asprin): INTERRUPTED by signal!
-#UNKNOWN
-#
-#INTERRUPTED  : 1"""
 #ERROR_IMPROVE_1 = "options --stats and --improve-limit cannot be used together"
 ERROR_IMPROVE_2 = """incorrect value for option --improve-limit, \
 options reprint and nocheck cannot be used together"""
-ERROR_TWO_METAS = """options --no-meta and --meta cannot be used together"""
 DEBUG          = "--debug"
 TEST           = "--test"
 ALL_CONFIGS    = ["tweety", "trendy", "frumpy", "crafty", "jumpy", "handy"]
@@ -123,12 +118,14 @@ HELP_CONFIGS = """R|: Run clingo configurations c1, ..., cn iteratively
 HELP_NO_META = """R|: Do not use meta-programming solving methods
   Note: This may be incorrect for computing many models when the preference program
         is not stratified"""
-HELP_META     = """R|: Use meta-programming solving methods, where <m> can be:
+HELP_META     = """R|: Apply or disable meta-programming solving methods, where <m> can be:
   * simple: translate to a disjunctive logic program
   * query: compute optimal models that contain atom 'query' using simple
   * combine: combine normal iterative asprin mode (to improve a model)
              with simple (to check that a model is not worse than previous optimal models)
-  and option bin uses a clingo binary for reification"""
+  * no: disable explicitly meta-programming solving methods
+        this may be incorrect for computing many models using nonstratified preference programs
+  Option bin uses a clingo binary to help in meta-programming"""
 
 #
 # VERSION
@@ -276,27 +273,25 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
             self.__cmd_parser.error(str(e)) # Why don't we call this directly?
         return out
 
-    def __do_meta(self, meta, no_meta):
+    def __do_meta(self, meta):
         # basic cases
-        if meta and no_meta:
-            self.__cmd_parser.error(ERROR_TWO_METAS)
-        elif not meta and not no_meta:
-            return OPEN, False, False
-        elif no_meta:
-            return NO_META, False, False
+        if not meta:
+            return META_OPEN, False, False
         # parse
-        match = re.match(r'(simple|query|combine)(,(bin))?$', meta)
+        match = re.match(r'(no|simple|query|combine)(,(bin))?$', meta)
         if not match:
             self.__cmd_parser.error("incorrect value for option --meta")
         # set output: method, query, binary
         method, query, binary = None, False, False
-        if match.group(1) == 'simple':
-            method = SIMPLE
+        if match.group(1) == 'no':
+            method = META_NO
+        elif match.group(1) == 'simple':
+            method = META_SIMPLE
         elif match.group(1) == 'query':
-            method = SIMPLE
+            method = META_SIMPLE
             query = True
         elif match.group(1) == 'combine':
-            method = COMBINE
+            method = META_COMBINE
         if match.group(2):
             binary = True
         # return
@@ -388,8 +383,6 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
                               help=HELP_CONFIGS)
         solving.add_argument('--meta ', dest='meta', help=HELP_META,
                              type=str, metavar='<m>[,bin]', default=None)
-        solving.add_argument('--no-meta', dest='no_meta', help=HELP_NO_META,
-                             action='store_true')
         solving.add_argument('--preference-unsat', dest='preference_unsat',
                              #help=argparse.SUPPRESS,
                              help=HELP_PREFERENCE_UNSAT,
@@ -494,7 +487,7 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
         options.pop('approximation',None)
 
         # handle meta
-        meta, query, binary = self.__do_meta(options['meta'], options['no_meta'])
+        meta, query, binary = self.__do_meta(options['meta'])
         options['meta'] = meta
         options['meta_query'] = query
         options['meta_binary'] = binary
@@ -581,7 +574,7 @@ class Asprin:
 
         # observer
         observer = None
-        if self.options['meta'] in [SIMPLE, COMBINE]:
+        if self.options['meta'] in [META_SIMPLE, META_COMBINE]:
             if not self.options['meta_binary']:
                 observer = metasp.Observer(
                     self.control,

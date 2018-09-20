@@ -142,9 +142,12 @@ ERROR_NO_APPROX_PROGRAM  = "preference:{}: " + ERROR_SPEC + """\
 preference type '{}' has no weak approximation program\n"""
 ERROR_NO_UNSATP_PROGRAM  = "preference:{}: " + ERROR_SPEC + """\
 preference type '{}' has no """ + UNSATP + """ program\n"""
+ERROR_UNSTRAT_PROGRAM = """\
+parsing error, unstratified {} program, use option --meta"""
 
 # for meta-programming
-COMBINE = utils.COMBINE
+META_COMBINE = utils.META_COMBINE
+META_OPEN = utils.META_OPEN
 
 class BuilderProxy:
 
@@ -359,7 +362,7 @@ class Parser:
         constants = self.__options['constants_nb']
         # set preference and preference_unsat builders
         preference_builder, preference_unsat_builder = builder, builder
-        if observer_builder and self.__options['meta'] == COMBINE and \
+        if observer_builder and self.__options['meta'] == META_COMBINE and \
            self.__options['preference_unsat']:
             preference_unsat_builder = observer_builder
         elif observer_builder:
@@ -392,7 +395,13 @@ class Parser:
                 if type_ in types:
                     s = "#program " + name + ".\n" + program.get_string()
                     clingo.parse_program(s, lambda x: visitor.visit(x))
-            visitor.finish()
+            ret = visitor.finish()
+            # error if unsat preference program not stratified and not meta
+            if ret and self.__options['meta'] == META_OPEN and \
+               self.__options['max_models'] != 1 and \
+               ((not self.__options['preference_unsat'] and name ==  PREFP) or
+                (    self.__options['preference_unsat'] and name == UNSATP)):
+                raise Exception(ERROR_UNSTRAT_PROGRAM.format(name))
 
     def parse(self):
 

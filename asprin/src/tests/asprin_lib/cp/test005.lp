@@ -1,4 +1,4 @@
-% asprin test005.lp --const-nb cp_tree=1 --const-nb cp_tree_encoding=1 0
+% asprin test005.lp --const-nb cp_tree=1 --const-nb cp_tree_encoding=1 0 --meta=no
 % SATISFIABLE
 
 1 { a(X,Y) : dom(X), dom(Y) } 2.

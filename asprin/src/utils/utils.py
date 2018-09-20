@@ -123,11 +123,11 @@ NEG        = 1
 SHOWN_ATOM = 0
 PREF_ATOM  = 1
 
-# used by option --meta and --meta-no
-OPEN    = 0
-NO_META = 1
-SIMPLE  = 2
-COMBINE = 3
+# used by option --meta
+META_OPEN    = 0
+META_NO      = 1
+META_SIMPLE  = 2
+META_COMBINE = 3
 
 # messages (used by solver and controller)
 STR_MODEL_FOUND        = "MODEL FOUND"

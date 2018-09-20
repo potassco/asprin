@@ -1,4 +1,4 @@
-% asprin test010.lp 0 --const-nb cp_tree=1
+% asprin test010.lp 0 --const-nb cp_tree=1 --meta=no
 % SATISFIABLE
 #const n=10.
 1 { a(X) : dom(X) } n-1.

@@ -41,6 +41,7 @@ OPTIMIZE   = utils.OPTIMIZE
 HOLDS_KEY  = (HOLDS,  1)
 HOLDSP_KEY = (HOLDSP, 1)
 OPEN_NAME  = "open"
+UNSTRAT_NAME = "unstrat"
 
 # ems
 M1 = visitor.M1
@@ -98,13 +99,11 @@ class Graph:
         self.__tc = transitive_closure.TransitiveClosure()
         NodeInfo = transitive_closure.NodeInfo
         self.__open = NodeInfo((visitor.Helper().underscore(OPEN_NAME),0), None)
-        holds  = NodeInfo(HOLDS_KEY,  None)
-        holdsp = NodeInfo(HOLDSP_KEY, None)
+        self.__holds  = NodeInfo(HOLDS_KEY,  None)
+        self.__holdsp = NodeInfo(HOLDSP_KEY, None)
         self.__tc.add_node(self.__open)
-        self.__tc.add_node(holds)
-        self.__tc.add_node(holdsp)
-        self.__tc.add_edge(self.__open, holds, True)
-        self.__tc.add_edge(self.__open, holdsp, True)
+        self.__tc.add_node(self.__holds)
+        self.__tc.add_node(self.__holdsp)
         self.__heads, self.__bodies = [], []
 
     def __str__(self):
@@ -142,9 +141,17 @@ class Graph:
     #
 
     def get_open(self):
+        # add edge from __open
         for i in self.__tc.get_cycles():
             self.__tc.add_edge(self.__open, i, False)
-        return self.__tc.get_next(self.__open.key)
+        # set unstrat
+        unstrat = len(self.__tc.get_next(self.__open.key)) > 0
+        # set open
+        self.__tc.add_edge(self.__open, self.__holds, True)
+        self.__tc.add_edge(self.__open, self.__holdsp, True)
+        _open = self.__tc.get_next(self.__open.key)
+        # return
+        return _open, unstrat
 
     def map_items(self, function):
         self.__tc.map_items(function)
@@ -221,8 +228,8 @@ class PreferenceProgramVisitor(visitor.Visitor):
     #
 
     def finish(self):
-        # get open predicates from the graph
-        open_list = self.__graph.get_open()
+        # get open predicates from the graph, and whether it is unstratified
+        open_list, unstrat = self.__graph.get_open()
         # set predicates_info in term_transformer
         self.__term_transformer.set_predicates_info(open_list)
         # tranform items stored in the graph
@@ -242,6 +249,7 @@ class PreferenceProgramVisitor(visitor.Visitor):
                                        ret, st.statement.location))
                     deterministic_type = ret
                 self.__builder.add(st.statement)
+        return unstrat
 
     #
     # Statements
