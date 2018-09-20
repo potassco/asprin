@@ -237,6 +237,7 @@ class Solver:
         self.unsat_program = PREFP
         self.unsat_program_base = None
         # for weak mode
+        self.control.configuration.solve.opt_mode = 'ignore' # by default ignore
         self.optN = False
         self.on_optimal = None
         # holds and shown domains

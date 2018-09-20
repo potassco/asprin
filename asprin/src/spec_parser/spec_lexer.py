@@ -304,7 +304,15 @@ class Lexer(object):
         r'\#project'
         self.__error = True
         t.lexer.skip(8)
-        self.__print_error(t.value,t.lexpos)
+        self.__print_error(t.value, t.lexpos)
+
+    # optimization: in base return error, else continue
+    def t_normal_OPTIMIZATION(self, t):
+        r'(\#minimize)|(\#maximize)|(:~)'
+        if self.__program == (BASE, EMPTY):
+            self.__error = True
+            t.lexer.skip(len(t.value))
+            self.__print_error(t.value, t.lexpos)
 
 
     #
@@ -331,13 +339,13 @@ class Lexer(object):
 
     # push INITIAL state, reset lexer lexpos, and return CODE
     def t_normal_DIRECTIVE(self, t):
-        r'(\#preference)|(\#optimize)|(\#program)|(\#const)|(\#include)|(\#minimize)|(\#maximize)'
-        #r'(\#preference)|(\#optimize)|(\#program)|(\#const)|(\#include)'
-        if ((t.value == "#maximize" or t.value == "#minimize") and
-            ((self.__program != (BASE, EMPTY)) or
-             not self.__options['minimize'])):
-            t.lexer.lexpos = t.lexpos + 1
-            return
+        r'(\#preference)|(\#optimize)|(\#program)|(\#const)|(\#include)'
+        #r'(\#preference)|(\#optimize)|(\#program)|(\#const)|(\#include)|(\#minimize)|(\#maximize)'
+        #if ((t.value == "#maximize" or t.value == "#minimize") and
+        #    ((self.__program != (BASE, EMPTY)) or
+        #     not self.__options['minimize'])):
+        #    t.lexer.lexpos = t.lexpos + 1
+        #    return
         t.lexer.push_state('INITIAL')
         t.value = t.lexer.lexdata[self.__code_start:t.lexpos]
         t.type = 'CODE'

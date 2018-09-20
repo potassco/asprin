@@ -996,7 +996,7 @@ class Parser(object):
 
 
     #
-    # CLINGO OPTIMIZE STATEMENT
+    # CLINGO OPTIMIZE STATEMENT (not used now)
     #
 
     def p_statement_6(self, p):
