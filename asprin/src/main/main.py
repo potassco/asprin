@@ -351,9 +351,9 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
                            metavar="<id>=<t>",
                            help=HELP_CONST_NONBASE,
                            default=[])
-        basic.add_argument('--minimize', dest='minimize',
-                           help=argparse.SUPPRESS,
-                           action='store_true')
+        #basic.add_argument('--minimize', dest='minimize',
+        #                   help=argparse.SUPPRESS,
+        #                   action='store_true')
         basic.add_argument(DEBUG, dest='debug', action='store_true',
                            help=argparse.SUPPRESS)
         basic.add_argument('--to-clingo', dest='to_clingo',

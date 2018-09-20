@@ -368,11 +368,6 @@ class Parser(object):
     #   T :: [ Body ]
     # The translation in the other direction is not always possible
     #
-    # A base program can also contain minimize and maximize statements, 
-    #   which are translated as if they were preference statements of
-    #   name clingo and type clingo_minimize.
-    # In this case, no preference or optimize statements are allowed.
-    #
 
     #
     # START

@@ -1,7 +1,7 @@
 % asprin test010.lp 0
 % SATISFIABLE
 {a(1)}. % comment
-#minimize{}.
+%#minimize{}.
 
 #program xxx.
 --- % this is neither parsed nor passed to clingo
