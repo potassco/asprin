@@ -1865,8 +1865,8 @@ error(("preference:",P,": error: preference specification error, type '",T,"' re
   preference(P,T), T = cp, cp_tree_encoding != 0, cp_tree_encoding != 1, cp_tree_encoding != 2.
 
 % cp_tree = 0 only works for computing one single optimal model
-warning(("preference:",P,": warning: preference specification warning, type '",T,"' with constant cp_tree=0 (the default) works correctly only for computing a single optimal model of consistent cp nets.")) :-
-  preference(P,T), T = cp, cp_tree = 0.
+%warning(("preference:",P,": warning: preference specification warning, type '",T,"' with constant cp_tree=0 (the default) works correctly only for computing a single optimal model of consistent cp nets.")) :-
+%  preference(P,T), T = cp, cp_tree = 0.
 
 % only literals
 error(("preference:",P,": error: preference specification error, type '",T,"' requires literals.")) :-
