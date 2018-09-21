@@ -1,8 +1,10 @@
-% asprin calls:
-% asprin cp_general.lp 0 --meta=simple
-% asprin cp_general.lp 0 --meta=simple  --const-nb cp_nontree_diameter=2
-% asprin cp_general.lp 0 --meta=combine
-% asprin cp_general.lp 0 --meta=combine --const-nb cp_nontree_diameter=2
+% asprin calls for computing any number of models:
+% asprin cp_general.lp --meta=simple
+% asprin cp_general.lp --meta=combine
+%
+% asprin calls for computing any number of models when the diameter is known (2 in this case):
+% asprin cp_general.lp --meta=simple  --const-nb cp_nontree_diameter=2
+% asprin cp_general.lp --meta=combine --const-nb cp_nontree_diameter=2
 
 dom(1..3).
 { a(X) : dom(X) }.
