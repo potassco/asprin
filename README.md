@@ -10,7 +10,7 @@ but many more can be defined simply writing a logic program.
 
 For a formal description of `asprin`, please read our [paper](http://www.cs.uni-potsdam.de/wv/pdfformat/brderosc15a.pdf) ([bibtex](http://www.cs.uni-potsdam.de/wv/bibtex/brderosc15a.bib)).
 
-Starting with version 3, asprin is documented in the [Potassco guide](https://github.com/potassco/guide/releases/).
+Starting with version 3, `asprin` is documented in the [Potassco guide](https://github.com/potassco/guide/releases/).
 Older versions are documented in the [Potassco guide on Sourceforge](https://sourceforge.net/projects/potassco/files/guide/).
 
 
@@ -18,7 +18,7 @@ Older versions are documented in the [Potassco guide on Sourceforge](https://sou
 ```bash
 $ asprin [number_of_models] [options] [files]
 ```
-By default, asprin loads its library `asprin_lib.lp`. This may be disabled with option `--no-asprin-lib`.
+By default, `asprin` loads its library `asprin_lib.lp`. This may be disabled with option `--no-asprin-lib`.
 
 Option `--help` prints help.
 
