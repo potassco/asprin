@@ -8,10 +8,9 @@ dom(1..3).
 { a(X) : dom(X) }.
 #show a/1.
 
+next(1,2). next(2,3). next(3,1).
+
 #preference(p,cp){
-  a(1) >> not a(1) || a(3);
-  a(2) >> not a(2) || a(1);
-  a(3) >> not a(3) || a(2)
+  a(X) >> not a(X) || a(Y) : next(X,Y)
 }.
 #optimize(p).
-
