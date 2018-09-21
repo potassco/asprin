@@ -22,6 +22,20 @@ By default, asprin loads its library `asprin_lib.lp`. This may be disabled with 
 
 Option `--help` prints help.
 
+Options `--approximation=weak` and `--approximation=heuristic` activate solving modes different than the basic ones, 
+and are often faster than it.
+
+Option `--meta=query` can be used to compute optimal models that contain the atom `query`. 
+
+Options `--meta=simple` or `--meta=combine` should be used to compute many optimal models using
+non stratified preference programs (in `asprin`'s library this can only happen with CP nets).
+
+Option `--on-opt-heur` can be used to enumerate diverse (or similar) optimal stable models. 
+For example, try with `--on-opt-heur=+,p,1,false --on-opt-heur=-,p,1,true`.
+
+Option `--improve-limit` can be used to enumerate *close to optimal* stable models.
+For example, try with `--improve-limit 2,1000`.
+
 ## Building
 `asprin` requires Python (version 2.7 is tested), and 
 the python module of [clingo](https://github.com/potassco/clingo) (version 5.2.2 is tested),
