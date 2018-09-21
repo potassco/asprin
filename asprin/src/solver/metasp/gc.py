@@ -91,7 +91,7 @@ def parse_args():
     for i in sys.argv[1:]:
         if i == "--help":
             print(HELP)
-            return
+            sys.exit(0)
         if i == "--binary":
             binary = True
         elif i == "-C":
