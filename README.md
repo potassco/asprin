@@ -28,12 +28,12 @@ and are often faster than it.
 Option `--meta=query` can be used to compute optimal models that contain the atom `query`. 
 
 Options `--meta=simple` or `--meta=combine` should be used to compute many optimal models using
-non stratified preference programs (in `asprin`'s library this can only happen with CP nets).
+non stratified preference programs (in `asprin`'s library this can only happen with CP nets, see below).
 
 Option `--on-opt-heur` can be used to enumerate diverse (or similar) optimal stable models. 
 For example, try with `--on-opt-heur=+,p,1,false --on-opt-heur=-,p,1,true`.
 
-Option `--improve-limit` can be used to enumerate *close to optimal* stable models.
+Option `--improve-limit` can be used to enumerate close to optimal stable models.
 For example, try with `--improve-limit 2,1000`.
 
 ## Building
