@@ -155,7 +155,7 @@ Models       : 1+
 
 ## CP nets
 
-asprin preference library implements the preference type `cp`,
+`asprin` preference library implements the preference type `cp`,
 that stands for *CP nets*.
 
 CP nets where introduced in the following paper:
@@ -166,6 +166,7 @@ J. Artif. Intell. Res. 21: 135-191 (2004)
 Propositional preference elements of type `cp` have one of the following forms:
 1. `a >> not a || { l1; ...; ln }`, or
 2. `not a >> a || { l1, ..., ln }`
+
 where `a` is an atom and `l1`, ..., `ln` are literals.
 
 The semantics is defined using the notion of flips.
@@ -179,13 +180,12 @@ A CP net is consistent if there is no interpretation `X` such that `X` is better
 
 We provide various encoding and solving techniques for CP nets, 
 that can be applied depending on the structure of the CP net.
-For tree-like CP nets, see file [cp_tree.lp](https://github.com/potassco/asprin/blob/release/asprin/examples/cp_tree.lp), and use options ...
-For acyclic CP nets, see file [cp_acyclic.lp](https://github.com/potassco/asprin/blob/release/asprin/examples/cp_acyclic.lp), and use options ...
-For general CP nets, see file [cp_general.lp](https://github.com/potassco/asprin/blob/release/asprin/examples/cp_general.lp), and use options ...
+For tree-like CP nets, see file [cp_tree.lp](https://github.com/potassco/asprin/blob/release/asprin/examples/cp_tree.lp).
+For acyclic CP nets, see file [cp_acyclic.lp](https://github.com/potassco/asprin/blob/release/asprin/examples/cp_acyclic.lp).
+For general CP nets, see file [cp_general.lp](https://github.com/potassco/asprin/blob/release/asprin/examples/cp_general.lp).
 
-`asprin` implementation of CP nets is correct general for consistent CP nets.
+`asprin` implementation of CP nets is correct only for consistent CP nets.
 Note that tree-like and acyclic CP nets are always consistent, but this does not hold in general.
-
 
 
 ## Contributors
