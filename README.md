@@ -153,6 +153,47 @@ Models       : 1+
   Optimum    : yes
 ```
 
+## CP nets
+
+asprin preference library implements the preference type cp,
+that stands for CP nets.
+
+CP nets where introduced in the following paper:
+*  Craig Boutilier, Ronen I. Brafman, Carmel Domshlak, Holger H. Hoos, David Poole:
+CP-nets: A Tool for Representing and Reasoning with Conditional Ceteris Paribus Preference Statements. 
+J. Artif. Intell. Res. 21: 135-191 (2004)
+
+Propositional preference elements of cp have one of the following forms:
+  a >> not a || { l1; ...; ln }
+or
+  not a >> a || { l1, ..., ln }
+where a is an atom and l1, ..., ln are literals.
+
+The semantics is defined using the notion of flips.
+Let X and Y be two interpretations of a logic program.
+There is an improving flip from X to Y if 
+X and Y only differ in the interpretation of some atom a, 
+and there is some preference element of the previous form 
+such that both X and Y satisfy all li's, 
+and either the left part is a >> not a and a belongs to Y, 
+or it is not a >> a and a does not belong to a.
+
+Then W is better than Z if there is a sequence of improving flips from W to Z.
+
+A CP net is consistent if there is not interpretation X such that X is better than X.
+
+
+We provide various encoding and solving techniques for cp nets, 
+that can be applied depending on the structure of the cp net.
+For tree-like cp nets, see file cp_tree.lp, and use options ...
+For acyclic cp nets, see file cp_acyclic.lp, and use options ...
+For general cp nets, see file cp_general.lp, and use options ...
+
+asprin implementation of cp nets is correct only for consistent cp nets.
+Tree-like and acyclic cp nets are always consistent, but this does not hold in general.
+
+
+
 ## Contributors
 
 * Javier Romero
