@@ -180,9 +180,9 @@ A CP net is consistent if there is no interpretation `X` such that `X` is better
 
 We provide various encoding and solving techniques for CP nets, 
 that can be applied depending on the structure of the CP net.
-For tree-like CP nets, see file [cp_tree.lp](https://github.com/potassco/asprin/blob/release/asprin/examples/cp_tree.lp).
-For acyclic CP nets, see file [cp_acyclic.lp](https://github.com/potassco/asprin/blob/release/asprin/examples/cp_acyclic.lp).
-For general CP nets, see file [cp_general.lp](https://github.com/potassco/asprin/blob/release/asprin/examples/cp_general.lp).
+For tree-like CP nets, see example [cp_tree.lp](https://github.com/potassco/asprin/blob/release/asprin/examples/cp_tree.lp).
+For acyclic CP nets, see example [cp_acyclic.lp](https://github.com/potassco/asprin/blob/release/asprin/examples/cp_acyclic.lp).
+For general CP nets, see example [cp_general.lp](https://github.com/potassco/asprin/blob/release/asprin/examples/cp_general.lp).
 
 `asprin` implementation of CP nets is correct only for consistent CP nets.
 Note that tree-like and acyclic CP nets are always consistent, but this does not hold in general.
