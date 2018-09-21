@@ -27,11 +27,9 @@
 #
 
 import clingo
-import subprocess
-import tempfile
 import re
 from . import metasp_programs
-from . import scc
+from . import reify
 from ...utils import utils
 
 
@@ -47,13 +45,6 @@ VOLATILE      = utils.VOLATILE
 HOLDS         = utils.HOLDS
 UNSAT_ATOM    = utils.UNSAT
 HOLDS_AT_ZERO = utils.HOLDS_AT_ZERO
-
-CLINGO = "clingo"
-REIFY_OUTPUT = "--output=reify"
-VERSION = "--version"
-NO_CLINGO = "clingo binary version not found (when running 'clingo --version')"
-OLD_CLINGO = """clingo binary too old (when running 'clingo --version')\
- version 5.3 or newer is needed"""
 
 METAPREF_BASIC = """
 { ##""" + HOLDS + """(X,0..1) } :- X = @get_holds_domain().
@@ -241,7 +232,7 @@ class AbstractMetasp:
     def __init__(self, solver):
         # uses solver.control, solver.observer and solver.underscores
         self.solver = solver
-        self.binding_simple = None        # to be defined by subclasses
+        self.binding_simple = None   # to be defined by subclasses
         self.binding_inc_base = None # to be defined by subclasses
         self.binding_inc = None      # to be defined by subclasses
 
@@ -360,104 +351,14 @@ class MetaspPython(AbstractMetasp):
         self.binding_inc = BINDING_INC_PYTHON
 
     def get_meta_base_facts(self, prefix):
-        return self.get_meta_from_observer(self.solver.observer, prefix)
+        return reify.reify_from_observer(self.solver.observer, prefix)
 
     def get_meta_pref_facts(self, prefix):
         ctl = clingo.Control([])
         observer = Observer(ctl, register_observer=True, replace=True)
         ctl.add("base", [], self.get_pref())
         ctl.ground([("base",[])], self.solver)
-        return self.get_meta_from_observer(observer, prefix)
-
-    # TODO: Implement option where we take care about repeated heads and bodies
-    def get_meta_from_observer(self, observer, prefix=""):
-
-        # start
-        out = ""
-        literal_tuple, wliteral_tuple, atom_tuple = 1, 1, 1
-        p = prefix
-
-        # fact 0
-        # out += "% fact 0\n"
-        out += "{}rule(disjunction(0),normal(0)). ".format(p)
-        out += "{}atom_tuple(0,0). {}literal_tuple(0).\n\n".format(p, p)
-
-        # start graph
-        graph = scc.Graph()
-
-        # normal rules
-        for choice, head, body in observer.rules:
-
-            # out += "% normal rule\n"
-            # body
-            if body:
-                out += "{}literal_tuple({}).".format(p, literal_tuple) + "\n"
-                out += " ".join([
-                    "{}literal_tuple({},{}).".format(p, literal_tuple, l)
-                    for l in body
-                ]) + "\n"
-            # head
-            head_type = "choice" if choice else "disjunction"
-            out += "{}rule({}({}),normal({})).".format(
-                p, head_type, atom_tuple, literal_tuple if body else 0
-            ) + "\n"
-            out += " ".join([
-                "{}atom_tuple({},{}).".format(p, atom_tuple, l) for l in head
-            ]) + "\n\n"
-            # update counters
-            if body:
-                literal_tuple += 1
-            atom_tuple += 1
-            # update graph (this can be interwined with the rules above)
-            for l in body:
-                if l >= 0:
-                    for atom in head:
-                        graph.add_edge(atom, l)
-
-        # weight rules
-        for choice, head, lower_bound, body in observer.weight_rules:
-            # out += "% weighted rule\n"
-            # body
-            out += " ".join([
-                "{}weighted_literal_tuple({},{},{}).".format(
-                    p, wliteral_tuple, l, w
-                ) for l, w in body
-            ]) + "\n"
-            # head
-            head_type = "choice" if choice else "disjunction"
-            out += "{}rule({}({}),sum({},{})).".format(
-                p, head_type, atom_tuple, wliteral_tuple, lower_bound
-            ) + "\n"
-            out += " ".join([
-                "{}atom_tuple({},{}).".format(p, atom_tuple, l) for l in head
-            ]) + "\n\n"
-            # update counters
-            wliteral_tuple += 1
-            atom_tuple += 1
-            # update graph (this can be interwined with the rules above)
-            for l, w in body:
-                if l >= 0:
-                    for atom in head:
-                        graph.add_edge(atom, l)
-
-        # sccs
-        # out += "% sccs\n"
-        out += graph.reify_sccs(p) + "\n"
-
-        # output atoms
-        # out += "% output atoms\n"
-        for symbol, atom in observer.output_atoms:
-            out += "{}output({},{}).\n".format(p, symbol, atom)
-
-        # output terms
-        # out += "% output term\n"
-        for symbol, condition in observer.output_terms:
-            out += "{}output_term({}).\n".format(p, symbol) + "\n"
-            out += " ".join([
-                "{}output_term({},{}).".format(p, symbol, l) for l in condition
-            ]) + "\n"
-
-        return out
+        return reify.reify_from_observer(observer, prefix)
 
 
 # Uses clingo binary
@@ -465,21 +366,9 @@ class MetaspBinary(AbstractMetasp):
 
     def __init__(self, solver):
         AbstractMetasp.__init__(self, solver)
-        self.check_clingo_version()
         self.binding_simple = BINDING_SIMPLE_BINARY
         self.binding_inc_base = BINDING_INC_BINARY_BASE
         self.binding_inc = BINDING_INC_BINARY
-
-    def check_clingo_version(self):
-        version = self.run_command([CLINGO, VERSION])
-        match = re.match(r'clingo version (\d+)\.(\d+)', version)
-        if match:
-            first  = int(match.group(1))
-            second = int(match.group(2))
-            if first > 5 or (first == 5 and second >= 3):
-                return
-            raise Exception(OLD_CLINGO)
-        raise Exception(NO_CLINGO)
 
     # WARNING:
     # The next function relies on the form of the specification programs,
@@ -501,7 +390,7 @@ class MetaspBinary(AbstractMetasp):
         # add show
         program += "#show " + self.solver.underscores + "holds/2.\n"
         # get meta using clingo binary
-        return self.get_meta_using_binary(program, prefix)
+        return reify.reify_from_string(program, prefix)
 
     def get_meta_pref_facts(self, prefix):
         holds_domain = ",\n".join([
@@ -513,134 +402,5 @@ class MetaspBinary(AbstractMetasp):
             "#end.", get_holds_domain + "\n#end."
         )
         prefix = self.solver.underscores + "_"*U_METAPREF
-        return self.get_meta_using_binary(self.get_pref() + library, prefix)
-
-    #
-    # get_meta_using_binary()
-    #
-
-    # run command and return stdout as a string
-    def run_command(self, command):
-        with tempfile.TemporaryFile() as file_out:
-            # execute clingo
-            subprocess.call(command, stdout=file_out)
-            # read output
-            file_out.seek(0)
-            output = file_out.read()
-        if isinstance(output, bytes):
-            output = output.decode()
-        return output
-
-    def get_meta_using_binary(self, program, prefix):
-        with tempfile.NamedTemporaryFile() as file_in:
-            # write program to file_in
-            file_in.write(program.encode())
-            file_in.flush()
-            # run command
-            command = [CLINGO, REIFY_OUTPUT, file_in.name]
-            output = self.run_command(command)
-        # add prefix and return
-        output = re.sub(r'^(\w+)', r'' + prefix + r'\1', output, flags=re.M)
-        return output
-
-# REDO
-def run(base, metaD=False):
-
-    # observe rules
-    ctl = clingo.Control(["0"])
-    #observer = Observer(ctl, False)
-    observer = Observer(ctl, True)
-    ctl.add("base", [], base)
-    ctl.ground([("base", [])])
-    #models0 = []
-    #with ctl.solve(yield_=True) as handle:
-    #    for m in handle:
-    #        models0.append(" ".join(sorted([str(x) for x in m.symbols(shown=True)])))
-    #    # print(handle.get())
-    #models0 = sorted(models0)
-
-    # use reified version
-    base = observer.reify()
-    print(base)
-    return
-    if metaD:
-        base += metasp_programs.metaD_program
-    else:
-        base += metasp_programs.meta_program
-    ctl = clingo.Control(["0"])
-    ctl.add("base", [], base)
-    ctl.ground([("base", [])])
-    models1 = []
-    with ctl.solve(yield_=True) as handle:
-        for m in handle:
-            models1.append(" ".join(sorted([str(x) for x in m.symbols(shown=True)])))
-        # print(handle.get())
-    models1 = sorted(models1)
-
-   # check and print
-    print("ERROR" if models0 != models1 else "OK")
-    if models0 != models1:
-        print(models0)
-        print(models1)
-    if len(models0):
-        models0[0] += "_x "
-        print("OK" if models0 != models1 else "ERROR")
-
-
-#
-# programs
-#
-
-basic = """
-{a}. b.
-"""
-
-aggregates = """
-{a(X) : dom(X)}.
-b(X) :- X = { a(Y) }.
-dom(1..2).
-#show b/1.
-"""
-
-# pigeon hole
-pigeon = """
-#const n=6.
-pigeon(1..n+1). box(1..n+1).
-1 { in(X,Y) : box(Y) } 1 :- pigeon(X).
-:- 2 { in(X,Y) : pigeon(X) },  box(Y).
-a(X,Y,Z) :- in(X,Y), in(Y,Z).
-"""
-
-loop = """
-a :- b.
-b :- a.
-b :- c.
-a :- c.
-{ c }.
-"""
-
-many_loops = """
-dom(1..320).
-{ edge(X,Y) : dom(X), dom(Y) }.
-tr(X,Y) :- edge(X,Y).
-tr(X,Y) :- tr(X,Z), tr(Z,Y).
-:- tr(X,X).
-"""
-programs = [basic, aggregates, pigeon, loop, many_loops]
-#programs = [""" a ; b :- 1 #sum {1:b; 1:c}. {c}."""]
-programs = [many_loops]
-if __name__ == "__main__":
-    # meta
-    for program in programs:
-        print("##### META  #######")
-        print(program)
-        run(program)
-        print("#####################")
-    programs = []
-    # metaD
-    for program in programs:
-        print("##### METAD #######")
-        print(program)
-        run(program, True)
-        print("#####################")
+        return reify.reify_from_string(self.get_pref() + library, prefix)
 

@@ -81,6 +81,7 @@ EXCLUDE["--meta=combine,bin"] = EXCLUDE["--meta=simple"]
 
 EXCLUDE["--preference-unsat $asprin/mine/asprin_lib_unsat.lp"] = [
     os.path.join(PATH, "solver/solver/test002.lp"),           # adds new preference programs
+    os.path.join(PATH, "program_parser/visitor/test002.lp"),  # adds new preference programs
     os.path.join(PATH, "spec_parser/spec_lexer/test005.lp"),  # adds new preference programs
     os.path.join(PATH, "spec_parser/spec_parser/test026.lp"), # adds new preference programs
 ]
