@@ -1,5 +1,5 @@
 HELP_1="""\
-clingo version 5.2.1
+clingo version 5.3.0
 usage: clingo [number] [options] [files]
 
 Clasp.Config Options:
@@ -83,7 +83,7 @@ clingo is part of Potassco: https://potassco.org/clingo
 Get help/report bugs via : https://potassco.org/support
 """
 HELP_2="""\
-clingo version 5.2.1
+clingo version 5.3.0
 usage: clingo [number] [options] [files]
 
 Clasp.Config Options:
@@ -386,7 +386,7 @@ clingo is part of Potassco: https://potassco.org/clingo
 Get help/report bugs via : https://potassco.org/support
 """
 HELP_3="""\
-clingo version 5.2.1
+clingo version 5.3.0
 usage: clingo [number] [options] [files]
 
 Clasp.Config Options:
