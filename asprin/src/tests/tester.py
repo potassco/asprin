@@ -62,28 +62,28 @@ OPTIONS = [
 EXCLUDE = {}
 
 EXCLUDE["--on-opt-heur=+,p,-1,sign --on-opt-heur=-,p,1,sign"] = [
-    os.path.join(PATH, "program_parser/basic/test001.lp"), # uses --approximation=heuristic
-    os.path.join(PATH, "program_parser/basic/test002.lp"), # uses --approximation=heuristic
+    os.path.join(PATH, "program_parser", "basic", "test001.lp"), # uses --approximation=heuristic
+    os.path.join(PATH, "program_parser", "basic", "test002.lp"), # uses --approximation=heuristic
 ]
 
 EXCLUDE["--meta=simple"] = [
-    os.path.join(PATH, "asprin_lib/test022.lp"), # too hard
-    os.path.join(PATH, "asprin_lib/test023.lp"), # too hard
-    os.path.join(PATH, "asprin_lib/test024.lp"), # too hard
-    os.path.join(PATH, "asprin_lib/test025.lp"), # too hard
-    os.path.join(PATH, "solver/solver/test008.lp"), # too hard
-    os.path.join(PATH, "solver/solver/test009.lp"), # too hard
-    os.path.join(PATH, "program_parser/visitor/test002.lp"), # no error with --meta
+    os.path.join(PATH, "asprin_lib", "test022.lp"), # too hard
+    os.path.join(PATH, "asprin_lib", "test023.lp"), # too hard
+    os.path.join(PATH, "asprin_lib", "test024.lp"), # too hard
+    os.path.join(PATH, "asprin_lib", "test025.lp"), # too hard
+    os.path.join(PATH, "solver", "solver", "test008.lp"), # too hard
+    os.path.join(PATH, "solver", "solver", "test009.lp"), # too hard
+    os.path.join(PATH, "program_parser", "visitor", "test002.lp"), # no error with --meta
 ]
 EXCLUDE[ "--meta=simple,bin"] = EXCLUDE["--meta=simple"]
 EXCLUDE[    "--meta=combine"] = EXCLUDE["--meta=simple"]
 EXCLUDE["--meta=combine,bin"] = EXCLUDE["--meta=simple"]
 
 EXCLUDE["--preference-unsat $asprin/mine/asprin_lib_unsat.lp"] = [
-    os.path.join(PATH, "solver/solver/test002.lp"),           # adds new preference programs
-    os.path.join(PATH, "program_parser/visitor/test002.lp"),  # adds new preference programs
-    os.path.join(PATH, "spec_parser/spec_lexer/test005.lp"),  # adds new preference programs
-    os.path.join(PATH, "spec_parser/spec_parser/test026.lp"), # adds new preference programs
+    os.path.join(PATH, "solver", "solver", "test002.lp"),           # adds new preference programs
+    os.path.join(PATH, "program_parser", "visitor", "test002.lp"),  # adds new preference programs
+    os.path.join(PATH, "spec_parser", "spec_lexer", "test005.lp"),  # adds new preference programs
+    os.path.join(PATH, "spec_parser", "spec_parser", "test026.lp"), # adds new preference programs
 ]
 
 add_option = False

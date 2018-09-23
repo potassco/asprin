@@ -257,14 +257,9 @@ def reify_from_observer(observer, prefix=""):
 
 # run command and return stdout as a string
 def run_command(command):
-    with tempfile.TemporaryFile() as file_out:
-        # execute clingo
-        subprocess.call(command, stdout=file_out)
-        # read output
-        file_out.seek(0)
-        output = file_out.read()
+    output = subprocess.check_output(command)
     if isinstance(output, bytes):
-        output = output.decode()
+        return output.decode()
     return output
 
 def check_clingo_version():
@@ -280,13 +275,13 @@ def check_clingo_version():
 
 def reify_from_string(program, prefix):
     check_clingo_version()
-    with tempfile.NamedTemporaryFile() as file_in:
+    with tempfile.NamedTemporaryFile(delete=False) as file_in:
         # write program to file_in
         file_in.write(program.encode())
         file_in.flush()
-        # run command
-        command = [CLINGO, REIFY_OUTPUT, file_in.name]
-        output = run_command(command)
+    # run command
+    command = [CLINGO, REIFY_OUTPUT, file_in.name]
+    output = run_command(command)
     # add prefix and return
     output = re.sub(r'^(\w+)', r'' + prefix + r'\1', output, flags=re.M)
     return output

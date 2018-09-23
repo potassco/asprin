@@ -36,6 +36,7 @@ setup(
         "Operating System :: OS Independent",
         'Natural Language :: English',
         'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3.5',
         'Topic :: Scientific/Engineering :: Artificial Intelligence',
     ],
     keywords='logic answer set programming preference optimization',

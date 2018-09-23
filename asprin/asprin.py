@@ -23,13 +23,15 @@
 # SOFTWARE.
 # -*- coding: utf-8 -*-
 
-import src.main.main
 import sys
 
 def main(args=None):
-    if args==None:
+    from .src.main import main as main_module
+    if args == None:
         args = sys.argv[1:]
-    src.main.main.main(args)
+    main_module.main(args)
 
 if __name__ == "__main__":
-    main()
+    from src.main import main as main_module
+    main_module.main(sys.argv[1:])
+
