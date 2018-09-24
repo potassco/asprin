@@ -177,14 +177,14 @@ Propositional preference elements of type `cp` have one of the following forms:
 
 where `a` is an atom and `l1`, ..., `ln` are literals.
 
-The semantics is defined using the notion of flips.
+The semantics is defined using the notion of improving flips.
 Let `X` and `Y` be two interpretations of a logic program.
 There is an improving flip from `X` to `Y` if 
 there is some preference element such that `X` and `Y` satisfy all `li`'s, and either
 the element has the form (1) and `Y` is the union of `X` and `{a}`, 
 or 
-the element has the form (2) and `Y` `X` minus `{a}`.
-Then `W` is better than `Z` if there is a sequence of improving flips from `W` to `Z`.
+the element has the form (2) and `Y` is `X` minus `{a}`.
+Then, `W` is better than `Z` if there is a sequence of improving flips from `W` to `Z`.
 A CP net is consistent if there is no interpretation `X` such that `X` is better than `X`.
 
 
