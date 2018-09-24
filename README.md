@@ -37,39 +37,35 @@ Option `--improve-limit` can be used to enumerate close to optimal stable models
 For example, try with `--improve-limit 2,1000`.
 
 ## Building
-`asprin` requires Python (version 2.7 is tested), and 
-the python module of [clingo](https://github.com/potassco/clingo) (version 5.2.2 is tested),
-whose directory should be in the environment variable `PYTHONPATH`:
 
-* On Windows, 
-you can download the corresponding [clingo release](https://github.com/potassco/clingo/releases/download/v5.2.2/clingo-5.2.2-win64.zip), 
-uncompress it in some directory `dir`,
-and set `PYTHONPATH` to `dir\clingo-5.2.2-win64\python-api` (with `set PYTHONPATH=dir\clingo-5.2.2-win64\python-api`).
+The easiest way to obtain `asprin` is using Anaconda. 
+<!--- TO BE CHANGED -->
+Packages will be soon available in the Potassco channel.
+Now they are available in the channel `javier-romero`. 
+First install either Anaconda or Miniconda and then run: 
+`conda install -c potassco -c javier-romero asprin`
+<!---               -->
 
-* On Mac, 
-you can download the corresponding [clingo release](https://github.com/potassco/clingo/releases/download/v5.2.2/clingo-5.2.2-macos-10.9.tar.gz), 
-uncompress it in some directory `dir`,
-and set `PYTHONPATH` to `dir\clingo-5.2.2-macos-10.9\python-api` (with `export PYTHONPATH=dir\clingo-5.2.2-macos-10.9\python-api`).
-
-* On Unix, you can download the [source code](https://github.com/potassco/clingo/archive/v5.2.2.tar.gz), 
-build it following the instructions in `INSTALL.md`, and set `PYTHONPATH` accordingly.
-
-`asprin` can be installed with [pip](https://pip.pypa.io) via
+`asprin` can also be installed with [pip](https://pip.pypa.io) via
 ```pip install asprin```. 
-
 For a local installation, add option ```--user```.
 In this case, setting environment variable `PYTHONUSERBASE` to `dir` before running `pip`, 
 `asprin` will be installed in `dir/bin/asprin`.
 
 If that does not work, 
-you can always download the sources from [here](https://github.com/potassco/asprin/releases/download/v3.0.3/asprin-3.0.3.tar.gz) in some directory `dir`,
+you can always download the sources from 
+<!--- TO BE CHANGED -->
+[here](https://github.com/potassco/asprin/releases/download/v3.0.3/asprin-3.0.3.tar.gz) in some directory `dir`,
+<!---               -->
 and run `asprin` with `python dir/asprin/asprin/asprin.py`.
 
 System tests may be run with ```asprin --test``` and ```asprin --test --all```.
 
-For older releases, please click [here](https://pypi.org/project/asprin/#history).
+<!--- For older releases, please click [here](https://pypi.org/project/asprin/#history). -->
 
-```asprin``` uses the ply library, version 3.11,
+`asprin` has been tested with `Python 2.7.13` and `3.5.3`, using `clingo 5.3.0`.
+
+```asprin``` uses the `ply` library, version `3.11`,
 which is bundled in [asprin/src/spec_parser/ply](https://github.com/potassco/asprin/tree/master/asprin/src/spec_parser/ply),
 and was retrieved from http://www.dabeaz.com/ply/.
 
