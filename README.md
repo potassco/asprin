@@ -38,8 +38,8 @@ For example, try with `--improve-limit 2,1000`.
 
 ## Building
 
-The easiest way to obtain `asprin` is using Anaconda. 
 <!--- TO BE CHANGED -->
+The easiest way to obtain `asprin` is using Anaconda. 
 Packages will be soon available in the Potassco channel.
 Now they are available in the channel `javier-romero`. 
 First install either Anaconda or Miniconda and then run: 
@@ -52,16 +52,14 @@ For a local installation, add option ```--user```.
 In this case, setting environment variable `PYTHONUSERBASE` to `dir` before running `pip`, 
 `asprin` will be installed in `dir/bin/asprin`.
 
+<!--- TO BE CHANGED -->
 If that does not work, 
 you can always download the sources from 
-<!--- TO BE CHANGED -->
 [here](https://github.com/potassco/asprin/releases/download/v3.0.3/asprin-3.0.3.tar.gz) in some directory `dir`,
-<!---               -->
 and run `asprin` with `python dir/asprin/asprin/asprin.py`.
+<!---               -->
 
 System tests may be run with ```asprin --test``` and ```asprin --test --all```.
-
-<!--- For older releases, please click [here](https://pypi.org/project/asprin/#history). -->
 
 `asprin` has been tested with `Python 2.7.13` and `3.5.3`, using `clingo 5.3.0`.
 
