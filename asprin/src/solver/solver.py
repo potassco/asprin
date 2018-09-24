@@ -1056,6 +1056,20 @@ class Solver:
         self.control.add(METAUNSAT, params, incremental)
 
     #
+    # query
+    #
+
+    def set_query(self, value):
+        self.control.assign_external(clingo.parse_term("external_query"), value)
+
+    def print_query_true(self):
+        print("QUERY TRUE")
+
+    def print_query_false(self):
+        print("QUERY FALSE")
+
+
+    #
     # exiting
     #
 
@@ -1114,7 +1128,8 @@ class Solver:
                 method = controller.GroundManyMethodController(self)
         if self.options.improve_limit is not None:
             method = controller.ImproveLimitController(self, method)
-
+        if self.options.query:
+            method = controller.QueryMethodController(self, method)
         # loop
         try:
             # START

@@ -1,22 +1,35 @@
 {% set data = load_setup_py_data() %}
 {% set name = 'asprin' %}
-{% set version = '3.0.2' %}
-{% set build = 1 %}
+{% set version = '3.0.999' %}
+{% set dev = true %}
+{% if dev %}
+{%   set version = "3.0.999" %}
+{%   set build = 0 %}
+{%   set rev = 'master' %}
+{% else %}
+{%   set version = "3.0.999" %}
+{%   set build = 0 %}
+{% endif %}
 
 package:
   name: {{ name }}
   version: {{ version }}
 
 source:
+{% if dev %}
+  git_rev: {{ rev }}
+  git_url: https://github.com/potassco/{{ name }}.git
+{% else %}
   url: https://github.com/potassco/{{ name }}/archive/v{{ version }}.zip
+{% endif %}
 
 requirements:
   build:
-    - clingo=5.2.2
+    - clingo >=5.3.0
     - python
     - setuptools
   run:
-    - clingo=5.2.2
+    - clingo >=5.3.0
     - python
 
 build:
@@ -24,6 +37,8 @@ build:
   number: {{ build }}
   script:
     - python setup.py install --single-version-externally-managed --record record.txt
+  entry_points:
+   - asprin = asprin.asprin:main
 
 test:
   commands:

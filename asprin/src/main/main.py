@@ -390,6 +390,9 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
         solving.add_argument('--improve-limit',
                              metavar='<m>', dest='improve_limit',
                              help=HELP_IMPROVE_LIMIT)
+        solving.add_argument('--query', dest='query',
+                             help="Compute optimal models that contain atom 'query'",
+                             action='store_true')
 
         # Additional Solving Options
         solving = cmd_parser.add_argument_group('Additional Solving Options')

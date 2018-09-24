@@ -476,3 +476,76 @@ class OnOptimalController:
                 set(solver.get_shown()),
                 solver.underscores + LAST_SHOWN
             )
+
+
+SATISFIABLE   = utils.SATISFIABLE                   # used also by controller
+UNSATISFIABLE = "UNSATISFIABLE"
+class Query:
+
+    def __init__(self, controller, solver):
+        self.solver = solver
+        self.controller = controller
+        self.state = 0
+
+    def call(self, pre):
+        solver = self.solver
+        #
+        if self.state == 0:
+            if pre:
+                solver.set_query(True)
+            elif solver.solving_result == SATISFIABLE:
+                self.state = 1
+            elif solver.solving_result == UNSATISFIABLE:
+                solver.print_query_false()
+                # finishes asprin
+        #
+        elif self.state == 1:
+            if pre:
+                solver.set_query(True)
+            elif solver.solving_result == SATISFIABLE:
+                pass
+            elif solver.solving_result == UNSATISFIABLE:
+                self.state = 2
+                solver.solving_result == SATISFIABLE
+                self.controller.solve()
+        #
+        elif self.state == 2:
+            if pre:
+                solver.set_query(False)
+            elif solver.solving_result == SATISFIABLE:
+                self.state = 3
+            elif solver.solving_result == UNSATISFIABLE:
+                solver.print_query_true()
+                # Finish asprin: TODO: Fix
+                self.solver.end()
+        #
+        elif self.state == 3:
+            if pre:
+                solver.set_query(False)
+            elif solver.solving_result == SATISFIABLE:
+                pass
+            elif solver.solving_result == UNSATISFIABLE:
+                self.state = 0
+
+
+class QueryMethodController:
+
+    def __init__(self, solver, controller):
+        self.solver = solver
+        self.controller = controller
+        self.query = Query(self, solver)
+
+    def start(self):
+        self.controller.start()
+
+    def start_loop(self):
+        self.controller.start_loop()
+
+    def solve(self):
+        self.query.call(True)
+        self.controller.solve()
+        self.query.call(False)
+
+    def unsat(self):
+        self.controller.unsat()
+
