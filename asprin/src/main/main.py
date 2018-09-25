@@ -126,7 +126,15 @@ HELP_META     = """R|: Apply or disable meta-programming solving methods, where 
   * no: disable explicitly meta-programming solving methods
         this may be incorrect for computing many models using nonstratified preference programs
   Option bin uses a clingo binary to help in meta-programming"""
-
+HELP_QUERY = """R|: Compute optimal models that contain atom 'query' using method <m>:
+  * 1: compute optimal models of base and     query, then check if they are optimal of base
+  * 2: compute optimal models of base and not query, then check if they are optimal of base
+  * 3: similar to 1 and 2, but switches query to true and false alternatively
+  * 4: compute models of base and query, then check if they are optimal
+  * 5: compute optimal models of base, then check if they contain the query
+  Add ',opt' to 1 or 3 to improve models without the query until unsat is obtained
+  Add ',stop' to 2 or 3 to stop as soon as que query is proved true
+"""
 #
 # VERSION
 #
@@ -274,11 +282,11 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
         return out
 
     def __do_meta(self, meta):
-        # basic cases
+        # basic case
         if not meta:
             return META_OPEN, False, False
         # parse
-        match = re.match(r'(no|simple|query|combine)(,(bin))?$', meta)
+        match = re.match(r'(no|simple|query|combine)(,bin)?$', meta)
         if not match:
             self.__cmd_parser.error("incorrect value for option --meta")
         # set output: method, query, binary
@@ -296,6 +304,24 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
             binary = True
         # return
         return method, query, binary
+
+    def __do_query(self, query):
+        # basic case
+        if query is None:
+            return None, None, None
+        # parse
+        match = re.match(r'([1-5])(,opt)?(,stop)?$', query)
+        if not match:
+            self.__cmd_parser.error("incorrect value for option --query")
+        # set output: method, opt, stop
+        method = int(match.group(1))
+        opt = True if match.group(2) else False
+        stop = True if match.group(3) else False
+        if (method != 1 and method != 3 and opt) or \
+           (method != 2 and method != 3 and stop):
+            self.__cmd_parser.error("incorrect value for option --query")
+        # return
+        return method, opt, stop
 
     def run(self, args):
 
@@ -391,8 +417,8 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
                              metavar='<m>', dest='improve_limit',
                              help=HELP_IMPROVE_LIMIT)
         solving.add_argument('--query', dest='query',
-                             help="Compute optimal models that contain atom 'query'",
-                             action='store_true')
+                             help=HELP_QUERY,
+                             type=str, metavar='<m>', default=None)
 
         # Additional Solving Options
         solving = cmd_parser.add_argument_group('Additional Solving Options')
@@ -494,6 +520,12 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
         options['meta'] = meta
         options['meta_query'] = query
         options['meta_binary'] = binary
+
+        # handle query
+        query, opt, stop = self.__do_query(options['query'])
+        options['query'] = query
+        options['query_opt'] = opt
+        options['query_stop'] = stop
 
         # statistics
         # if options['stats']:
