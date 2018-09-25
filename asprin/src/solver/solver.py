@@ -58,7 +58,7 @@ UNKNOWN       = "UNKNOWN"
 END_LOOP      = "END_LOOP"
 END           = "END"
 SATISFIABLE   = utils.SATISFIABLE                   # used also by controller
-UNSATISFIABLE = "UNSATISFIABLE"
+UNSATISFIABLE = utils.UNSATISFIABLE                 # used also by controller
 
 # for meta-programming
 META_SIMPLE    = utils.META_SIMPLE
@@ -80,6 +80,8 @@ STR_SATISFIABLE        = "SATISFIABLE"
 STR_LIMIT              = "MODEL FOUND (SEARCH LIMIT)"
 STR_BENCHMARK_CLOCK    = "BENCHMARK"
 STR_BENCHMARK_FILE     = "benchmark.txt"
+STR_QUERY_TRUE         = utils.STR_QUERY_TRUE
+STR_QUERY_FALSE        = utils.STR_QUERY_FALSE
 
 # program names
 DO_HOLDS = "do_holds"
@@ -96,6 +98,7 @@ UNSAT_PRG = "unsat"
 NOT_UNSAT_PRG = "not_unsat"
 CMD_HEURISTIC = "cmd_heuristic"
 PROJECT_CLINGO = "project_clingo"
+QUERY_PRG = "query_program"
 PREFP = utils.PREFP
 PBASE = utils.PBASE
 APPROX = utils.APPROX
@@ -104,15 +107,19 @@ UNSATP = utils.UNSATP
 UNSATPBASE = utils.UNSATPBASE
 
 # predicate and term names
-VOLATILE      = utils.VOLATILE
-MODEL         = utils.MODEL
-HOLDS         = utils.HOLDS
-UNSAT_ATOM    = utils.UNSAT
-PREFERENCE    = utils.PREFERENCE
-HOLDS_AT_ZERO = utils.HOLDS_AT_ZERO
+VOLATILE       = utils.VOLATILE
+MODEL          = utils.MODEL
+HOLDS          = utils.HOLDS
+UNSAT_ATOM     = utils.UNSAT
+PREFERENCE     = utils.PREFERENCE
+HOLDS_AT_ZERO  = utils.HOLDS_AT_ZERO
+QUERY_ATOM     = utils.QUERY_ATOM
+QUERY_EXTERNAL = utils.QUERY_EXTERNAL
+#
 CSP           = "$"
 MODEL_DELETE_BETTER = clingo.parse_term("delete_better")
 DELETE_MODEL_VOLATILE_ATOM = "delete_model_volatile_atom"
+QUERY_EXTERNAL_CLINGO_TERM = clingo.parse_term(QUERY_EXTERNAL)
 
 # messages
 WRONG_APPEND = """\
@@ -167,6 +174,10 @@ PROGRAMS = \
     HOLDS + """(X,0)."""),
    (PROJECT_CLINGO,           [],"""
 #project  ##""" + HOLDS + """/2."""),
+   (QUERY_PRG,           [],"""
+#external ##""" + QUERY_EXTERNAL + """.
+:- """ + QUERY_ATOM + """, not ##""" + QUERY_EXTERNAL + """.
+:- not """ + QUERY_ATOM + """, ##""" + QUERY_EXTERNAL + """."""),
   ]
 PROGRAMS_APPROX = \
   [(DO_HOLDS_APPROX,            ["m","mm"],"""
@@ -236,6 +247,7 @@ class Solver:
         self.mapping = {}
         self.unsat_program = PREFP
         self.unsat_program_base = None
+        self.enough_models = False
         # for weak mode
         self.control.configuration.solve.opt_mode = 'ignore' # by default ignore
         self.optN = False
@@ -1059,14 +1071,25 @@ class Solver:
     # query
     #
 
+    def ground_query_program(self):
+        self.ground([(QUERY_PRG, [])])
+
+    # returns True if query is a fact, False if it is false, and None otherwise
+    def get_query_value(self):
+        for atom in self.control.symbolic_atoms.by_signature(QUERY_ATOM, 0):
+            if atom.is_fact:
+                return True
+            return None
+        return False
+
     def set_query(self, value):
-        self.control.assign_external(clingo.parse_term("external_query"), value)
+        self.control.assign_external(QUERY_EXTERNAL_CLINGO_TERM, value)
 
     def print_query_true(self):
-        print("QUERY TRUE")
+        self.printer.do_print(STR_QUERY_TRUE)
 
     def print_query_false(self):
-        print("QUERY FALSE")
+        self.printer.do_print(STR_QUERY_FALSE)
 
 
     #

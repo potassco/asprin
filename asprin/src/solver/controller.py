@@ -22,6 +22,7 @@
 # -*- coding: utf-8 -*-
 
 from ..utils import utils
+from . import query
 
 class GeneralController:
 
@@ -84,7 +85,8 @@ class GeneralController:
         self.solver.last_unsat = True
         self.solver.opt_models  += 1
         self.solver.print_optimum_string()
-        if self.solver.opt_models == self.solver.options.max_models:
+        if self.solver.opt_models == self.solver.options.max_models or \
+           self.solver.enough_models:
             self.solver.end()
         if self.solver.options.steps == self.solver.step:
             self.solver.print_steps_message()
@@ -478,62 +480,24 @@ class OnOptimalController:
             )
 
 
-SATISFIABLE   = utils.SATISFIABLE                   # used also by controller
-UNSATISFIABLE = "UNSATISFIABLE"
-class Query:
-
-    def __init__(self, controller, solver):
-        self.solver = solver
-        self.controller = controller
-        self.state = 0
-
-    def call(self, pre):
-        solver = self.solver
-        #
-        if self.state == 0:
-            if pre:
-                solver.set_query(True)
-            elif solver.solving_result == SATISFIABLE:
-                self.state = 1
-            elif solver.solving_result == UNSATISFIABLE:
-                solver.print_query_false()
-                # finishes asprin
-        #
-        elif self.state == 1:
-            if pre:
-                solver.set_query(True)
-            elif solver.solving_result == SATISFIABLE:
-                pass
-            elif solver.solving_result == UNSATISFIABLE:
-                self.state = 2
-                solver.solving_result == SATISFIABLE
-                self.controller.solve()
-        #
-        elif self.state == 2:
-            if pre:
-                solver.set_query(False)
-            elif solver.solving_result == SATISFIABLE:
-                self.state = 3
-            elif solver.solving_result == UNSATISFIABLE:
-                solver.print_query_true()
-                # Finish asprin: TODO: Fix
-                self.solver.end()
-        #
-        elif self.state == 3:
-            if pre:
-                solver.set_query(False)
-            elif solver.solving_result == SATISFIABLE:
-                pass
-            elif solver.solving_result == UNSATISFIABLE:
-                self.state = 0
-
-
 class QueryMethodController:
 
     def __init__(self, solver, controller):
-        self.solver = solver
         self.controller = controller
-        self.query = Query(self, solver)
+        # cases where the query atom is True or False
+        query_value = solver.get_query_value()
+        if query_value == False:
+            solver.print_query_false()
+            solver.end()
+        elif query_value == False: # TODO: check that program is SAT
+            solver.print_query_true()
+            solver.end()
+        # create self.query object
+        options = solver.options
+        queryClass = query.get_query_class(
+            options.query, options.query_opt, options.query_stop
+        )
+        self.query = queryClass(self, solver)
 
     def start(self):
         self.controller.start()

@@ -28,21 +28,31 @@ from ..utils import utils
 SATISFIABLE   = utils.SATISFIABLE
 UNSATISFIABLE = utils.UNSATISFIABLE
 
+def get_query_class(query, opt, stop):
+    return Query_1_opt
+
+
 class Query:
 
     def __init__(self, controller, solver):
         self.solver = solver
         self.controller = controller
         self.state = 0
+        self.solver.ground_query_program()
+        self.query_models = 0
 
     def call(self, pre):
         function = getattr(self, "state_" + str(self.state))
         function(pre, self.solver.solving_result)
 
-class Query0:
+
+class Query_1_opt(Query):
 
     def __init__(self, controller, solver):
         Query.__init__(self, controller, solver)
+        self.query_max_models = solver.options.max_models
+        # WARNING: We play with max_models option
+        solver.options.max_models = 0
 
     def state_0(self, pre, result):
         if pre:
@@ -50,7 +60,8 @@ class Query0:
         elif result == SATISFIABLE:
             self.state = 1
         elif result == UNSATISFIABLE:
-            self.solver.print_query_false()
+            if self.query_models == 0:
+                self.solver.print_query_false()
             # finishes asprin
 
     def state_1(self, pre, result):
@@ -70,9 +81,12 @@ class Query0:
             self.state = 3
         elif result == UNSATISFIABLE:
             self.solver.print_query_true()
-            # Finish asprin: TODO: Fix
-            self.solver.end()
-    
+            self.query_models += 1
+            self.state = 0
+            if self.query_max_models == self.query_models:
+                self.solver.enough_models = True
+                # calls solver.end() in general.unsat()
+
     def state_3(self, pre, result):
         if pre:
             self.solver.set_query(False)

@@ -79,6 +79,8 @@ SHOW       = "show"
 LAST_HOLDS = "last_holds"
 LAST_SHOWN = "last_shown"
 HOLDS_AT_ZERO = "holds_at_zero"
+QUERY_ATOM     = "query"
+QUERY_EXTERNAL = "external_query"
 
 # translation tokens
 HASH_SEM = "#sem"
@@ -130,9 +132,12 @@ META_SIMPLE  = 2
 META_COMBINE = 3
 
 # messages (used by solver and controller)
-STR_MODEL_FOUND        = "MODEL FOUND"
-STR_MODEL_FOUND_STAR   = "MODEL FOUND *"
-SATISFIABLE            = "SATISFIABLE"
+STR_MODEL_FOUND      = "MODEL FOUND"
+STR_MODEL_FOUND_STAR = "MODEL FOUND *"
+STR_QUERY_TRUE       = "QUERY TRUE"
+STR_QUERY_FALSE      = "QUERY FALSE"
+SATISFIABLE          = "SATISFIABLE"
+UNSATISFIABLE        = "UNSATISFIABLE"
 
 #
 # global variables

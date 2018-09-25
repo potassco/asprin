@@ -209,7 +209,6 @@ class Parser:
         new = [ clingo.parse_term(value) for key, value in constants ]
         # add and ground
         string_base =  programs[BASE][""].get_string()
-        string_base += ":- not query, external_query. :- query, not external_query. #external external_query."
         self.__add_and_ground(BASE, old, string_base, [(BASE,new)])
         string_generate =  programs[GENERATE][""].get_string()
         self.__add_and_ground(GENERATE, [], string_generate, [(GENERATE,[])])
