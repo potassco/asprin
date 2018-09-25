@@ -67,6 +67,8 @@ ERROR_PARSING  = "parsing failed"
 #ERROR_IMPROVE_1 = "options --stats and --improve-limit cannot be used together"
 ERROR_IMPROVE_2 = """incorrect value for option --improve-limit, \
 options reprint and nocheck cannot be used together"""
+ERROR_STOP_MODELS = "option {} is incompatible with computing {} models"
+#
 DEBUG          = "--debug"
 TEST           = "--test"
 ALL_CONFIGS    = ["tweety", "trendy", "frumpy", "crafty", "jumpy", "handy"]
@@ -320,6 +322,9 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
         if (method != 1 and method != 3 and opt) or \
            (method != 2 and method != 3 and stop):
             self.__cmd_parser.error("incorrect value for option --query")
+        if (stop and self.options['max_models'] != 1):
+            error = ERROR_STOP_MODELS.format(query, self.options['max_models'])
+            self.__cmd_parser.error(error)
         # return
         return method, opt, stop
 

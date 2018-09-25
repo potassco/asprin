@@ -47,9 +47,9 @@ ON_OPT_HEUR_PROGRAM  = "on_opt_heuristic"
 METAPROGRAM = "metaprogram"
 METAUNSAT = "meta_unsat"
 METAUNSAT_BASE = "meta_unsat_base"
-# query program name and program
-QUERY         = "query"
-QUERY_PROGRAM = ":- not query."
+# meta query program name and program
+META_QUERY         = "query"
+META_QUERY_PROGRAM = ":- not query."
 
 # map preference programs to their bases
 mapbase = { PREFP  : PBASE,

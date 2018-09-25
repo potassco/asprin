@@ -56,8 +56,7 @@ class GeneralController:
             solver.check_errors()
         # non optimal
         if solver.no_optimize() or solver.options.non_optimal:
-            solver.str_found      = utils.STR_MODEL_FOUND
-            solver.str_found_star = utils.STR_MODEL_FOUND_STAR
+            self.solver.set_str_found(optimal=False)
             # solve and finish asprin
             self.solver.solve_single()
             self.solver.end()
@@ -494,20 +493,20 @@ class QueryMethodController:
             solver.end()
         # create self.query object
         options = solver.options
-        queryClass = query.get_query_class(
-            options.query, options.query_opt, options.query_stop
-        )
-        self.query = queryClass(self, solver)
+        queryClass = query.get_query_class(options.query, options.query_opt)
+        self.query = queryClass(self, solver, options.query_stop)
 
     def start(self):
+        self.query.start()
         self.controller.start()
 
     def start_loop(self):
         self.controller.start_loop()
 
     def solve(self):
-        self.query.call(True)
-        self.controller.solve()
+        skip = self.query.call(True)
+        if skip != True:
+            self.controller.solve()
         self.query.call(False)
 
     def unsat(self):

@@ -61,13 +61,13 @@ SATISFIABLE   = utils.SATISFIABLE                   # used also by controller
 UNSATISFIABLE = utils.UNSATISFIABLE                 # used also by controller
 
 # for meta-programming
-META_SIMPLE    = utils.META_SIMPLE
-META_COMBINE   = utils.META_COMBINE
-METAPROGRAM    = utils.METAPROGRAM
-QUERY          = utils.QUERY
-QUERY_PROGRAM  = utils.QUERY_PROGRAM
-METAUNSAT      = utils.METAUNSAT
-METAUNSAT_BASE = utils.METAUNSAT_BASE
+META_SIMPLE         = utils.META_SIMPLE
+META_COMBINE        = utils.META_COMBINE
+METAPROGRAM         = utils.METAPROGRAM
+META_QUERY          = utils.META_QUERY
+META_QUERY_PROGRAM  = utils.META_QUERY_PROGRAM
+METAUNSAT           = utils.METAUNSAT
+METAUNSAT_BASE      = utils.METAUNSAT_BASE
 
 # strings
 STR_ANSWER             = "Answer: {}"
@@ -98,7 +98,7 @@ UNSAT_PRG = "unsat"
 NOT_UNSAT_PRG = "not_unsat"
 CMD_HEURISTIC = "cmd_heuristic"
 PROJECT_CLINGO = "project_clingo"
-QUERY_PRG = "query_program"
+QUERY_PRG = "x_query_program"
 PREFP = utils.PREFP
 PBASE = utils.PBASE
 APPROX = utils.APPROX
@@ -119,7 +119,6 @@ QUERY_EXTERNAL = utils.QUERY_EXTERNAL
 CSP           = "$"
 MODEL_DELETE_BETTER = clingo.parse_term("delete_better")
 DELETE_MODEL_VOLATILE_ATOM = "delete_model_volatile_atom"
-QUERY_EXTERNAL_CLINGO_TERM = clingo.parse_term(QUERY_EXTERNAL)
 
 # messages
 WRONG_APPEND = """\
@@ -768,6 +767,14 @@ class Solver:
             return True
         return False
 
+    def set_str_found(self, optimal):
+        if optimal:
+            self.str_found = STR_OPTIMUM_FOUND
+            self.str_found_star = STR_OPTIMUM_FOUND_STAR
+        else:
+            self.str_found = STR_MODEL_FOUND
+            self.str_found_star = STR_MODEL_FOUND_STAR
+
     #
     # on_opt_heur option
     #
@@ -1049,7 +1056,7 @@ class Solver:
         self.ground([(METAPROGRAM, [])])
         # if query: adds the query and grounds
         if self.options.meta_query:
-            qname, qprogram = QUERY, QUERY_PROGRAM
+            qname, qprogram = META_QUERY, META_QUERY_PROGRAM
             self.control.add(qname, [], qprogram)
             self.ground([(qname, [])])
         # solve single
@@ -1071,9 +1078,6 @@ class Solver:
     # query
     #
 
-    def ground_query_program(self):
-        self.ground([(QUERY_PRG, [])])
-
     # returns True if query is a fact, False if it is false, and None otherwise
     def get_query_value(self):
         for atom in self.control.symbolic_atoms.by_signature(QUERY_ATOM, 0):
@@ -1082,8 +1086,13 @@ class Solver:
             return None
         return False
 
+    def ground_query_program(self):
+        self.ground([(QUERY_PRG, [])])
+
     def set_query(self, value):
-        self.control.assign_external(QUERY_EXTERNAL_CLINGO_TERM, value)
+        self.control.assign_external(
+            clingo.parse_term(self.underscores + QUERY_EXTERNAL), value
+        )
 
     def print_query_true(self):
         self.printer.do_print(STR_QUERY_TRUE)
