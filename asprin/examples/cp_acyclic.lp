@@ -14,9 +14,9 @@ dom(1..3).
   a(1) >> not a(1);
   a(2) >> not a(2);
   a(3) >> not a(3) || {     a(1);     a(2) };
-  a(3) >> not a(3) || { not a(1);     a(2) };
+  not a(3) >> a(3) || { not a(1);     a(2) };
   not a(3) >> a(3) || {     a(1); not a(2) };
-  not a(3) >> a(3) || { not a(1); not a(2) }
+  a(3) >> not a(3) || { not a(1); not a(2) }
 }.
 #optimize(p).
 

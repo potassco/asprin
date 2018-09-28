@@ -179,7 +179,7 @@ J. Artif. Intell. Res. 21: 135-191 (2004)
 
 Propositional preference elements of type `cp` have one of the following forms:
 1. `a >> not a || { l1; ...; ln }`, or
-2. `not a >> a || { l1, ..., ln }`
+2. `not a >> a || { l1; ...; ln }`
 
 where `a` is an atom and `l1`, ..., `ln` are literals.
 
