@@ -30,12 +30,16 @@ from ..utils import utils
 SATISFIABLE   = utils.SATISFIABLE
 UNSATISFIABLE = utils.UNSATISFIABLE
 
+
 # Query subclasses Factory
 def get_query_class(query, opt):
     if query == 1 and opt:
         return Query_1_opt
     elif query == 1 and not opt:
         return Query_1
+    elif query == 2:
+        return Query_2
+
 
 # abstract class
 class Query:
@@ -47,6 +51,7 @@ class Query:
         #
         self.state = 0
         self.query_opt_models = 0
+        self.query_max_models = solver.options.max_models
 
     def call(self, pre):
         function = getattr(self, "state_" + str(self.state))
@@ -55,15 +60,22 @@ class Query:
     def start(self):
         pass
 
+    def query_opt_model(self):
+        self.solver.print_query(True)
+        self.query_opt_models += 1
+        if self.query_max_models == self.query_opt_models:
+            self.solver.bool_end = True
+            # general.unsat() finishes asprin
+
 # TODO: Add statistics about number of optimal models where the query holds.
 #       Now we print in 'Optimal' the total number of optimal models computed,
 #       adding up those with and without the query
+
 
 class Query_1_opt(Query):
 
     def __init__(self, controller, solver, stop):
         Query.__init__(self, controller, solver, stop)
-        self.query_max_models = solver.options.max_models
         # WARNING: We set solver.options.max_models to 0
         solver.options.max_models = 0
 
@@ -78,7 +90,7 @@ class Query_1_opt(Query):
             self.state = 1
         elif result == UNSATISFIABLE:
             if self.query_opt_models == 0:
-                self.solver.print_query_false()
+                self.solver.print_query(False)
             # general.unsat() finishes asprin
 
     def state_1(self, pre, result):
@@ -101,12 +113,8 @@ class Query_1_opt(Query):
         elif result == SATISFIABLE:
             self.state_2_sat()
         elif result == UNSATISFIABLE:
-            self.solver.print_query_true()
-            self.query_opt_models += 1
             self.state = 0
-            if self.query_max_models == self.query_opt_models:
-                self.solver.enough_models = True
-                # general.unsat() finishes asprin
+            self.query_opt_model() # can finish asprin
 
     def state_3(self, pre, result):
         if pre:
@@ -115,6 +123,7 @@ class Query_1_opt(Query):
             pass
         elif result == UNSATISFIABLE:
             self.state = 0
+
 
 class Query_1(Query_1_opt):
 
@@ -128,8 +137,90 @@ class Query_1(Query_1_opt):
         if pre:
             return True # skip solving
         else:
-            # we cheat and say we got UNSAT
+            # we cheat and say we obtained UNSAT
             self.solver.solving_result = UNSATISFIABLE
             self.state = 0
             self.solver.set_str_found(optimal=False)
+
+
+class Query_2(Query):
+    
+    def __init__(self, controller, solver, stop):
+        Query.__init__(self, controller, solver, stop)
+        self.last_solving_result = self.solver.solving_result
+        # WARNING: We set solver.options.max_models to 0
+        solver.options.max_models = 0
+
+    def state_0(self, pre, result):
+        if pre:
+            self.solver.set_query(False)
+            self.last_solving_result = self.solver.solving_result
+        elif result == SATISFIABLE:
+            self.state = 1
+        elif result == UNSATISFIABLE:
+            self.state = 10
+            self.solver.solving_result = self.last_solving_result
+            # This call must be done with care
+            self.controller.solve()
+
+    def state_10(self, pre, result):
+        if pre:
+            self.solver.set_query(True)
+        elif result == SATISFIABLE:
+            if self.stop:
+                self.solver.bool_end = True
+                self.solver.print_query(True)
+                # general.sat() finishes asprin
+                return
+            self.state = 11
+        elif result == UNSATISFIABLE:
+            if self.query_opt_models == 0:
+                self.solver.print_query(False)
+                # general.unsat() finishes asprin
+
+    def state_11(self, pre, result):
+        if pre:
+            self.solver.set_query(True)
+        elif result == SATISFIABLE:
+            pass
+        elif result == UNSATISFIABLE:
+            self.state = 10
+            self.query_opt_model() # can finish asprin
+
+    def state_1(self, pre, result):
+        if pre:
+            self.solver.set_query(False)
+        elif result == SATISFIABLE:
+            pass
+        elif result == UNSATISFIABLE:
+            self.state = 2
+            self.solver.solving_result == SATISFIABLE
+            # This call must be done with care
+            self.controller.solve()
+
+    def state_2(self, pre, result):
+        if pre:
+            self.solver.set_query(True)
+        elif result == SATISFIABLE:
+            if self.stop:
+                self.solver.bool_end = True
+                self.solver.print_query(True)
+                # general.sat() finishes asprin
+                return
+            self.state = 3
+        elif result == UNSATISFIABLE:
+            self.state = 0
+
+    def state_3(self, pre, result):
+        if pre:
+            self.solver.set_query(True)
+        elif result == SATISFIABLE:
+            pass
+        elif result == UNSATISFIABLE:
+            self.state = 0
+            self.query_opt_model() # can finish asprin
+
+
+
+
 

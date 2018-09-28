@@ -246,7 +246,7 @@ class Solver:
         self.mapping = {}
         self.unsat_program = PREFP
         self.unsat_program_base = None
-        self.enough_models = False
+        self.bool_end = False
         # for weak mode
         self.control.configuration.solve.opt_mode = 'ignore' # by default ignore
         self.optN = False
@@ -1094,11 +1094,8 @@ class Solver:
             clingo.parse_term(self.underscores + QUERY_EXTERNAL), value
         )
 
-    def print_query_true(self):
-        self.printer.do_print(STR_QUERY_TRUE)
-
-    def print_query_false(self):
-        self.printer.do_print(STR_QUERY_FALSE)
+    def print_query(self, value):
+        self.printer.do_print(STR_QUERY_TRUE if value else STR_QUERY_FALSE)
 
 
     #

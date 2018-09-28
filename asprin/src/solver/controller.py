@@ -70,6 +70,8 @@ class GeneralController:
             self.solver.print_answer()
         else:
             self.solver.print_str_answer()
+        if self.solver.bool_end:
+            self.solver.end()
 
     def unsat(self):
         if self.solver.last_unsat:
@@ -85,7 +87,7 @@ class GeneralController:
         self.solver.opt_models  += 1
         self.solver.print_optimum_string()
         if self.solver.opt_models == self.solver.options.max_models or \
-           self.solver.enough_models:
+           self.solver.bool_end:
             self.solver.end()
         if self.solver.options.steps == self.solver.step:
             self.solver.print_steps_message()

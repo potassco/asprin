@@ -307,7 +307,7 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
         # return
         return method, query, binary
 
-    def __do_query(self, query):
+    def __do_query(self, query, max_models):
         # basic case
         if query is None:
             return None, None, None
@@ -322,8 +322,8 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
         if (method != 1 and method != 3 and opt) or \
            (method != 2 and method != 3 and stop):
             self.__cmd_parser.error("incorrect value for option --query")
-        if (stop and self.options['max_models'] != 1):
-            error = ERROR_STOP_MODELS.format(query, self.options['max_models'])
+        if stop and max_models != 1:
+            error = ERROR_STOP_MODELS.format(query, max_models)
             self.__cmd_parser.error(error)
         # return
         return method, opt, stop
@@ -527,7 +527,9 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
         options['meta_binary'] = binary
 
         # handle query
-        query, opt, stop = self.__do_query(options['query'])
+        query, opt, stop = self.__do_query(
+            options['query'], options['max_models']
+        )
         options['query'] = query
         options['query_opt'] = opt
         options['query_stop'] = stop
