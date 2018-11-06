@@ -1965,7 +1965,7 @@ acyclic(P,M) :- preference(P,cp), approximation_mode(P),
 % Let C be an acyclic CP net over the set of atoms A with rules of the form
 %   l > -l : { l1, ..., ln }
 % where l, -l, l1, ..., ln are literals over A.
-% For every atom a, let cp(A) be the formula
+% For every atom a, let cp(a) be the formula
 %   a <-> (l1 and ... ln) or (l1' and ... ln') ...
 % where the rules with head
 %   a > -a
