@@ -26,5 +26,5 @@ __description__ = 'Qualitative and quantitative optimization in answer set progr
 __author__ = 'Javier Romero'
 __email__ = 'javier@cs.uni-potsdam.de'
 __license__ = 'MIT'
-__version__ = '3.0.999'
+__version__ = '3.1.0'
 __url__ = 'https://github.com/potassco/asprin'
