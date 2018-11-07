@@ -42,6 +42,11 @@ error(("preference:",P,": error: preference specification error, type '",T,"' do
   preference(P,T), error_type(T,no_formulas),
   preference(P,_,_,for(X),_).
 
+%%% always weights
+error(("preference:",P,": error: preference specification error, type '",T,"' requires weight tuples.")) :-
+  preference(P,T), error_type(T,yes_weights),
+  preference(P,_,_,_,W), W == ().
+
 %%% no weights
 error(("preference:",P,": error: preference specification error, type '",T,"' does not allow weights.")) :-
   preference(P,T), error_type(T,no_weights),
@@ -300,6 +305,7 @@ error_type(less(weight),no_naming).
 error_type(less(weight),no_ordering).
 error_type(less(weight),no_condition).
 error_type(less(weight),no_sets).
+error_type(less(weight),yes_weights).
 
 #program preference(lexico).
 
@@ -405,6 +411,7 @@ error_type(more(weight),no_naming).
 error_type(more(weight),no_ordering).
 error_type(more(weight),no_condition).
 error_type(more(weight),no_sets).
+error_type(more(weight),yes_weights).
 
 
 #program preference(neg).
@@ -703,6 +710,7 @@ error_type(clingo_minimize,no_naming).
 error_type(clingo_minimize,no_ordering).
 error_type(clingo_minimize,no_condition).
 error_type(clingo_minimize,no_sets).
+error_type(clingo_minimize,yes_weights).
 
 
 #program preference(maxmin).
