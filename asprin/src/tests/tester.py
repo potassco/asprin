@@ -55,10 +55,12 @@ OPTIONS = [
     ["--on-opt-heur=+,s,1,true --on-opt-heur=-,s,1,false"],
     ["--meta=simple"],
     ["--meta=combine"],
-    ["--meta=simple,bin"],
-    ["--meta=combine,bin"],
-    ["--meta=simple,sat"],
-    ["--meta=combine,sat"],
+    # uncomment only if clingo binary is installed
+    #["--meta=simple,bin"],
+    #["--meta=combine,bin"],
+    # uncomment only if clingo binary, and lp2normal2 and lp2sat are installed
+    #["--meta=simple,sat"],
+    #["--meta=combine,sat"],
 ]
 
 EXCLUDE = {}
