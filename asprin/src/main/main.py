@@ -125,7 +125,8 @@ HELP_META     = """R|: Apply or disable meta-programming solving methods, where 
              with simple (to check that a model is not worse than previous optimal models)
   * no: disable explicitly meta-programming solving methods
         this may be incorrect for computing many models using nonstratified preference programs
-  Option bin uses a clingo binary to help in meta-programming"""
+  Add ',bin' to use a clingo binary for reification
+  Add ',sat' to use a clingo binary and systems lp2normal2 and lp2sat for reification"""
 
 #
 # VERSION
@@ -276,13 +277,13 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
     def __do_meta(self, meta):
         # basic cases
         if not meta:
-            return META_OPEN, False, False
+            return META_OPEN, False, False, False
         # parse
-        match = re.match(r'(no|simple|query|combine)(,(bin))?$', meta)
+        match = re.match(r'(no|simple|query|combine)(,bin)?(,sat)?$', meta)
         if not match:
             self.__cmd_parser.error("incorrect value for option --meta")
         # set output: method, query, binary
-        method, query, binary = None, False, False
+        method, query, binary, sat = None, False, False, False
         if match.group(1) == 'no':
             method = META_NO
         elif match.group(1) == 'simple':
@@ -294,8 +295,12 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
             method = META_COMBINE
         if match.group(2):
             binary = True
+        if match.group(3):
+            sat = True
+        if binary and sat:
+            self.__cmd_parser.error("incorrect value for option --meta")
         # return
-        return method, query, binary
+        return method, query, binary, sat
 
     def run(self, args):
 
@@ -382,7 +387,7 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
                               metavar='<ci>', action='append',
                               help=HELP_CONFIGS)
         solving.add_argument('--meta ', dest='meta', help=HELP_META,
-                             type=str, metavar='<m>[,bin]', default=None)
+                             type=str, metavar='<m>', default=None)
         solving.add_argument('--preference-unsat', dest='preference_unsat',
                              #help=argparse.SUPPRESS,
                              help=HELP_PREFERENCE_UNSAT,
@@ -487,10 +492,11 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
         options.pop('approximation',None)
 
         # handle meta
-        meta, query, binary = self.__do_meta(options['meta'])
+        meta, query, binary, sat = self.__do_meta(options['meta'])
         options['meta'] = meta
         options['meta_query'] = query
         options['meta_binary'] = binary
+        options['meta_sat'] = sat
 
         # statistics
         # if options['stats']:
@@ -575,14 +581,14 @@ class Asprin:
         # observer
         observer = None
         if self.options['meta'] in [META_SIMPLE, META_COMBINE]:
-            if not self.options['meta_binary']:
+            if not self.options['meta_binary'] and not self.options['meta_sat']:
                 observer = metasp.Observer(
                     self.control,
                     register_observer = True,
                     bool_add_statement = True,
                     bool_add_constants_nb = True
                 )
-            if self.options['meta_binary']:
+            else:
                 observer = metasp.Observer(
                     self.control,
                     bool_add_statement = True,

@@ -31,6 +31,9 @@ import re
 # defines
 CLINGO = "clingo"
 REIFY_OUTPUT = "--output=reify"
+SMODELS_OUTPUT = "--output=smodels"
+LP2NORMAL = "lp2normal2"
+LP2SAT = "lp2sat"
 VERSION = "--version"
 NO_CLINGO = "clingo binary version not found (when running 'clingo --version')"
 OLD_CLINGO = """clingo binary too old (when running 'clingo --version')\
@@ -286,4 +289,78 @@ def reify_from_string(program, prefix):
     output = re.sub(r'^(\w+)', r'' + prefix + r'\1', output, flags=re.M)
     return output
 
+
+#
+# reify_from_string_through_sat()
+#
+# * uses a clingo binary, lp2normal2 and lp2sat
+#
+
+CHOICE_FACTS = """\
+{0}rule(choice(0),normal(0)). {0}literal_tuple(0). {0}atom_tuple(0,1..{1}).
+"""
+
+OUTPUT_FACTS = """\
+{0}output({1},{2}). {0}literal_tuple({2}). {0}literal_tuple({2},{3}).
+"""
+
+def reify_from_string_through_sat(program, prefix):
+
+    # translate to dimacs
+    check_clingo_version()
+    # write program to file_in
+    with tempfile.NamedTemporaryFile(delete=False) as file_in:
+        file_in.write(program.encode())
+        file_in.flush()
+    # run commands
+    ps1 = subprocess.Popen(
+        [CLINGO, SMODELS_OUTPUT, file_in.name], stdout=subprocess.PIPE
+    )
+    ps2 = subprocess.Popen(
+        [LP2NORMAL], stdin=ps1.stdout, stdout=subprocess.PIPE
+    )
+    dimacs = subprocess.check_output([LP2SAT], stdin=ps2.stdout)
+    if isinstance(dimacs, bytes):
+        dimacs = dimacs.decode()
+
+    # generate output
+    output = ""
+    literal_tuples = 1
+    for line in dimacs.splitlines():
+
+        # first line
+        match = re.match(r'p\s+cnf\s+(\d+)\s(\d+)\s*\Z', line)
+        if match:
+            atoms = int(match.group(1))
+            if atoms > 0:
+                output += CHOICE_FACTS.format(prefix, atoms)
+            continue
+
+        # comments
+        match = re.match(r'c\s+(\d+)\s(.*)\Z', line)
+        if match:
+            output += OUTPUT_FACTS.format(
+                prefix, match.group(2), literal_tuples, match.group(1)
+            )
+            literal_tuples += 1
+            continue
+        if line[0] == 'c':
+            continue
+
+        # clauses
+        output += "{0}rule(disjunction(1),normal({1})).".format(
+            prefix, literal_tuples
+        )
+        output += " {0}literal_tuple({1}).".format(prefix, literal_tuples)
+        for lit in line.split():
+            if lit != "0":
+                output += " {0}literal_tuple({1},{2}).".format(
+                    prefix, literal_tuples,
+                    lit[1:] if lit[0] == "-" else "-" + lit
+                )
+        output += "\n"
+        literal_tuples += 1
+
+    # return output
+    return output
 

@@ -54,9 +54,11 @@ OPTIONS = [
     ["--on-opt-heur=+,p,-1,sign --on-opt-heur=-,p,1,sign"],
     ["--on-opt-heur=+,s,1,true --on-opt-heur=-,s,1,false"],
     ["--meta=simple"],
-    ["--meta=simple,bin"],
     ["--meta=combine"],
+    ["--meta=simple,bin"],
     ["--meta=combine,bin"],
+    ["--meta=simple,sat"],
+    ["--meta=combine,sat"],
 ]
 
 EXCLUDE = {}
@@ -75,9 +77,11 @@ EXCLUDE["--meta=simple"] = [
     os.path.join(PATH, "solver", "solver", "test009.lp"), # too hard
     os.path.join(PATH, "program_parser", "visitor", "test002.lp"), # no error with --meta
 ]
-EXCLUDE[ "--meta=simple,bin"] = EXCLUDE["--meta=simple"]
 EXCLUDE[    "--meta=combine"] = EXCLUDE["--meta=simple"]
+EXCLUDE[ "--meta=simple,bin"] = EXCLUDE["--meta=simple"]
 EXCLUDE["--meta=combine,bin"] = EXCLUDE["--meta=simple"]
+EXCLUDE[ "--meta=simple,sat"] = EXCLUDE["--meta=simple"]
+EXCLUDE["--meta=combine,sat"] = EXCLUDE["--meta=simple"]
 
 EXCLUDE["--preference-unsat $asprin/mine/asprin_lib_unsat.lp"] = [
     os.path.join(PATH, "solver", "solver", "test002.lp"),           # adds new preference programs

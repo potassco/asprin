@@ -1028,6 +1028,8 @@ class Solver:
         # choose meta implementation
         if self.options.meta_binary:
             meta = metasp.MetaspBinary(self)
+        elif self.options.meta_sat:
+            meta = metasp.MetaspSAT(self)
         else:
             meta = metasp.MetaspPython(self)
         # get meta program
@@ -1047,6 +1049,8 @@ class Solver:
         # choose meta implementation
         if self.options.meta_binary:
             meta = metasp.MetaspBinary(self)
+        elif self.options.meta_sat:
+            meta = metasp.MetaspSAT(self)
         else:
             meta = metasp.MetaspPython(self)
         # get programs

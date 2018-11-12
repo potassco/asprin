@@ -370,6 +370,9 @@ class MetaspBinary(AbstractMetasp):
         self.binding_inc_base = BINDING_INC_BINARY_BASE
         self.binding_inc = BINDING_INC_BINARY
 
+    def call_reify(self, program, prefix):
+        return reify.reify_from_string(program, prefix)
+
     # WARNING:
     # The next function relies on the form of the specification programs,
     # assumes rules for preference/2, preference/5, optimize/1
@@ -402,5 +405,14 @@ class MetaspBinary(AbstractMetasp):
             "#end.", get_holds_domain + "\n#end."
         )
         prefix = self.solver.underscores + "_"*U_METAPREF
-        return reify.reify_from_string(self.get_pref() + library, prefix)
+        return self.call_reify(self.get_pref() + library, prefix)
+
+# Uses clingo binary, lp2normal2 and lp2sat
+class MetaspSAT(MetaspBinary):
+
+    def __init__(self, solver):
+        MetaspBinary.__init__(self, solver)
+
+    def call_reify(self, program, prefix):
+        return reify.reify_from_string_through_sat(program, prefix)
 
