@@ -39,6 +39,9 @@ NO_CLINGO = "clingo binary version not found (when running 'clingo --version')"
 OLD_CLINGO = """clingo binary too old (when running 'clingo --version')\
  version 5.3 or newer is needed"""
 
+# options for translations to SAT
+LP2NORMAL_OPTIONS = []
+LP2SAT_OPTIONS = []
 
 #
 # classes Node and Graph used by reify_from_observer()
@@ -317,9 +320,12 @@ def reify_from_string_through_sat(program, prefix):
         [CLINGO, SMODELS_OUTPUT, file_in.name], stdout=subprocess.PIPE
     )
     ps2 = subprocess.Popen(
-        [LP2NORMAL], stdin=ps1.stdout, stdout=subprocess.PIPE
+        [LP2NORMAL] + LP2NORMAL_OPTIONS,
+        stdin=ps1.stdout, stdout=subprocess.PIPE
     )
-    dimacs = subprocess.check_output([LP2SAT], stdin=ps2.stdout)
+    dimacs = subprocess.check_output(
+        [LP2SAT] + LP2SAT_OPTIONS, stdin=ps2.stdout
+    )
     if isinstance(dimacs, bytes):
         dimacs = dimacs.decode()
 
