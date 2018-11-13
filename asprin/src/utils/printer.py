@@ -107,7 +107,7 @@ class Printer:
 
     def print_stats(self, ctl, models, more_models,
                     opt_models, non_optimal, stats,
-                    interrupted, solved, copy_statistics):
+                    interrupted, solved, copy_statistics, _file):
         # interrupt
         out = ""
         if interrupted:
@@ -132,6 +132,5 @@ class Printer:
             if stats:
                 out += "\n" + clingo_stats.Stats().statistics(statistics)
         # print
-        print(out)
+        print(out, file=_file if _file is not None else sys.stdout)
         sys.stdout.flush()
-

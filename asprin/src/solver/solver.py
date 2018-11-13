@@ -317,7 +317,7 @@ class Solver:
         if not self.saved_stats or check_clock(STR_BENCHMARK_CLOCK) > FREQUENCY:
             self.saved_stats = True
             with open(STR_BENCHMARK_FILE, 'w') as f:
-                self.print_stats(file=f)
+                self.print_stats(_file=f)
             start_clock(STR_BENCHMARK_CLOCK)
 
 
@@ -612,6 +612,8 @@ class Solver:
             self.set_config()
         result = self.control_proxy.solve(*args, **kwargs)
         self.set_solving_result(result)
+        if self.options.benchmark:
+            self.save_stats()
         return result
 
     def solve_heuristic(self):
@@ -1063,11 +1065,13 @@ class Solver:
     # exiting
     #
 
-    def print_stats(self, interrupted=False, solved=True, copy_statistics=None):
+    def print_stats(
+        self, interrupted=False, solved=True, copy_statistics=None, _file=None
+    ):
         self.printer.print_stats(
             self.control, self.models, self.more_models, self.opt_models,
             self.options.non_optimal, self.options.stats,
-            interrupted, solved, copy_statistics
+            interrupted, solved, copy_statistics, _file
         )
 
     def signal_on_solving(self):

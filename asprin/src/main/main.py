@@ -532,7 +532,7 @@ class Asprin:
         printer.Printer().print_stats(self.control, 0, True, 0,
                                       self.options['non_optimal'],
                                       self.options['stats'], 
-                                      True, False, None)
+                                      True, False, None, None)
         sys.exit(1)
 
     def run_wild(self, args):
