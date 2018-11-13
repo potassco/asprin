@@ -122,7 +122,8 @@ metaD_program = """
 
 ##steps(C,Z-1) :- ##scc(C,_), Z = { ##scc(C,A) : not ##fact(A) }.
 
-##wait(C,atom(A),0)   :- ##scc(C,A), ##fail(B) : ##external(C,B).
+##wait(C,atom(A),0)   :- ##scc(C,A), ##fail(B) : ##external(C,B), ##supp(A,B).
+##wait(C,normal(B),I) :- ##internal(C,normal(B)), ##fail(normal(B)), ##steps(C,Z), I = 0..Z-1.
 ##wait(C,normal(B),I) :- ##internal(C,normal(B)), ##literal_tuple(B,A), ##wait(C,atom(A),I), ##steps(C,Z), I < Z.
 ##wait(C,sum(B,G),I)  :- ##internal(C,sum(B,G)), ##steps(C,Z), I = 0..Z-1, ##sum(B,G,T),
     #sum { W,L :   ##fail(atom(L)),   ##weighted_literal_tuple(B, L,W), L > 0, not ##scc(C,L) ;
@@ -221,7 +222,8 @@ metaD_program_inc = """
 
 % verify acyclic derivability
 
-##wait(m1,m2,C,atom(A),0)   :- ##scc(C,A), ##fail(m1,m2,B) : ##external(C,B).
+##wait(m1,m2,C,atom(A),0)   :- ##scc(C,A), ##fail(m1,m2,B) : ##external(C,B), ##supp(A,B).
+##wait(m1,m2,C,normal(B),I) :- ##internal(C,normal(B)), ##fail(m1,m2,normal(B)), ##steps(C,Z), I = 0..Z-1.
 ##wait(m1,m2,C,normal(B),I) :- ##internal(C,normal(B)), ##literal_tuple(B,A), ##wait(m1,m2,C,atom(A),I), ##steps(C,Z), I < Z.
 ##wait(m1,m2,C,sum(B,G),I)  :- ##internal(C,sum(B,G)), ##steps(C,Z), I = 0..Z-1, ##sum(B,G,T),
     #sum { W,L :   ##fail(m1,m2,atom(L)),   ##weighted_literal_tuple(B, L,W), L > 0, not ##scc(C,L) ;
