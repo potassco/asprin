@@ -40,10 +40,9 @@ For example, try with `--improve-limit 2,1000`.
 
 <!--- TO BE CHANGED -->
 The easiest way to obtain `asprin` is using Anaconda. 
-Packages will be soon available in the Potassco channel.
-Now they are available in the channel `javier-romero`. 
+Packages are available in the Potassco channel.
 First install either Anaconda or Miniconda and then run: 
-`conda install -c potassco -c javier-romero asprin`
+`conda install -c potassco asprin`
 <!---               -->
 
 `asprin` can also be installed with [pip](https://pip.pypa.io) via
@@ -55,7 +54,7 @@ In this case, setting environment variable `PYTHONUSERBASE` to `dir` before runn
 <!--- TO BE CHANGED -->
 If that does not work, 
 you can always download the sources from 
-[here](https://github.com/potassco/asprin/releases/download/v3.0.3/asprin-3.0.3.tar.gz) in some directory `dir`,
+[here](https://github.com/potassco/asprin/releases/download/v3.1.0/asprin-3.1.0.tar.gz) in some directory `dir`,
 and run `asprin` with `python dir/asprin/asprin/asprin.py`.
 <!---               -->
 
