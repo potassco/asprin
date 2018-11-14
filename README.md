@@ -177,15 +177,21 @@ Propositional preference elements of type `cp` have one of the following forms:
 where `a` is an atom and `l1`, ..., `ln` are literals.
 
 The semantics is defined using the notion of improving flips.
-Let `X` and `Y` be two interpretations of a logic program.
+Let `A` be the set of atoms appearing in a `cp` preference statement,
+and let `X` and `Y` be two subsets of `A`.
 There is an improving flip from `X` to `Y` if 
 there is some preference element such that `X` and `Y` satisfy all `li`'s, and either
 the element has the form (1) and `Y` is the union of `X` and `{a}`, 
 or 
 the element has the form (2) and `Y` is `X` minus `{a}`.
-Then, `W` is better than `Z` if there is a sequence of improving flips from `W` to `Z`.
-A CP net is consistent if there is no interpretation `X` such that `X` is better than `X`.
-
+Then, for any two subsets `W` and `Z` of `A`,
+`W` is better than `Z` if there is a sequence of improving flips from `W` to `Z`.
+A CP net is consistent if there is no set `X` such that `X` is better than `X`.
+This definition for subsets of `A` is extended to the stable models of a logic program.
+A stable model `X` is better than `Y` if 
+the intersection of `X` and `A` is better than the intersection of `Y` and `A`.
+Note that this implies that the ceteris-paribus assumption only applies to the atoms `A`
+appearing in the preference statement.
 
 We provide various encoding and solving techniques for CP nets, 
 that can be applied depending on the structure of the CP net.
