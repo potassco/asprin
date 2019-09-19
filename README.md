@@ -60,7 +60,7 @@ and run `asprin` with `python dir/asprin/asprin/asprin.py`.
 
 System tests may be run with ```asprin --test``` and ```asprin --test --all```.
 
-`asprin` has been tested with `Python 2.7.13` and `3.5.3`, using `clingo 5.3.0`.
+`asprin` has been tested with `Python 2.7.13` and `3.5.3`, using `clingo 5.4.0`.
 
 ```asprin``` uses the `ply` library, version `3.11`,
 which is bundled in [asprin/src/spec_parser/ply](https://github.com/potassco/asprin/tree/master/asprin/src/spec_parser/ply),

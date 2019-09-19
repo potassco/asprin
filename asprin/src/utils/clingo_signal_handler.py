@@ -127,7 +127,7 @@ class ClingoSignalHandler:
     def do_solve(self, control, *args, **kwargs):
         with self.condition:
             with control.solve(
-                async=True, on_finish=self.stop, *args, **kwargs
+                async_=True, on_finish=self.stop, *args, **kwargs
             ) as handle:
                 # In Python 2, Condition.wait() isn't interruptible when called without a timeout.
                 # In Python 3, infinite timeouts lead to overflow errors.
