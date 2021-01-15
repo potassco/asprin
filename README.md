@@ -20,7 +20,7 @@ $ asprin [number_of_models] [options] [files]
 ```
 By default, `asprin` loads its library `asprin_lib.lp`. This may be disabled with option `--no-asprin-lib`.
 
-Option `--help` prints help.
+Option `--help` prints help. 
 
 Options `--approximation=weak` and `--approximation=heuristic` activate solving modes different than the basic ones, 
 and are often faster than it.
