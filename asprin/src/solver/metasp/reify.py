@@ -96,7 +96,7 @@ class Graph:
                 self.tarjan(v)
         # return string
         out = ""
-        for idx, item in enumerate(list(self.singletons) + self.sccs):
+        for idx, item in enumerate([[i] for i in self.singletons] + self.sccs):
             out += " ".join(["{}scc({},{}).".format(prefix, idx, i) for i in item]) + "\n"
         return out
 
