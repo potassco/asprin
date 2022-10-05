@@ -23,6 +23,7 @@
 
 from __future__ import print_function
 import clingo
+import clingo.ast
 import sys
 from ..utils import utils
 from ..utils import printer
@@ -394,7 +395,7 @@ class Parser:
             for type_, program in self.__programs[name].items():
                 if type_ in types:
                     s = "#program " + name + ".\n" + program.get_string()
-                    clingo.parse_program(s, lambda x: visitor.visit(x))
+                    clingo.ast.parse_string(s, lambda x: visitor.visit(x))
             ret = visitor.finish()
             # error if unsat preference program not stratified and not meta
             if ret and self.__options['meta'] == META_OPEN and \
@@ -424,13 +425,13 @@ class Parser:
         # option --print-programs
         if self.__options['print-programs']:
             self.print_basic_programs(types)
-            with self.__control.builder() as _builder:
+            with clingo.ast.ProgramBuilder(self.__control) as _builder:
                 builder = BuilderProxy(_builder)
                 self.add_programs(types, builder)
             raise utils.SilentException() # end
 
         # translate and add the rest of the programs
-        with self.__control.builder() as builder:
+        with clingo.ast.ProgramBuilder(self.__control) as builder:
             observer_builder = None
             if self.__observer:
                 observer_builder = ObserverBuilderProxy(builder, self.__observer)

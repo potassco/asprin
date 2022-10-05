@@ -223,7 +223,7 @@ License: The MIT License <https://opensource.org/licenses/MIT>"""
             for i in alist:
                 old, sep, new = i.partition("=")
                 self.__update_underscores(new)
-                if new is "":
+                if new == "":
                     raise Exception(
                         "no definition for constant {}".format(old)
                     )

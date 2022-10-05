@@ -20,6 +20,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 # -*- coding: utf-8 -*-
+from typing import Union
 
 #
 # IMPORTS
@@ -188,6 +189,20 @@ class Options:
     pass
 
 #
+# Auxiliary methods
+#
+
+def as_symbol(term: Union[int, str, clingo.Symbol]) -> clingo.Symbol:
+    if isinstance(term, clingo.Symbol):
+        return term
+    elif isinstance(term, int):
+        return clingo.Number(term)
+    elif isinstance(term, str):
+        return clingo.String(term)
+    else:
+        raise TypeError(f'Type "{type(term).__name__}" could not be converted to Symbol.')
+
+#
 # Solver
 #
 
@@ -267,13 +282,11 @@ class Solver:
     #
 
     def get_external(self, m1, m2):
-        external = self.externals.get((m1,m2))
-        if external is None:
-            f1 = clingo.Function(self.model_str, [m1])
-            f2 = clingo.Function(self.model_str, [m2])
-            external = clingo.Function(self.volatile_str, [f1, f2])
-            self.externals[(m1,m2)] = external
-        return external
+        if (m1, m2) not in self.externals:
+            f1 = clingo.Function(self.model_str, [as_symbol(m1)])
+            f2 = clingo.Function(self.model_str, [as_symbol(m2)])
+            self.externals[(m1, m2)] = clingo.Function(self.volatile_str, [f1, f2])
+        return self.externals[(m1, m2)]
 
     def get_holds(self):
         return self.holds
@@ -325,34 +338,35 @@ class Solver:
     # USED BY ASPRIN LIBRARY (to be copied at metasp/metasp.py)
     #
 
-    def exp2(self, x):
-        return int(math.pow(2,x.number))
+    def exp2(self, x: clingo.Symbol) -> clingo.Symbol:
+        return clingo.Number(int(math.pow(2, x.number)))
 
-    def get(self, atuple, index):
+    def get(self, atuple: clingo.Symbol, index: clingo.Symbol) -> clingo.Symbol:
         try:
             return atuple.arguments[index.number]
         except:
             return atuple
 
-    def get_mode(self):
-        return self.options.solving_mode
+    def get_mode(self) -> clingo.Symbol:
+        return clingo.String(self.options.solving_mode)
 
-    def get_sequence(self, name, elem):
+    # FIXME: Possible bug. Why is 'elem' unused?
+    def get_sequence(self, name: clingo.Symbol, elem) -> clingo.Symbol:
         string = str(name)
         if string in self.sequences:
             self.sequences[string] += 1
         else:
             self.sequences[string]  = 1
-        return self.sequences[string]
+        return clingo.Number(self.sequences[string])
 
-    def length(self, atuple):
+    def length(self, atuple: clingo.Symbol) -> clingo.Symbol:
         try:
-            return len(atuple.arguments)
+            return clingo.Number(len(atuple.arguments))
         except:
-            return 1
+            return clingo.Number(1)
 
-    def log2up(self, x):
-        return int(math.ceil(math.log(x.number,2)))
+    def log2up(self, x: clingo.Symbol) -> clingo.Symbol:
+        return clingo.Number(int(math.ceil(math.log(x.number, 2))))
 
     #
     # CLINGO PROXY
@@ -438,15 +452,18 @@ class Solver:
         self.shown = self.old_shown
         solve_conf.models = old_models
 
-    def get_preference_parts(self, x, y, better, volatile):
+    def get_preference_parts(self, x, y, better: bool, volatile: bool):
+        sym_x = as_symbol(x)
+        sym_y = as_symbol(y)
+
         if better:
-            parts = [(             PREFP, [x, y]), (NOT_UNSAT_PRG, [x,y])]
+            parts = [(             PREFP, [sym_x, sym_y]), (NOT_UNSAT_PRG, [sym_x, sym_y])]
         else:
-            parts = [(self.unsat_program, [x, y]), (    UNSAT_PRG, [x,y])]
+            parts = [(self.unsat_program, [sym_x, sym_y]), (    UNSAT_PRG, [sym_x, sym_y])]
         if volatile:
-            parts.append((VOLATILE_EXT,  [x,y]))
+            parts.append((VOLATILE_EXT,  [sym_x, sym_y]))
         else:
-            parts.append((VOLATILE_FACT, [x,y]))
+            parts.append((VOLATILE_FACT, [sym_x, sym_y]))
         return parts
 
     def get_shown(self):
@@ -465,8 +482,8 @@ class Solver:
     def ground_heuristic(self):
         self.ground([(HEURISTIC, [])], self)
 
-    def ground_holds(self, step):
-        self.ground([(DO_HOLDS, [step])], self)
+    def ground_holds(self, step: int):
+        self.ground([(DO_HOLDS, [clingo.Number(step)])], self)
 
     def ground_holds_delete_better(self):
         if not self.grounded_delete_better:
@@ -489,12 +506,12 @@ class Solver:
     def ground_unsatp_base(self):
         self.ground([(self.unsat_program_base, [])], self)
 
-    def handle_optimal_model(self, step, delete_model_volatile,
+    def handle_optimal_model(self, step: int, delete_model_volatile,
                              delete_worse, delete_better, volatile):
         if not delete_model_volatile:
             parts = [(DELETE_MODEL, [])]
         else:
-            parts = [(DELETE_MODEL_VOLATILE, [step])]
+            parts = [(DELETE_MODEL_VOLATILE, [clingo.Number(step)])]
         if delete_worse:
             parts += self.get_preference_parts(step, 0, False, volatile)
         # TODO: In base setting, use same preference program as for improving
@@ -634,7 +651,7 @@ class Solver:
         self.control.configuration.solve.models = 1
         self.store_holds, self.store_nholds, self.keep_shown = [True]*3
         if not self.set_holds_domain: # required to store_nholds
-            raise utils.FatalException() 
+            raise utils.FatalException()
         self.printer.do_print("Solving...")
         while True:
             result = self.solve(on_model=self.on_model_single)
@@ -764,7 +781,7 @@ class Solver:
 
     def assign_heuristic_externals(self, domain, atoms, external_name):
         for i in domain:
-            external = clingo.Function(external_name, [i])
+            external = clingo.Function(external_name, [as_symbol(i)])
             if i in atoms:
                 self.control.assign_external(external, True)
             else:
@@ -776,7 +793,7 @@ class Solver:
 
     def ground_open_preference_program(self):
         parts = self.get_preference_parts(0, -1, True, True)
-        parts.append((OPEN_HOLDS, [-1]))
+        parts.append((OPEN_HOLDS, [clingo.Number(-1)]))
         self.ground(parts, self)
 
     def turn_off_preference_program(self):
@@ -863,8 +880,8 @@ class Solver:
             parts = []
             for mm in range(1, len(self.approx_opt_models)):
                 m = mm + prev_opt_models
-                parts += [(DELETE_MODEL_APPROX, [mm]),
-                          (DO_HOLDS_APPROX,   [m,mm])]
+                parts += [(DELETE_MODEL_APPROX, [clingo.Number(mm)]),
+                          (DO_HOLDS_APPROX,   [clingo.Number(m), clingo.Number(mm)])]
                 if self.options.total_order and m>1:
                     continue
                 parts += self.get_preference_parts(m, 0, False, False)
@@ -1005,7 +1022,7 @@ class Solver:
         ]
         # if UNKNOWN, add delete better for last model (w/out unsat constraint)
         if result == UNKNOWN:
-            x, y  = MODEL_DELETE_BETTER, self.last_model
+            x, y  = MODEL_DELETE_BETTER, clingo.Number(self.last_model)
             parts = [(self.unsat_program, [x, y]), (VOLATILE_EXT,  [x,y])]
             self.ground(parts, self)
             #self.control.ground(parts, self)
