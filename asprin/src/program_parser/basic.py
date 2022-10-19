@@ -22,8 +22,8 @@
 # -*- coding: utf-8 -*-
 
 import clingo.ast
+from clingo.ast import ASTType
 from ..utils import utils
-from ..program_parser import transitive_closure
 from ..program_parser import visitor
 
 
@@ -152,12 +152,12 @@ class BasicProgramVisitor(visitor.Visitor):
     # Elements
     #
 
-    def visit_SymbolicAtom(self, atom):
-        if str(atom.term.type) == "Function":
-            if atom.term.name == HOLDSP and len(atom.term.arguments)==1:
+    def visit_SymbolicAtom(self, atom: clingo.ast.AST):
+        if atom.ast_type == ASTType.SymbolicAtom:
+            if atom.symbol.name == HOLDSP and len(atom.symbol.arguments) == 1:
                 string = ERROR_HOLDSP.format(self.type, str(atom))
                 self.helper.raise_exception(string)
-            self.__term_transformer.transform_function(atom.term)
+            self.__term_transformer.transform_function(atom.symbol)
 
     # csp literals are not accepted
     def visit_CSPLiteral(self,csp):

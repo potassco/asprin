@@ -22,6 +22,7 @@
 # -*- coding: utf-8 -*-
 
 import clingo.ast
+from clingo.ast import ASTType
 from ..utils import utils
 from ..program_parser import transitive_closure
 from ..program_parser import visitor
@@ -255,14 +256,14 @@ class PreferenceProgramVisitor(visitor.Visitor):
     # Statements
     #
 
-    def visit_Rule(self, rule):
+    def visit_Rule(self, rule: clingo.ast.AST):
         self.__statements.append(Statement("Rule", rule))
         # head
         self.in_Head = True
         # if empty head
-        if (str(rule.head.type) == "Literal"
-            and str(rule.head.atom.type) == "BooleanConstant"
-            and str(rule.head.atom.value == False)):
+        if (rule.head.ast_type == ASTType.Literal
+                and rule.head.atom.ast_type == ASTType.BooleanConstant
+                and rule.head.atom.value == False):
             # add unsat head
             atom = clingo.ast.SymbolicAtom(clingo.ast.Function(rule.location,
                    self.__helper.unsat,
@@ -347,12 +348,12 @@ class PreferenceProgramVisitor(visitor.Visitor):
         self.__add_volatile(edge.body, edge.location)
         return NONDET
 
-    def visit_Heuristic(self, heur):
+    def visit_Heuristic(self, heur: clingo.ast.AST):
         self.__statements.append(Statement("Heuristic", heur))
         self.__visit_body(heur.body)
         # head
-        term = heur.atom.term
-        if str(term.type) == "Function":
+        term = heur.atom.symbol
+        if term.ast_type == ASTType.Function:
             self.__graph.add_atom(term, False, False, False)
             self.__statements[-1].heur_atom = (term.name, len(term.arguments))
         # update graph
@@ -366,15 +367,15 @@ class PreferenceProgramVisitor(visitor.Visitor):
         # holds
         elif statement.heur_atom == HOLDS_KEY:
             if self.__is_nondet(statement, open_list):
-                atom = utils.HOLDS + "("+str(heur.atom.term.arguments[0])+")"
+                atom = utils.HOLDS + "("+str(heur.atom.symbol.arguments[0])+")"
                 string = ERROR_HOLDS_H.format(self.__type, atom)
                 self.__helper.raise_exception(string)
-            zero = clingo.ast.Symbol(heur.location, clingo.parse_term("0"))
-            heur.atom.term.arguments[1] = zero
+            zero = clingo.ast.SymbolicTerm(heur.location, clingo.Number(0))
+            heur.atom.symbol.arguments[1] = zero
             return DET
         # holds'
         elif statement.heur_atom == HOLDSP_KEY:
-            atom = utils.HOLDSP + "("+str(heur.atom.term.arguments[0])+")"
+            atom = utils.HOLDSP + "("+str(heur.atom.symbol.arguments[0])+")"
             string = ERROR_HOLDSP_H.format(self.__type, atom)
             self.__helper.raise_exception(string)
         # open and not holds[']
@@ -393,11 +394,10 @@ class PreferenceProgramVisitor(visitor.Visitor):
     # Elements
     #
 
-    def visit_Literal(self, lit):
-        atom_type = str(lit.atom.type)
+    def visit_Literal(self, lit: clingo.ast.AST):
         # if lit is a symbolic regular atom
-        if atom_type == "SymbolicAtom" and \
-           str(lit.atom.term.type) == "Function":
+        if (lit.atom.ast_type == ASTType.SymbolicAtom
+                and lit.atom.symbol.ast_type == ASTType.Function):
             # set flag
             flag = False
             if (self.in_Head and self.in_Literal_ConditionalLiteral) or \
@@ -409,14 +409,16 @@ class PreferenceProgramVisitor(visitor.Visitor):
                  not self.in_Literal_ConditionalLiteral))):
                 flag = True
             # update graph and statements list
-            term = lit.atom.term
+            term = lit.atom.symbol
             self.__graph.add_atom(term, self.in_Head, self.in_Body, flag)
             sig = (term.name, len(term.arguments))
             self.__statements[-1].preds.append(sig)
             if self.in_Condition:
                 self.__conditions[-1].preds.append(sig)
         # if list is a special Literal, visit the children
-        if atom_type not in ["Comparison", "BooleanConstant", "SymbolicAtom"]:
+        if lit.atom.ast_type not in [ASTType.Comparison,
+                                     ASTType.BooleanConstant,
+                                     ASTType.SymbolicAtom]:
             self.visit_children(lit)
 
     # csp literals are not accepted

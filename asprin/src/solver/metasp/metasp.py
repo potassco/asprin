@@ -27,6 +27,8 @@
 #
 
 import clingo
+import clingo.ast
+from clingo.ast import ASTType
 import re
 from . import metasp_programs
 from . import reify
@@ -119,36 +121,37 @@ ASPRIN_LIBRARY_PY = """
 #script(python)
 
 import math
+from clingo.symbol import Number
 
-def exp2(x):
-    return int(math.pow(2,x.number))
+def exp2(self, x: clingo.Symbol) -> clingo.Symbol:
+    return clingo.Number(int(math.pow(2, x.number)))
 
-def get(atuple, index):
+def get(self, atuple: clingo.Symbol, index: clingo.Symbol) -> clingo.Symbol:
     try:
         return atuple.arguments[index.number]
     except:
         return atuple
 
-def get_mode():
-    return 'normal'
+def get_mode(self) -> clingo.Symbol:
+    return clingo.String('normal')
 
 sequences = {}
-def get_sequence(name, elem):
+def get_sequence(self, name: clingo.Symbol, elem) -> clingo.Symbol:
     string = str(name)
     if string in sequences:
         sequences[string] += 1
     else:
         sequences[string]  = 1
-    return sequences[string]
+    return clingo.Number(sequences[string])
 
-def length(atuple):
+def length(self, atuple: clingo.Symbol) -> clingo.Symbol:
     try:
-        return len(atuple.arguments)
+        return clingo.Number(len(atuple.arguments))
     except:
-        return 1 
+        return clingo.Number(1)
 
-def log2up(x):
-    return int(math.ceil(math.log(x.number,2)))
+def log2up(self, x: clingo.Symbol) -> clingo.Symbol:
+    return clingo.Number(int(math.ceil(math.log(x.number, 2))))
 
 #end.
 """
@@ -284,10 +287,10 @@ class AbstractMetasp:
     # get_pref() (used by MetaspPython and MetaspBinary)
     #
 
-    def statement_to_str(self, statement):
-        if str(statement.type) == "Definition": # to avoid printing [default]
+    def statement_to_str(self, statement: clingo.ast.AST):
+        if statement.ast_type == ASTType.Definition: # to avoid printing [default]
             return "#const {}={}.".format(statement.name, statement.value)
-        elif str(statement.type) == "Program":
+        elif statement.ast_type == ASTType.Program:
             return "" # IMPORTANT: program statements are skipped
         return str(statement)
 

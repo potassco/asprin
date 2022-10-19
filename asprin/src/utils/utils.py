@@ -24,8 +24,7 @@
 import os
 import tempfile
 import re
-import sys
-import clingo
+import clingo.ast
 
 #
 # defines

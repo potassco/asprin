@@ -20,6 +20,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 # -*- coding: utf-8 -*-
+from typing import List, Sequence
 
 import clingo
 import clingo.ast
@@ -93,16 +94,15 @@ class Helper:
     def underscore(self,x):
         return self.underscores + x
 
-    def get_ems(self, loc, ems):
+    def get_ems(self, loc: clingo.ast.Location, ems: str) -> List[clingo.ast.AST]:
         if   ems == M1:
-            return [clingo.ast.Symbol(loc, self.simple_m1)]
+            return [clingo.ast.SymbolicTerm(loc, self.simple_m1)]
         elif ems == M2:
-            return [clingo.ast.Symbol(loc, self.simple_m2)]
+            return [clingo.ast.SymbolicTerm(loc, self.simple_m2)]
         elif ems == M1_M2:
-            return [clingo.ast.Symbol(loc, self.m1),
-                    clingo.ast.Symbol(loc, self.m2)]
+            return [clingo.ast.SymbolicTerm(loc, self.m1), clingo.ast.SymbolicTerm(loc, self.m2)]
         elif ems == ZERO:
-            return [clingo.ast.Symbol(loc, self.zero)]
+            return [clingo.ast.SymbolicTerm(loc, self.zero)]
         else:
             return []
 
@@ -129,14 +129,12 @@ class Visitor:
 
     def visit(self, x, *args, **kwargs):
         if isinstance(x, clingo.ast.AST):
-            attr = "visit_" + str(x.type)
+            attr = "visit_" + str(x.ast_type.name)
             if hasattr(self, attr):
-                setattr(x, "in_"+attr, True)  # added
                 getattr(self, attr)(x, *args, **kwargs)
-                setattr(x, "in_"+attr, False) # added
             else:
                 self.visit_children(x, *args, **kwargs)
-        elif isinstance(x, list):
+        elif isinstance(x, Sequence):
             for y in x:
                 self.visit(y, *args, **kwargs)
         elif x is None:
