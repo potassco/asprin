@@ -8,7 +8,7 @@
 Some preference types (`subset`, `pareto`...) are already defined in `asprin`'s library,
 but many more can be defined simply writing a logic program.
 
-For a formal description of `asprin`, please read our [paper](https://www.cs.uni-potsdam.de/wv/publications/DBLP_conf/aaai/BrewkaD0S15.pdf) ([bibtex](https://www.cs.uni-potsdam.de/wv/publications/DBLP_conf/aaai/BrewkaD0S15.html)).
+For a formal description of `asprin`, please read our [paper](https://www.cs.uni-potsdam.de/wv/publications/DBLP_conf/aaai/BrewkaD0S15.pdf) ([bibtex](https://www.cs.uni-potsdam.de/wv/publications/DBLP_conf/aaai/BrewkaD0S15.html)). All data about the experiments, including the source files, is available [here](https://github.com/potassco/asprin/releases/download/v3.0.1/benchmarks.zip).
 
 Starting with version 3, `asprin` is documented in the [Potassco guide](https://github.com/potassco/guide/releases/).
 Older versions are documented in the [Potassco guide on Sourceforge](https://sourceforge.net/projects/potassco/files/guide/).
