@@ -10,6 +10,8 @@ but many more can be defined simply writing a logic program.
 
 For a formal description of `asprin`, please read our [paper](https://www.cs.uni-potsdam.de/wv/publications/DBLP_conf/aaai/BrewkaD0S15.pdf) ([bibtex](https://www.cs.uni-potsdam.de/wv/publications/DBLP_conf/aaai/BrewkaD0S15.html)). All the data about the experiments, including the source files to run them, is available [here](https://github.com/potassco/asprin/releases/download/v1/benchmarks.zip).
 
+Some slides about `asprin`, presented at BTW'17, are available [here](https://github.com/potassco/asprin/releases/download/v1/asprin-slides-btw17.pdf).
+
 Starting with version 3, `asprin` is documented in the [Potassco guide](https://github.com/potassco/guide/releases/).
 Older versions are documented in the [Potassco guide on Sourceforge](https://sourceforge.net/projects/potassco/files/guide/).
 
