@@ -1,5 +1,5 @@
 HELP_1="""\
-clingo version 5.3.0
+clingo version 5.8.0
 usage: clingo [number] [options] [files]
 
 Clasp.Config Options:
@@ -51,6 +51,8 @@ Clasp.Solving Options:
         optN  : Find optimum, then enumerate optimal models
         ignore: Ignore optimize statements
       <bound> : Set initial bound for objective function(s)
+  --opt-stop=<bound>...   : Stop optimization on model with cost <= <bound> 
+
 
 Gringo Options:
 
@@ -83,7 +85,7 @@ clingo is part of Potassco: https://potassco.org/clingo
 Get help/report bugs via : https://potassco.org/support
 """
 HELP_2="""\
-clingo version 5.3.0
+clingo version 5.8.0
 usage: clingo [number] [options] [files]
 
 Clasp.Config Options:
@@ -189,6 +191,8 @@ Clasp.Solving Options:
         optN  : Find optimum, then enumerate optimal models
         ignore: Ignore optimize statements
       <bound> : Set initial bound for objective function(s)
+  --opt-stop=<bound>...   : Stop optimization on model with cost <= <bound> 
+
 
 Clasp.Search Options:
 
@@ -219,7 +223,10 @@ Clasp.Search Options:
           exp  : Exponential search until unsat
           min  : Linear search for subset minimal core
         <limit>: Limit solve calls to 2^<n> conflicts [10]
-  --opt-heuristic=<list>  : Use opt. in <list {sign|model}> heuristics
+  --opt-heuristic=<list>  : Enable optimization heuristic
+      <list>: {sign|model}
+        sign : Prefer signs minimizing objective
+        model: Assume literals minimizing objective after each model
   --[no-]restart-on-model : Restart after each model
 
   --lookahead[=<arg>|no]  : Configure failed-literal detection (fld)
@@ -272,15 +279,23 @@ Clasp.Lookback Options:
         no      : Do not learn loop formulas
 
   --restarts,-r <sched>|no: Configure restart policy
-      <sched>: <type {D|F|L|x|+}>,<n {1..umax}>[,<args>][,<lim>]
+      <sched>: <type {F|L|x|+}>,<n {1..umax}>[,<args>][,<lim>]
         F,<n>    : Run fixed sequence of <n> conflicts
         L,<n>    : Run Luby et al.'s sequence with unit length <n>
         x,<n>,<f>: Run geometric seq. of <n>*(<f>^i) conflicts  (<f> >= 1.0)
         +,<n>,<m>: Run arithmetic seq. of <n>+(<m>*i) conflicts (<m {0..umax}>)
-        ...,<lim>: Repeat seq. every <lim>+j restarts           (<type> != F)
-        D,<n>,<f>: Restart based on moving LBD average over last <n> conflicts
-                   Mavg(<n>,LBD)*<f> > avg(LBD)
-                   use conflict level average if <lim> > 0 and avg(LBD) > <lim>
+        ...,<lim>: Repeat sequence every <lim>+j restarts       (<type> != F)
+      <sched>: D,<n>,<K>[,<args>]: Dynamic restarts based on moving LBD average
+        <n>      : Fast moving average window size
+        <K>      : Fast margin (restart if fastAvg * <K> > slowAvg)
+        <L>      : LBD average limit                                [0 = none]
+        <f>      : Fast moving average type                         [d = SMA]
+          d      : Default
+          e|l    : EMA with alpha = 2/(<n>+1) or 1/log2(<n>)
+          es|ls  : e or l with exponentially decreasing alpha for first samples
+        <k>      : keep fast moving average on (r)estarts/(b)locks  [n = never]
+        <s>      : slow moving average type                         [d = CMA]
+        <w>      : slow moving average window size (<s> != d)       [200*<n>]
       no|0       : Disable restarts
   --[no-]local-restarts   : Use Ryvchin et al.'s local restarts
   --counter-restarts=<arg>: Use counter implication restarts
@@ -288,14 +303,15 @@ Clasp.Lookback Options:
       <rate>: Interval in number of restarts
       <bump>: Bump factor applied to indegrees
   --block-restarts=<arg>  : Use glucose-style blocking restarts
-      <arg>: <n>[,<R {1.0..5.0}>][,<c>]
+      <arg>: <n>[,<R {1.0..5.0}>][,<c>][,<a>]
         <n>: Window size for moving average (0=disable blocking)
         <R>: Block restart if assignment > average * <R>  [1.4]
         <c>: Disable blocking for the first <c> conflicts [10000]
+        <a>: Type of moving average (see restarts)        [e]
 
   --shuffle=<n1>,<n2>|no  : Shuffle problem after <n1>+(<n2>*i) restarts
 
-  --deletion,-d <arg>|no  : Configure deletion algorithm [basic,75,0]
+  --deletion,-d <arg>|no  : Configure deletion algorithm [basic,75,activity]
       <arg>: <algo>[,<n {1..100}>][,<sc>]
         <algo>: Use {basic|sort|ipSort|ipHeap} algorithm
         <n>   : Delete at most <n>% of nogoods on reduction    [75]
@@ -337,18 +353,22 @@ Gringo Options:
       translate: print translated rules as plain text (prefix %%)
       all      : combines text and translate
   --warn,-W <warn>        : Enable/disable warnings:
-      none:                     disable all warnings
-      all:                      enable all warnings
-      [no-]atom-undefined:      a :- b.
-      [no-]file-included:       #include "a.lp". #include "a.lp".
+      none                    : disable all warnings
+      all                     : enable all warnings
+      [no-]atom-undefined     : a :- b.
+      [no-]file-included      : #include "a.lp". #include "a.lp".
       [no-]operation-undefined: p(1/0).
-      [no-]variable-unbounded:  $x > 10.
-      [no-]global-variable:     :- #count { X } = 1, X = 1.
-      [no-]other:               clasp related and uncategorized warnings
+      [no-]global-variable    : :- #count { X } = 1, X = 1.
+      [no-]other              : uncategorized warnings
   --rewrite-minimize      : Rewrite minimize constraints into rules
-  --keep-facts            : Do not remove facts from normal rules
+  --preserve-facts=<arg>  : Preserve facts in output:
+      none  : do not preserve
+      body  : do not preserve
+      symtab: do not preserve
+      all   : preserve all facts
   --reify-sccs            : Calculate SCCs for reified output
   --reify-steps           : Add step numbers to reified output
+  --show-preds=<arg>      : Show the given signatures
 
 Basic Options:
 
@@ -374,8 +394,8 @@ Basic Options:
 usage: clingo [number] [options] [files]
 Default command-line:
 clingo --configuration=auto --share=auto --distribute=conflict,global,4 
-       --integrate=gp --enum-mode=auto --deletion=basic,75,0 --del-init=3.0 
-       --verbose=1 
+       --integrate=gp --enum-mode=auto --deletion=basic,75,activity 
+       --del-init=3.0 --verbose=1 
 [asp] --configuration=tweety
 [cnf] --configuration=trendy
 [opb] --configuration=trendy
@@ -386,7 +406,7 @@ clingo is part of Potassco: https://potassco.org/clingo
 Get help/report bugs via : https://potassco.org/support
 """
 HELP_3="""\
-clingo version 5.3.0
+clingo version 5.8.0
 usage: clingo [number] [options] [files]
 
 Clasp.Config Options:
@@ -494,6 +514,8 @@ Clasp.Solving Options:
         optN  : Find optimum, then enumerate optimal models
         ignore: Ignore optimize statements
       <bound> : Set initial bound for objective function(s)
+  --opt-stop=<bound>...   : Stop optimization on model with cost <= <bound> 
+
 
 Clasp.Search Options:
 
@@ -524,7 +546,10 @@ Clasp.Search Options:
           exp  : Exponential search until unsat
           min  : Linear search for subset minimal core
         <limit>: Limit solve calls to 2^<n> conflicts [10]
-  --opt-heuristic=<list>  : Use opt. in <list {sign|model}> heuristics
+  --opt-heuristic=<list>  : Enable optimization heuristic
+      <list>: {sign|model}
+        sign : Prefer signs minimizing objective
+        model: Assume literals minimizing objective after each model
   --[no-]restart-on-model : Restart after each model
 
   --lookahead[=<arg>|no]  : Configure failed-literal detection (fld)
@@ -605,15 +630,23 @@ Clasp.Lookback Options:
         no      : Do not learn loop formulas
 
   --restarts,-r <sched>|no: Configure restart policy
-      <sched>: <type {D|F|L|x|+}>,<n {1..umax}>[,<args>][,<lim>]
+      <sched>: <type {F|L|x|+}>,<n {1..umax}>[,<args>][,<lim>]
         F,<n>    : Run fixed sequence of <n> conflicts
         L,<n>    : Run Luby et al.'s sequence with unit length <n>
         x,<n>,<f>: Run geometric seq. of <n>*(<f>^i) conflicts  (<f> >= 1.0)
         +,<n>,<m>: Run arithmetic seq. of <n>+(<m>*i) conflicts (<m {0..umax}>)
-        ...,<lim>: Repeat seq. every <lim>+j restarts           (<type> != F)
-        D,<n>,<f>: Restart based on moving LBD average over last <n> conflicts
-                   Mavg(<n>,LBD)*<f> > avg(LBD)
-                   use conflict level average if <lim> > 0 and avg(LBD) > <lim>
+        ...,<lim>: Repeat sequence every <lim>+j restarts       (<type> != F)
+      <sched>: D,<n>,<K>[,<args>]: Dynamic restarts based on moving LBD average
+        <n>      : Fast moving average window size
+        <K>      : Fast margin (restart if fastAvg * <K> > slowAvg)
+        <L>      : LBD average limit                                [0 = none]
+        <f>      : Fast moving average type                         [d = SMA]
+          d      : Default
+          e|l    : EMA with alpha = 2/(<n>+1) or 1/log2(<n>)
+          es|ls  : e or l with exponentially decreasing alpha for first samples
+        <k>      : keep fast moving average on (r)estarts/(b)locks  [n = never]
+        <s>      : slow moving average type                         [d = CMA]
+        <w>      : slow moving average window size (<s> != d)       [200*<n>]
       no|0       : Disable restarts
   --reset-restarts=<arg>  : Update restart seq. on model {no|repeat|disable}
   --[no-]local-restarts   : Use Ryvchin et al.'s local restarts
@@ -622,14 +655,15 @@ Clasp.Lookback Options:
       <rate>: Interval in number of restarts
       <bump>: Bump factor applied to indegrees
   --block-restarts=<arg>  : Use glucose-style blocking restarts
-      <arg>: <n>[,<R {1.0..5.0}>][,<c>]
+      <arg>: <n>[,<R {1.0..5.0}>][,<c>][,<a>]
         <n>: Window size for moving average (0=disable blocking)
         <R>: Block restart if assignment > average * <R>  [1.4]
         <c>: Disable blocking for the first <c> conflicts [10000]
+        <a>: Type of moving average (see restarts)        [e]
 
   --shuffle=<n1>,<n2>|no  : Shuffle problem after <n1>+(<n2>*i) restarts
 
-  --deletion,-d <arg>|no  : Configure deletion algorithm [basic,75,0]
+  --deletion,-d <arg>|no  : Configure deletion algorithm [basic,75,activity]
       <arg>: <algo>[,<n {1..100}>][,<sc>]
         <algo>: Use {basic|sort|ipSort|ipHeap} algorithm
         <n>   : Delete at most <n>% of nogoods on reduction    [75]
@@ -671,18 +705,23 @@ Gringo Options:
       translate: print translated rules as plain text (prefix %%)
       all      : combines text and translate
   --warn,-W <warn>        : Enable/disable warnings:
-      none:                     disable all warnings
-      all:                      enable all warnings
-      [no-]atom-undefined:      a :- b.
-      [no-]file-included:       #include "a.lp". #include "a.lp".
+      none                    : disable all warnings
+      all                     : enable all warnings
+      [no-]atom-undefined     : a :- b.
+      [no-]file-included      : #include "a.lp". #include "a.lp".
       [no-]operation-undefined: p(1/0).
-      [no-]variable-unbounded:  $x > 10.
-      [no-]global-variable:     :- #count { X } = 1, X = 1.
-      [no-]other:               clasp related and uncategorized warnings
+      [no-]global-variable    : :- #count { X } = 1, X = 1.
+      [no-]other              : uncategorized warnings
   --rewrite-minimize      : Rewrite minimize constraints into rules
-  --keep-facts            : Do not remove facts from normal rules
+  --preserve-facts=<arg>  : Preserve facts in output:
+      none  : do not preserve
+      body  : do not preserve
+      symtab: do not preserve
+      all   : preserve all facts
   --reify-sccs            : Calculate SCCs for reified output
   --reify-steps           : Add step numbers to reified output
+  --show-preds=<arg>      : Show the given signatures
+  --single-shot           : Force single-shot solving mode
 
 Basic Options:
 
@@ -716,8 +755,8 @@ Basic Options:
 usage: clingo [number] [options] [files]
 Default command-line:
 clingo --configuration=auto --share=auto --distribute=conflict,global,4 
-       --integrate=gp --enum-mode=auto --deletion=basic,75,0 --del-init=3.0 
-       --verbose=1 
+       --integrate=gp --enum-mode=auto --deletion=basic,75,activity 
+       --del-init=3.0 --verbose=1 
 [asp] --configuration=tweety
 [cnf] --configuration=trendy
 [opb] --configuration=trendy
