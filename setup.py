@@ -27,6 +27,7 @@ setup(
     url = find_meta("url"),
     license = find_meta("license"),
     long_description = read("README.md"),
+    long_description_content_type = "text/markdown",
     install_requires=["clingo>=5.5.0"],
     classifiers=[
         'Development Status :: 3 - Alpha',
