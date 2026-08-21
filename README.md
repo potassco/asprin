@@ -42,6 +42,7 @@ For example, try with `--improve-limit 2,1000`.
 
 `asprin` can be installed with [pip](https://pip.pypa.io) via
 ```pip install asprin```. 
+
 For a local installation, add option ```--user```.
 In this case, setting environment variable `PYTHONUSERBASE` to `dir` before running `pip`, 
 `asprin` will be installed in `dir/bin/asprin`.
